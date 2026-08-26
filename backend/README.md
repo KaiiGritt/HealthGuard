@@ -1,25 +1,36 @@
 # HealthGuard AI — Backend (FastAPI)
 
-Three-tier backend: **Next.js → FastAPI → MySQL 8**. Rule-based bilingual NLP triage
+Three-tier backend: **Next.js → FastAPI → PostgreSQL/MySQL**. Rule-based bilingual NLP triage
 (NLTK + custom two-layer lexicon). The `scispaCy` biomedical layer is optional and dormant
 by default (no wheels for Python 3.14).
 
 ## One-time setup
 
-### 1. Install & start MySQL 8
-Install MySQL Community Server (MSI installer) or XAMPP, start the server, then create the DB:
+### 1. Choose a database
+
+For local development, the backend defaults to SQLite. For production, Supabase is
+recommended. In the Supabase dashboard, open **Connect**, choose the **Session pooler**
+and **SQLAlchemy**, then copy the URI.
+
+If you prefer a local database, install MySQL Community Server (MSI installer) or XAMPP,
+start the server, then create the DB:
 
 ```sql
 CREATE DATABASE healthguard CHARACTER SET utf8mb4;
 ```
 
 ### 2. Configure the connection
-Copy `.env.example` to `.env` and set your credentials:
+Copy `.env.example` to `.env` and set your credentials. For Supabase, use the URI copied
+from the dashboard, for example:
 
 ```
-DATABASE_URL=mysql+pymysql://root:YOUR_PASSWORD@localhost:3306/healthguard
+DATABASE_URL=postgresql+psycopg://postgres.PROJECT_REF:YOUR_PASSWORD@aws-0-REGION.pooler.supabase.com:5432/postgres?sslmode=require
 CORS_ORIGINS=http://localhost:3000
 ```
+
+Keep the password URL-encoded if it contains characters such as `@`, `:`, `/`, or `#`.
+The backend creates its tables and seeds the lexicon on startup. Existing SQLite data is
+not copied automatically; export/import it separately if needed.
 
 ### 3. Python environment
 ```bash
