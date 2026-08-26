@@ -8,7 +8,7 @@ const STEPS = [
   {
     n: "01",
     title: "Describe how you feel",
-    body: "Type in English or Tagalog, or tap the symptoms that match. No account, no forms to fill first.",
+    body: "Type in English or Tagalog, or tap the symptoms that match after signing in.",
   },
   {
     n: "02",
@@ -122,12 +122,12 @@ export default function Home() {
               </p>
               <div className="mt-9 flex flex-wrap items-center gap-4">
                 <Link
-                  href="/assessment"
+                  href="/login?next=/assessment"
                   className="inline-flex min-h-16 items-center justify-center rounded-sm bg-brand px-10 text-xl font-medium text-brand-foreground transition hover:bg-brand-dark lg:min-h-[4.5rem] lg:px-12 lg:text-2xl"
                 >
-                  Start assessment
+                  Log in to start
                 </Link>
-                <span className="text-base text-ink-muted lg:text-lg">Takes about 2 minutes · no sign-up</span>
+                <span className="text-base text-ink-muted lg:text-lg">Sign in first to save your health history</span>
               </div>
             </div>
             <TriageTag />

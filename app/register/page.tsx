@@ -59,6 +59,10 @@ export default function RegisterPage() {
       setError("Password must be at least 8 characters.");
       return;
     }
+    if (!form.barangay) {
+      setError("Please select your barangay.");
+      return;
+    }
 
     setSubmitting(true);
     setError(null);
@@ -216,7 +220,7 @@ export default function RegisterPage() {
         )}
 
         <fieldset className="rounded-2xl border border-border bg-white/60 px-4 pb-4 pt-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
-          <legend className="px-1 text-xs font-medium uppercase tracking-wider text-ink-faint">Optional profile details</legend>
+          <legend className="px-1 text-xs font-medium uppercase tracking-wider text-ink-faint">Profile details</legend>
 
           <div className="mt-3 grid gap-4 sm:grid-cols-2">
             <div>
@@ -258,7 +262,7 @@ export default function RegisterPage() {
               Barangay
             </label>
             <div className="relative mt-1.5">
-              <select id="barangay" value={form.barangay} onChange={set("barangay")} className={authSelectClass}>
+              <select id="barangay" required value={form.barangay} onChange={set("barangay")} className={authSelectClass}>
                 <option value="">Select barangay</option>
                 {irosinBarangays.map((barangay) => (
                   <option key={barangay} value={barangay}>

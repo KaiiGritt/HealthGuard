@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { getHistory } from "@/lib/api";
+import { getHistory, getMe } from "@/lib/api";
+import { redirect } from "next/navigation";
 import {
   Card,
   ErrorAlert,
@@ -11,6 +12,10 @@ import {
 import PageHeader from "../components/PageHeader";
 
 export default async function HistoryPage() {
+  const user = await getMe();
+  if (!user) redirect("/login?next=/history");
+  if (user.role !== "resident") redirect(user.role === "admin" ? "/admin" : "/dashboard");
+
   let rows;
   try {
     rows = await getHistory();

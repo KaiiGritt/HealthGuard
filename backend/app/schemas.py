@@ -228,7 +228,7 @@ class RegisterRequest(BaseModel):
     password: str = Field(min_length=8, max_length=128)
     age: int | None = Field(default=None, ge=0, le=150)
     sex: str | None = Field(default=None, max_length=16)
-    barangay: str | None = Field(default=None, max_length=96)
+    barangay: str = Field(min_length=1, max_length=96)
 
 
 class RegisterResponse(BaseModel):

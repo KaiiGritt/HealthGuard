@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { analyze } from "@/lib/api";
+import { analyze, getMe } from "@/lib/api";
 import {
   Card,
   ErrorAlert,
@@ -43,14 +43,33 @@ export default function AssessmentPage() {
   const [duration, setDuration] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [authChecking, setAuthChecking] = useState(true);
+  const [processingStep, setProcessingStep] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    getMe().then((user) => {
+      if (!active) return;
+      if (!user) {
+        router.replace("/login?next=/assessment");
+        return;
+      }
+      if (user.role !== "resident") {
+        router.replace(user.role === "admin" ? "/admin" : "/dashboard");
+        return;
+      }
+      setAuthChecking(false);
+    });
+    return () => {
+      active = false;
+    };
+  }, [router]);
 
   useEffect(() => {
     if (!submitting) return;
     const timer = window.setInterval(() => setProcessingStep((step) => Math.min(step + 1, 2)), 1800);
     return () => window.clearInterval(timer);
   }, [submitting]);
-
-  const [processingStep, setProcessingStep] = useState(0);
 
   const toggle = (value: string) =>
     setSelected((prev) =>
@@ -59,6 +78,8 @@ export default function AssessmentPage() {
 
   const canSubmit = text.trim().length > 0 || selected.length > 0;
   const showUrgentNudge = selected.some((s) => URGENT_NUDGE_SYMPTOMS.has(s));
+
+  if (authChecking) return null;
 
   async function handleSubmit() {
     if (!canSubmit || submitting) return;
