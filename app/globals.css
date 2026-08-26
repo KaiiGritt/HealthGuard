@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* HealthGuard AI — unified rural health-record design system */
+/* HealthGuard — unified rural health-record design system */
 @theme inline {
   --font-sans: var(--font-body), "Segoe UI", system-ui, sans-serif;
   --font-display: "Georgia", serif;

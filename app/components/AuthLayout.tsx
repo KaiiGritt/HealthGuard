@@ -94,7 +94,7 @@ export default function AuthLayout({ children, title, subtitle, footer, step }: 
         </div>
 
         <footer className="hidden border-t border-border px-8 py-4 text-center text-xs text-ink-faint lg:block">
-          HealthGuard AI is a decision-support tool — not a substitute for professional medical care.
+          HealthGuard is a decision-support tool — not a substitute for professional medical care.
         </footer>
       </main>
     </div>

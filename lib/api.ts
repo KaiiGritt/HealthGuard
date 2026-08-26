@@ -144,6 +144,9 @@ export interface AdminModuleLexiconEntry {
   medical_term: string;
   severity_weight: number;
   category: string;
+  reviewed: boolean;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
 }
 
 export interface AdminRuleItem {
@@ -288,6 +291,16 @@ export function createLexiconEntry(payload: {
     method: "POST",
     body: JSON.stringify(payload),
   });
+}
+
+export function markLexiconReviewed(lexiconId: number): Promise<AdminModuleLexiconEntry> {
+  return request<AdminModuleLexiconEntry>(`/assessment/admin/lexicon/${lexiconId}/review`, {
+    method: "PATCH",
+  });
+}
+
+export function getMhoLexicon(): Promise<AdminModuleLexiconEntry[]> {
+  return request<AdminModuleLexiconEntry[]>("/assessment/mho/lexicon");
 }
 // --- Auth ---
 

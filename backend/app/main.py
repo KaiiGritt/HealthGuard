@@ -1,4 +1,4 @@
-"""HealthGuard AI — FastAPI application entrypoint.
+"""HealthGuard — FastAPI application entrypoint.
 
 On startup: ensures NLTK data is present, creates tables, and seeds the lexicon.
 Run from the backend/ directory:  uvicorn app.main:app --reload --port 8000
@@ -11,7 +11,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
-from .database import Base, SessionLocal, engine, migrate_email_verification_schema
+from .database import Base, SessionLocal, engine, migrate_email_verification_schema, migrate_lexicon_review_schema
 from .nlp import scispacy_adapter
 from .routers import assessment, auth
 from .seed import seed_admin, seed_lexicon, seed_mho
@@ -37,6 +37,7 @@ async def lifespan(app: FastAPI):
     _ensure_nltk()
     Base.metadata.create_all(bind=engine)
     migrate_email_verification_schema()
+    migrate_lexicon_review_schema()
     with SessionLocal() as db:
         inserted = seed_lexicon(db)
         admin_created = seed_admin(db)
@@ -52,7 +53,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="HealthGuard AI API", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="HealthGuard API", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

@@ -105,7 +105,7 @@ function LoginForm() {
       </form>
 
       <p className="mt-6 text-center text-xs leading-relaxed text-ink-faint">
-        By signing in, you agree to use HealthGuard AI as a decision-support tool only — not as a medical diagnosis.
+        By signing in, you agree to use HealthGuard as a decision-support tool only — not as a medical diagnosis.
       </p>
     </AuthLayout>
   );

@@ -21,7 +21,7 @@ const ibmPlexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "HealthGuard AI — Bilingual Health Risk Assessment",
+  title: "HealthGuard — Bilingual Health Risk Assessment",
   description:
     "A bilingual (English/Tagalog) health risk assessment for rural communities. " +
     "Describe your symptoms and get a clear urgency guide. Not a medical diagnosis.",

@@ -81,7 +81,7 @@ export default function PageHeader() {
             H
           </span>
           <span className="text-lg font-medium text-[#182619] lg:text-xl" style={{ fontFamily: "var(--font-display)" }}>
-            HealthGuard <em className="not-italic text-[#2F6B4F]">AI</em>
+            HealthGuard
           </span>
         </Link>
 

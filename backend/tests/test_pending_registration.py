@@ -27,6 +27,7 @@ class PendingRegistrationTests(unittest.TestCase):
             full_name="Jane Resident",
             email="jane@example.com",
             password="password123",
+            barangay="Monbon",
         )
 
         with patch.object(auth_router, "_require_smtp"), patch.object(auth_router, "_send_verification_email"):

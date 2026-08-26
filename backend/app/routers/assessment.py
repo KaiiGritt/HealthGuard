@@ -225,7 +225,7 @@ def _reference_guides() -> list[DashboardReferenceItem]:
         ),
         DashboardReferenceItem(
             title="Export & integration",
-            detail="CSV export and SMS follow-up hooks are planned for a future release of HealthGuard AI.",
+            detail="CSV export and SMS follow-up hooks are planned for a future release of HealthGuard.",
             status="Coming soon",
         ),
     ]
@@ -409,6 +409,9 @@ def admin_modules(
                 medical_term=row.medical_term,
                 severity_weight=row.severity_weight,
                 category=row.category,
+                reviewed=row.reviewed,
+                reviewed_by=row.reviewed_by,
+                reviewed_at=row.reviewed_at,
             )
             for row in lexicon_rows
         ],
@@ -504,6 +507,42 @@ def create_lexicon_entry(
         medical_term=entry.medical_term,
         severity_weight=entry.severity_weight,
         category=entry.category,
+        reviewed=entry.reviewed,
+        reviewed_by=entry.reviewed_by,
+        reviewed_at=entry.reviewed_at,
+    )
+
+
+@router.patch("/admin/lexicon/{lexicon_id}/review", response_model=AdminLexiconItem)
+def review_lexicon_entry(
+    lexicon_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("mho")),
+) -> SymptomLexicon:
+    entry = db.get(SymptomLexicon, lexicon_id)
+    if entry is None:
+        raise HTTPException(status_code=404, detail="Lexicon entry not found.")
+    entry.reviewed = True
+    entry.reviewed_by = user.email
+    entry.reviewed_at = _utc_now()
+    db.commit()
+    db.refresh(entry)
+    return entry
+
+
+@router.get("/mho/lexicon", response_model=list[AdminLexiconItem])
+def mho_lexicon(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("mho")),
+) -> list[SymptomLexicon]:
+    return list(
+        db.execute(
+            select(SymptomLexicon).order_by(
+                SymptomLexicon.reviewed,
+                SymptomLexicon.category,
+                SymptomLexicon.medical_term,
+            )
+        ).scalars().all()
     )
 
 

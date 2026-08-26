@@ -173,6 +173,9 @@ class AdminLexiconItem(BaseModel):
     medical_term: str
     severity_weight: int
     category: str
+    reviewed: bool = False
+    reviewed_by: str | None = None
+    reviewed_at: datetime | None = None
 
 
 class AdminRuleItem(BaseModel):

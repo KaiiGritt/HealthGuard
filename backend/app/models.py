@@ -82,6 +82,9 @@ class SymptomLexicon(Base):
     severity_weight: Mapped[int] = mapped_column(Integer, default=1)
     # Grouping, e.g. "respiratory", "gastrointestinal", "general".
     category: Mapped[str] = mapped_column(String(64), default="general")
+    reviewed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    reviewed_by: Mapped[str | None] = mapped_column(String(191), nullable=True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class Assessment(Base):

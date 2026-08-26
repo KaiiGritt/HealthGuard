@@ -27,7 +27,7 @@ def _from_header() -> str:
 
 def _build_login_alert_message(email: str, ip_address: str | None = None) -> EmailMessage:
     msg = EmailMessage()
-    msg["Subject"] = "HealthGuard AI — Login alert"
+    msg["Subject"] = "HealthGuard — Login alert"
     msg["From"] = _from_header()
     msg["To"] = email
     msg.set_content(login_alert_email_text(email, ip_address))
@@ -43,7 +43,7 @@ def send_login_alert(email: str, ip_address: str | None = None) -> EmailMessage:
 def send_verification_code(email: str, code: str) -> EmailMessage:
     """Build a branded verification email containing a one-time code."""
     msg = EmailMessage()
-    msg["Subject"] = "HealthGuard AI — Verify your account"
+    msg["Subject"] = "HealthGuard — Verify your account"
     msg["From"] = _from_header()
     msg["To"] = email
     msg.set_content(verification_email_text(code))
@@ -53,7 +53,7 @@ def send_verification_code(email: str, code: str) -> EmailMessage:
 
 def send_password_reset_code(email: str, code: str) -> EmailMessage:
     msg = EmailMessage()
-    msg["Subject"] = "HealthGuard AI — Reset your password"
+    msg["Subject"] = "HealthGuard — Reset your password"
     msg["From"] = _from_header()
     msg["To"] = email
     msg.set_content(password_reset_email_text(code))

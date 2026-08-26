@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     )
     smtp_from_email: str = Field(default="", validation_alias=AliasChoices("SMTP_FROM_EMAIL", "smtp_from_email"))
     smtp_from_name: str = Field(
-        default="HealthGuard AI",
+        default="HealthGuard",
         validation_alias=AliasChoices("SMTP_FROM_NAME", "smtp_from_name"),
     )
     resend_api_key: str = Field(default="", validation_alias=AliasChoices("RESEND_API_KEY", "resend_api_key"))

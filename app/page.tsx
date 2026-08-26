@@ -167,7 +167,7 @@ export default function Home() {
       </main>
 
       <footer className="border-t border-border bg-surface py-6 text-center text-sm text-ink-muted lg:py-8 lg:text-base">
-        HealthGuard AI — a health decision-support tool. Not a substitute for professional care.
+        HealthGuard — a health decision-support tool. Not a substitute for professional care.
       </footer>
     </>
   );

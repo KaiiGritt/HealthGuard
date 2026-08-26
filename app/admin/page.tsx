@@ -17,7 +17,13 @@ import {
 } from "@/app/components/ui/primitives";
 import { createLexiconEntry, getAdminModules, getAdminSummary, getMe, updateUserRole, updateUserStatus } from "@/lib/api";
 
-const adminNav = ["Overview", "Users", "Lexicon", "Triage rules", "Settings"];
+const adminNav = [
+  { id: "overview", label: "Overview" },
+  { id: "users", label: "Users" },
+  { id: "lexicon", label: "Lexicon" },
+  { id: "rules", label: "Triage rules" },
+  { id: "settings", label: "Settings" },
+] as const;
 
 type UserRole = "resident" | "mho" | "admin";
 
@@ -38,6 +44,9 @@ type AdminPageState = {
     medical_term: string;
     severity_weight: number;
     category: string;
+    reviewed: boolean;
+    reviewed_by: string | null;
+    reviewed_at: string | null;
   }>;
   triage_rules: Array<{
     name: string;
@@ -59,8 +68,15 @@ export default function AdminPage() {
   const [lexiconQuery, setLexiconQuery] = useState("");
   const [rulePreview, setRulePreview] = useState("difficulty breathing and cough");
   const [pendingAction, setPendingAction] = useState<number | null>(null);
+  const [confirmingDeactivate, setConfirmingDeactivate] = useState<number | null>(null);
+  const [activeSection, setActiveSection] = useState("overview");
   const [newLexicon, setNewLexicon] = useState({ local_term: "", medical_term: "", language: "en", category: "general", severity_weight: 1 });
   const [toast, setToast] = useState<{ message: string; tone: "success" | "error" } | null>(null);
+
+  function goToSection(id: string) {
+    setActiveSection(id);
+    document.getElementById(`admin-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
   function generateReport() {
     if (!modules) return;
@@ -150,6 +166,7 @@ export default function AdminPage() {
         .includes(query);
     });
   }, [modules, lexiconQuery]);
+  const pendingReviewCount = modules?.lexicon_entries.filter((entry) => !entry.reviewed).length ?? 0;
 
   const rulePreviewMatches = useMemo(() => {
     if (!modules) return [];
@@ -161,6 +178,11 @@ export default function AdminPage() {
   }, [modules, rulePreview]);
 
   const handleToggleUserStatus = async (userId: number, nextStatus: boolean) => {
+    if (!nextStatus && confirmingDeactivate !== userId) {
+      setConfirmingDeactivate(userId);
+      return;
+    }
+    setConfirmingDeactivate(null);
     setPendingAction(userId);
     try {
       await updateUserStatus(userId, nextStatus);
@@ -172,6 +194,7 @@ export default function AdminPage() {
       setPendingAction(null);
     }
   };
+
 
   const handleRoleChange = async (userId: number, nextRole: string) => {
     setPendingAction(userId);
@@ -206,6 +229,7 @@ export default function AdminPage() {
       setToast({ message: "Could not add lexicon term.", tone: "error" });
     }
   };
+
 
   if (loading) {
     return (
@@ -262,15 +286,16 @@ export default function AdminPage() {
             <nav className="mt-4 space-y-2">
               {adminNav.map((item, index) => (
                 <button
-                  key={item}
+                  key={item.id}
                   type="button"
+                  onClick={() => goToSection(item.id)}
                   className={`flex w-full items-center justify-between rounded-sm border px-3 py-2.5 text-left text-sm font-medium transition ${
-                    index === 0
+                    activeSection === item.id
                       ? "border-brand/30 bg-brand/10 text-brand-dark"
                       : "border-transparent bg-transparent text-ink-secondary hover:border-border hover:bg-surface"
                   }`}
                 >
-                  <span>{item}</span>
+                  <span>{item.label}</span>
                   <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-muted">0{index + 1}</span>
                 </button>
               ))}
@@ -278,13 +303,13 @@ export default function AdminPage() {
           </aside>
 
           <div className="space-y-6">
-            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <section id="admin-overview" className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               {stats?.summary_cards.map((card) => (
                 <StatCard key={card.label} label={card.label} value={card.value} hint={card.hint} />
               ))}
             </section>
 
-            <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+            <section id="admin-users" className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
               <Panel title="User account management" badge={<TagBadge tone="neutral">Admins and staff</TagBadge>}>
                 <div className="mb-4 grid gap-3 sm:grid-cols-2">
                   <select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)} className="min-h-11 rounded-sm border border-border bg-surface px-3 text-sm text-ink">
@@ -329,16 +354,25 @@ export default function AdminPage() {
                             <option value="mho">MHO</option>
                             <option value="admin">Admin</option>
                           </select>
-                          <button
-                            type="button"
-                            onClick={() => void handleToggleUserStatus(entry.id, !entry.is_active)}
-                            disabled={pendingAction === entry.id}
-                            className={`rounded-sm border px-3 py-2 font-medium ${
-                              entry.is_active ? "border-border bg-white text-ink-secondary" : "border-brand/30 bg-brand/10 text-brand-dark"
-                            }`}
-                          >
-                            {pendingAction === entry.id ? "Saving..." : entry.is_active ? "Deactivate" : "Activate"}
-                          </button>
+                          {entry.is_active && confirmingDeactivate === entry.id ? (
+                            <div className="flex items-center gap-2">
+                              <button type="button" onClick={() => void handleToggleUserStatus(entry.id, false)} disabled={pendingAction === entry.id} className="rounded-sm border border-red-200 bg-red-tint px-3 py-2 font-medium text-emergency-red">
+                                {pendingAction === entry.id ? "Saving..." : "Confirm deactivate"}
+                              </button>
+                              <button type="button" onClick={() => setConfirmingDeactivate(null)} className="rounded-sm border border-border bg-white px-3 py-2 font-medium text-ink-secondary">Cancel</button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => void handleToggleUserStatus(entry.id, !entry.is_active)}
+                              disabled={pendingAction === entry.id}
+                              className={`rounded-sm border px-3 py-2 font-medium ${
+                                entry.is_active ? "border-border bg-white text-ink-secondary" : "border-brand/30 bg-brand/10 text-brand-dark"
+                              }`}
+                            >
+                              {pendingAction === entry.id ? "Saving..." : entry.is_active ? "Deactivate" : "Activate"}
+                            </button>
+                          )}
                         </div>
                       </ListRow>
                     ))
@@ -365,7 +399,7 @@ export default function AdminPage() {
               </Panel>
             </section>
 
-            <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+            <section id="admin-lexicon" className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
               <Panel title="Bilingual symptom lexicon" badge={<TagBadge>Layer 1 & 2</TagBadge>}>
                 <div className="mb-4">
                   <input
@@ -408,46 +442,17 @@ export default function AdminPage() {
                     Add term
                   </button>
                 </div>
-                <div className="grid gap-5 lg:grid-cols-2">
-                  <section className="min-w-0 overflow-hidden rounded-md border border-brand/30 bg-brand/5">
-                    <div className="flex items-center justify-between gap-3 border-b border-brand/20 px-4 py-4">
-                      <div>
-                        <h3 className="font-display text-xl text-ink">SPECIALIST</h3>
-                        <p className="mt-1 text-xs text-ink-muted">Reference normalization records</p>
-                      </div>
-                      <TagBadge tone="neutral">{filteredLexicon.length} records</TagBadge>
-                    </div>
-                    {filteredLexicon.length > 0 ? (
-                      <div className="max-h-[32rem] overflow-auto">
-                        <table className="w-full min-w-[420px] text-left text-sm">
-                          <thead className="sticky top-0 bg-brand/10 text-xs uppercase tracking-wide text-ink-muted">
-                            <tr>
-                              <th className="px-4 py-3 font-medium">Medical term</th>
-                              <th className="px-4 py-3 font-medium">Local term</th>
-                              <th className="px-4 py-3 font-medium">Language</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-brand/10">
-                            {filteredLexicon.map((entry) => (
-                              <tr key={entry.id} className="bg-white/70 hover:bg-white">
-                                <td className="px-4 py-3 font-medium text-ink">{entry.medical_term}</td>
-                                <td className="px-4 py-3 text-ink-secondary">{entry.local_term}</td>
-                                <td className="px-4 py-3"><TagBadge tone="neutral">{entry.language}</TagBadge></td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : <p className="p-5 text-sm text-ink-muted">No specialist entries match this search.</p>}
-                  </section>
-
-                  <section className="min-w-0 overflow-hidden rounded-md border border-border bg-surface">
+                <div>
+                  <section id="admin-custom-lexicon" className="min-w-0 overflow-hidden rounded-md border border-border bg-surface">
                     <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-4">
                       <div>
                         <h3 className="font-display text-xl text-ink">Custom bilingual layer</h3>
                         <p className="mt-1 text-xs text-ink-muted">Terms available for review and editing</p>
                       </div>
-                      <TagBadge>Editable</TagBadge>
+                      <div className="flex items-center gap-2">
+                        <TagBadge>{filteredLexicon.length} records</TagBadge>
+                        {pendingReviewCount > 0 ? <TagBadge tone="staff">{pendingReviewCount} pending review</TagBadge> : null}
+                      </div>
                     </div>
                     {filteredLexicon.length > 0 ? (
                       <div className="max-h-[32rem] overflow-auto">
@@ -469,7 +474,9 @@ export default function AdminPage() {
                                 </td>
                                 <td className="px-4 py-3 text-ink-secondary">{entry.medical_term}</td>
                                 <td className="px-4 py-3 text-ink-secondary">{entry.severity_weight}</td>
-                                <td className="px-4 py-3 text-xs text-ink-muted">{entry.language === "en" ? "Reviewed by MHO" : "Pending review"}</td>
+                                <td className="px-4 py-3 text-xs text-ink-muted">
+                                  {entry.reviewed ? <span className="text-brand-dark">Reviewed by {entry.reviewed_by ?? "MHO"}</span> : "Pending review"}
+                                </td>
                               </tr>
                             ))}
                           </tbody>
@@ -496,7 +503,7 @@ export default function AdminPage() {
               </Panel>
             </section>
 
-            <section className="rounded-md border border-border bg-card p-5">
+            <section id="admin-rules" className="rounded-md border border-border bg-card p-5">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="font-display text-lg text-ink">Rule preview</h2>
                 <TagBadge>Transparent logic</TagBadge>
@@ -526,7 +533,7 @@ export default function AdminPage() {
               </div>
             </section>
 
-            <section className="rounded-md border border-border bg-card p-5">
+            <section id="admin-settings" className="rounded-md border border-border bg-card p-5">
               <div className="flex items-center justify-between">
                 <h2 className="font-display text-lg text-ink">Data privacy and security</h2>
                 <TagBadge>RA 10173 aligned</TagBadge>
