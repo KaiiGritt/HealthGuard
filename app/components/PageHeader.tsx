@@ -143,7 +143,7 @@ export default function PageHeader() {
                   Log out
                 </button>
               </>
-            ) : loaded ? (
+            ) : (
               <>
                 <Link href="/login" className={linkClass("/login")}>
                   <IconWrapper>
@@ -165,7 +165,7 @@ export default function PageHeader() {
                   Sign up
                 </Link>
               </>
-            ) : null}
+            )}
           </nav>
 
           <button
@@ -241,7 +241,7 @@ export default function PageHeader() {
                   Log out
                 </button>
               </>
-            ) : loaded ? (
+            ) : (
               <>
                 <Link href="/login" className={linkClass("/login")}>
                   <IconWrapper>
@@ -263,7 +263,7 @@ export default function PageHeader() {
                   Sign up
                 </Link>
               </>
-            ) : null}
+            )}
           </div>
         </div>
       )}

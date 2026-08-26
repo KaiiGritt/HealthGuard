@@ -105,21 +105,22 @@ def migrate_email_verification_schema() -> None:
                 conn.execute(text(f"ALTER TABLE email_verifications ADD COLUMN {column} {ddl}"))
 
 
-    def migrate_lexicon_review_schema() -> None:
-        """Add review metadata to existing lexicon tables without losing entries."""
-        from sqlalchemy import inspect, text
 
-        insp = inspect(engine)
-        if "symptom_lexicon" not in insp.get_table_names():
-            return
+def migrate_lexicon_review_schema() -> None:
+    """Add review metadata to existing lexicon tables without losing entries."""
+    from sqlalchemy import inspect, text
 
-        cols = {c["name"] for c in insp.get_columns("symptom_lexicon")}
-        alters = {
-            "reviewed": "BOOLEAN NOT NULL DEFAULT FALSE",
-            "reviewed_by": "VARCHAR(191)",
-            "reviewed_at": "TIMESTAMP",
-        }
-        with engine.begin() as conn:
-            for column, ddl in alters.items():
-                if column not in cols:
-                    conn.execute(text(f"ALTER TABLE symptom_lexicon ADD COLUMN {column} {ddl}"))
+    insp = inspect(engine)
+    if "symptom_lexicon" not in insp.get_table_names():
+        return
+
+    cols = {c["name"] for c in insp.get_columns("symptom_lexicon")}
+    alters = {
+        "reviewed": "BOOLEAN NOT NULL DEFAULT FALSE",
+        "reviewed_by": "VARCHAR(191)",
+        "reviewed_at": "TIMESTAMP",
+    }
+    with engine.begin() as conn:
+        for column, ddl in alters.items():
+            if column not in cols:
+                conn.execute(text(f"ALTER TABLE symptom_lexicon ADD COLUMN {column} {ddl}"))
