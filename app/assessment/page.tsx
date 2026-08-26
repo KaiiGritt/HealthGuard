@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { analyze } from "@/lib/api";
 import {
   Card,
@@ -44,6 +44,14 @@ export default function AssessmentPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!submitting) return;
+    const timer = window.setInterval(() => setProcessingStep((step) => Math.min(step + 1, 2)), 1800);
+    return () => window.clearInterval(timer);
+  }, [submitting]);
+
+  const [processingStep, setProcessingStep] = useState(0);
+
   const toggle = (value: string) =>
     setSelected((prev) =>
       prev.includes(value) ? prev.filter((x) => x !== value) : [...prev, value]
@@ -83,6 +91,29 @@ export default function AssessmentPage() {
       <PageHeader />
       <PageMain narrow>
         <Card>
+          {submitting ? (
+            <div className="py-8 sm:py-12" aria-live="polite">
+              <p className="font-mono text-xs font-semibold uppercase tracking-[0.1em] text-brand">HealthGuard check</p>
+              <h1 className="mt-4 font-display text-4xl font-semibold leading-tight text-ink sm:text-5xl">Reading your symptoms</h1>
+              <p className="mt-4 max-w-2xl text-lg leading-relaxed text-ink-secondary">
+                We are checking your words against the health guide. This usually takes a few seconds.
+              </p>
+              <ol className="mt-10 space-y-4">
+                {["Reading your symptoms...", "Checking against health guidelines...", "Preparing your next step..."].map((step, index) => (
+                  <li key={step} className="flex items-center gap-4 text-base text-ink-secondary lg:text-lg">
+                    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-mono text-sm ${index <= processingStep ? "bg-brand text-brand-foreground" : "border border-border text-ink-faint"}`}>
+                      {index < processingStep ? "✓" : index + 1}
+                    </span>
+                    <span className={index === processingStep ? "font-semibold text-ink" : ""}>{step}</span>
+                  </li>
+                ))}
+              </ol>
+              <div className="mt-10 h-1.5 overflow-hidden rounded-full bg-brand-tint">
+                <div className="h-full w-1/3 animate-pulse rounded-full bg-brand" />
+              </div>
+            </div>
+          ) : (
+            <>
           <PageTitle
             subtitle="Describe your symptoms in English or Tagalog, or tap the ones that apply."
           >
@@ -141,6 +172,8 @@ export default function AssessmentPage() {
           </button>
 
           <Disclaimer className="mt-6" />
+            </>
+          )}
         </Card>
       </PageMain>
     </>

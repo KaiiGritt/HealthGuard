@@ -13,9 +13,9 @@ import PageHeader from "../../components/PageHeader";
 import RiskCard from "../../components/RiskCard";
 
 const MESSAGES: Record<string, string> = {
-  GREEN: "Your symptoms appear mild. Continue monitoring your condition.",
-  YELLOW: "You may need a consultation.",
-  RED: "Seek immediate medical attention.",
+  GREEN: "Your symptoms appear mild. / Mukhang banayad ang iyong mga sintomas.",
+  YELLOW: "You may need a consultation. / Maaaring kailangan mong kumonsulta.",
+  RED: "Go to the nearest hospital now. / Pumunta agad sa pinakamalapit na ospital.",
 };
 
 export default async function ResultPage({

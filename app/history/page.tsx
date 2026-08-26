@@ -37,7 +37,8 @@ export default async function HistoryPage() {
               </PrimaryLink>
             </div>
           ) : (
-            <div className="mt-8 overflow-hidden rounded-md border border-border bg-card">
+            <>
+            <div className="mt-8 hidden overflow-hidden rounded-md border border-border bg-card md:block">
               <table className="w-full text-left text-base lg:text-lg">
                 <thead className="bg-surface font-mono text-sm uppercase tracking-wide text-ink-muted">
                   <tr>
@@ -74,6 +75,22 @@ export default async function HistoryPage() {
                 </tbody>
               </table>
             </div>
+            <div className="mt-8 space-y-3 md:hidden">
+              {rows.map((r) => (
+                <Link key={r.id} href={`/result/${r.id}`} className="block rounded-md border border-border bg-surface p-4 transition hover:border-brand/40">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-mono text-xs uppercase tracking-wide text-ink-muted">{new Date(r.created_at).toLocaleDateString()}</p>
+                      <p className="mt-2 text-base font-medium capitalize text-ink">{r.detected_symptoms.length ? r.detected_symptoms.join(", ") : "No known symptoms"}</p>
+                    </div>
+                    <TriageBadge level={r.risk_level} />
+                  </div>
+                  <p className="mt-3 text-sm leading-relaxed text-ink-muted">{r.recommendation}</p>
+                  <p className="mt-3 font-mono text-xs uppercase tracking-wide text-brand">Open full result →</p>
+                </Link>
+              ))}
+            </div>
+            </>
           )}
         </Card>
       </PageMain>
