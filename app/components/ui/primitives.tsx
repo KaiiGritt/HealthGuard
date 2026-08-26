@@ -201,6 +201,17 @@ export function TagBadge({ children, tone = "brand" }: { children: ReactNode; to
   );
 }
 
+export function Toast({ message, tone = "success", onDismiss }: { message: string; tone?: "success" | "error"; onDismiss: () => void }) {
+  return (
+    <div className={`fixed bottom-5 right-5 z-50 flex max-w-sm items-center gap-4 rounded-md border px-4 py-3 text-sm shadow-lg ${tone === "error" ? "border-red-200 bg-red-50 text-red-900" : "border-brand/30 bg-brand text-white"}`} role="status">
+      <span>{message}</span>
+      <button type="button" onClick={onDismiss} className="shrink-0 font-mono text-xs uppercase tracking-wide opacity-80 hover:opacity-100" aria-label="Dismiss notification">
+        Close
+      </button>
+    </div>
+  );
+}
+
 export function TriageBadge({ level }: { level: "GREEN" | "YELLOW" | "RED" | string }) {
   const tone =
     level === "RED" || level === "Red"

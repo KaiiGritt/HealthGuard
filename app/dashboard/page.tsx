@@ -14,6 +14,7 @@ import {
   PrimaryLink,
   StatCard,
   TagBadge,
+  Toast,
   TriageBadge,
 } from "@/app/components/ui/primitives";
 import { getDashboardSummary, getMe } from "@/lib/api";
@@ -33,12 +34,37 @@ export default function DashboardPage() {
   const [barangayFilter, setBarangayFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [activeSection, setActiveSection] = useState("Overview");
+  const [toast, setToast] = useState<{ message: string; tone: "success" | "error" } | null>(null);
+
+  function generateReport() {
+    if (!stats) return;
+    const rows = [
+      ["Barangay", "Total cases", "Urgent cases", "Follow-up cases"],
+      ...stats.barangay_stats.map((item) => [item.barangay, item.total, item.urgent, item.follow_up]),
+      [],
+      ["Risk level", "Cases"],
+      ...stats.triage_breakdown.map((item) => [item.level, item.value]),
+      [],
+      ["Week", "Date", "Cases"],
+      ...stats.weekly_trend.map((item) => [item.label, item.date, item.count]),
+    ];
+    const csv = rows.map((row) => row.map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`).join(",")).join("\n");
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    link.download = `healthguard-mho-report-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    setToast({ message: "MHO report downloaded.", tone: "success" });
+  }
 
   const refreshSummary = async () => {
     setRefreshing(true);
     try {
       const summary = await getDashboardSummary();
       setStats(summary);
+      setToast({ message: "Dashboard data refreshed.", tone: "success" });
+    } catch {
+      setToast({ message: "Could not refresh dashboard data.", tone: "error" });
     } finally {
       setRefreshing(false);
     }
@@ -409,7 +435,11 @@ export default function DashboardPage() {
       <>
         <PageHeader />
         <PageMain wide>
-          <div className="rounded-md border border-border bg-card p-10 text-center text-ink-muted">Loading dashboard…</div>
+          <div className="space-y-6" aria-busy="true" aria-label="Loading dashboard">
+            <div className="h-32 animate-pulse rounded-md bg-brand/15" />
+            <div className="grid gap-4 md:grid-cols-4"><div className="h-28 animate-pulse rounded-md bg-border/50" /><div className="h-28 animate-pulse rounded-md bg-border/50" /><div className="h-28 animate-pulse rounded-md bg-border/50" /><div className="h-28 animate-pulse rounded-md bg-border/50" /></div>
+            <div className="grid gap-6 lg:grid-cols-2"><div className="h-72 animate-pulse rounded-md bg-border/40" /><div className="h-72 animate-pulse rounded-md bg-border/40" /></div>
+          </div>
         </PageMain>
       </>
     );
@@ -449,6 +479,7 @@ export default function DashboardPage() {
               <PrimaryButton type="button" onClick={() => void refreshSummary()} disabled={refreshing}>
                 {refreshing ? "Refreshing…" : "Refresh data"}
               </PrimaryButton>
+              <PrimaryButton type="button" onClick={generateReport} disabled={!stats}>Generate report</PrimaryButton>
               <PrimaryLink href="/assessment">Launch assessment</PrimaryLink>
               <Link
                 href="/history"
@@ -494,6 +525,7 @@ export default function DashboardPage() {
           <Disclaimer />
         </div>
       </PageMain>
+      {toast && <Toast message={toast.message} tone={toast.tone} onDismiss={() => setToast(null)} />}
     </>
   );
 }

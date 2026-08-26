@@ -12,6 +12,7 @@ import {
   PrimaryButton,
   StatCard,
   TagBadge,
+  Toast,
   TriageBadge,
 } from "@/app/components/ui/primitives";
 import { createLexiconEntry, getAdminModules, getAdminSummary, getMe, updateUserRole, updateUserStatus } from "@/lib/api";
@@ -59,6 +60,31 @@ export default function AdminPage() {
   const [rulePreview, setRulePreview] = useState("difficulty breathing and cough");
   const [pendingAction, setPendingAction] = useState<number | null>(null);
   const [newLexicon, setNewLexicon] = useState({ local_term: "", medical_term: "", language: "en", category: "general", severity_weight: 1 });
+  const [toast, setToast] = useState<{ message: string; tone: "success" | "error" } | null>(null);
+
+  function generateReport() {
+    if (!modules) return;
+    const rows = [
+      ["Users"],
+      ["Name", "Email", "Role", "Active", "Barangay"],
+      ...modules.users.map((item) => [item.full_name, item.email, item.role, item.is_active ? "Yes" : "No", item.barangay ?? ""]),
+      [],
+      ["Lexicon"],
+      ["Local term", "Language", "Medical term", "Severity", "Category"],
+      ...modules.lexicon_entries.map((item) => [item.local_term, item.language, item.medical_term, item.severity_weight, item.category]),
+      [],
+      ["Triage rules"],
+      ["Name", "Severity", "Condition", "Action"],
+      ...modules.triage_rules.map((item) => [item.name, item.severity, item.condition, item.action]),
+    ];
+    const csv = rows.map((row) => row.map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`).join(",")).join("\n");
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    link.download = `healthguard-admin-report-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    setToast({ message: "Admin report downloaded.", tone: "success" });
+  }
 
   const refreshAdminData = async () => {
     const [summary, moduleData] = await Promise.all([getAdminSummary(), getAdminModules()]);
@@ -139,6 +165,9 @@ export default function AdminPage() {
     try {
       await updateUserStatus(userId, nextStatus);
       await refreshAdminData();
+      setToast({ message: nextStatus ? "User activated." : "User deactivated.", tone: "success" });
+    } catch {
+      setToast({ message: "Could not update user status.", tone: "error" });
     } finally {
       setPendingAction(null);
     }
@@ -149,6 +178,9 @@ export default function AdminPage() {
     try {
       await updateUserRole(userId, nextRole);
       await refreshAdminData();
+      setToast({ message: "User role updated.", tone: "success" });
+    } catch {
+      setToast({ message: "Could not update user role.", tone: "error" });
     } finally {
       setPendingAction(null);
     }
@@ -156,18 +188,23 @@ export default function AdminPage() {
 
   const handleAddLexiconEntry = async () => {
     if (!newLexicon.local_term.trim() || !newLexicon.medical_term.trim()) return;
-    const created = await createLexiconEntry({
+    try {
+      const created = await createLexiconEntry({
       local_term: newLexicon.local_term,
       language: newLexicon.language,
       medical_term: newLexicon.medical_term,
       severity_weight: newLexicon.severity_weight,
       category: newLexicon.category,
-    });
-    setModules((prev) => {
-      if (!prev) return prev;
-      return { ...prev, lexicon_entries: [created, ...prev.lexicon_entries] };
-    });
-    setNewLexicon({ local_term: "", medical_term: "", language: "en", category: "general", severity_weight: 1 });
+      });
+      setModules((prev) => {
+        if (!prev) return prev;
+        return { ...prev, lexicon_entries: [created, ...prev.lexicon_entries] };
+      });
+      setNewLexicon({ local_term: "", medical_term: "", language: "en", category: "general", severity_weight: 1 });
+      setToast({ message: "Lexicon term added.", tone: "success" });
+    } catch {
+      setToast({ message: "Could not add lexicon term.", tone: "error" });
+    }
   };
 
   if (loading) {
@@ -175,7 +212,11 @@ export default function AdminPage() {
       <>
         <PageHeader />
         <PageMain wide>
-          <div className="rounded-md border border-border bg-card p-10 text-center text-ink-muted">Loading admin dashboard…</div>
+          <div className="space-y-6" aria-busy="true" aria-label="Loading admin dashboard">
+            <div className="h-32 animate-pulse rounded-md bg-brand/15" />
+            <div className="grid gap-4 md:grid-cols-4"><div className="h-28 animate-pulse rounded-md bg-border/50" /><div className="h-28 animate-pulse rounded-md bg-border/50" /><div className="h-28 animate-pulse rounded-md bg-border/50" /><div className="h-28 animate-pulse rounded-md bg-border/50" /></div>
+            <div className="grid gap-6 lg:grid-cols-2"><div className="h-80 animate-pulse rounded-md bg-border/40" /><div className="h-80 animate-pulse rounded-md bg-border/40" /></div>
+          </div>
         </PageMain>
       </>
     );
@@ -211,7 +252,7 @@ export default function AdminPage() {
           title="Administration center"
           subtitle="Oversee accounts, govern the bilingual symptom lexicon, tune rule logic, and protect platform integrity for the municipal health system."
           actions={
-            <PrimaryButton type="button">Generate report</PrimaryButton>
+            <PrimaryButton type="button" onClick={generateReport} disabled={!modules}>Generate report</PrimaryButton>
           }
         />
 
@@ -367,58 +408,75 @@ export default function AdminPage() {
                     Add term
                   </button>
                 </div>
-                <div className="grid gap-4 lg:grid-cols-2">
-                  <div className="rounded-md border border-brand/30 bg-brand/5 p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <h3 className="font-display text-xl text-ink">SPECIALIST</h3>
-                      <TagBadge tone="neutral">Reference</TagBadge>
+                <div className="grid gap-5 lg:grid-cols-2">
+                  <section className="min-w-0 overflow-hidden rounded-md border border-brand/30 bg-brand/5">
+                    <div className="flex items-center justify-between gap-3 border-b border-brand/20 px-4 py-4">
+                      <div>
+                        <h3 className="font-display text-xl text-ink">SPECIALIST</h3>
+                        <p className="mt-1 text-xs text-ink-muted">Reference normalization records</p>
+                      </div>
+                      <TagBadge tone="neutral">{filteredLexicon.length} records</TagBadge>
                     </div>
-                    <div className="mt-4 space-y-3">
-                      {filteredLexicon.length > 0 ? (
-                        filteredLexicon.map((entry) => (
-                          <div key={entry.id} className="rounded-sm border border-border bg-white p-3">
-                            <div className="flex items-center justify-between gap-3">
-                              <p className="font-medium text-ink">{entry.medical_term}</p>
-                              <TagBadge tone="neutral">{entry.language}</TagBadge>
-                            </div>
-                            <p className="mt-1 text-sm text-ink-muted">Normalized to: {entry.local_term}</p>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="rounded-sm border border-dashed border-border bg-white/60 p-4 text-sm text-ink-muted">
-                          No specialist entries match this search.
-                        </p>
-                      )}
-                    </div>
-                  </div>
+                    {filteredLexicon.length > 0 ? (
+                      <div className="max-h-[32rem] overflow-auto">
+                        <table className="w-full min-w-[420px] text-left text-sm">
+                          <thead className="sticky top-0 bg-brand/10 text-xs uppercase tracking-wide text-ink-muted">
+                            <tr>
+                              <th className="px-4 py-3 font-medium">Medical term</th>
+                              <th className="px-4 py-3 font-medium">Local term</th>
+                              <th className="px-4 py-3 font-medium">Language</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-brand/10">
+                            {filteredLexicon.map((entry) => (
+                              <tr key={entry.id} className="bg-white/70 hover:bg-white">
+                                <td className="px-4 py-3 font-medium text-ink">{entry.medical_term}</td>
+                                <td className="px-4 py-3 text-ink-secondary">{entry.local_term}</td>
+                                <td className="px-4 py-3"><TagBadge tone="neutral">{entry.language}</TagBadge></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : <p className="p-5 text-sm text-ink-muted">No specialist entries match this search.</p>}
+                  </section>
 
-                  <div className="rounded-md border border-border bg-surface p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <h3 className="font-display text-xl text-ink">Custom bilingual layer</h3>
+                  <section className="min-w-0 overflow-hidden rounded-md border border-border bg-surface">
+                    <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-4">
+                      <div>
+                        <h3 className="font-display text-xl text-ink">Custom bilingual layer</h3>
+                        <p className="mt-1 text-xs text-ink-muted">Terms available for review and editing</p>
+                      </div>
                       <TagBadge>Editable</TagBadge>
                     </div>
-                    <div className="mt-4 space-y-3">
-                      {filteredLexicon.length > 0 ? (
-                        filteredLexicon.map((entry) => (
-                          <div key={entry.id} className="rounded-sm border border-border bg-card p-3">
-                            <div className="flex items-center justify-between gap-3">
-                              <p className="font-medium text-ink">{entry.local_term}</p>
-                              <TagBadge tone={entry.category === "pending" ? "neutral" : "brand"}>{entry.category}</TagBadge>
-                            </div>
-                            <p className="mt-1 text-sm text-ink-muted">→ {entry.medical_term}</p>
-                            <div className="mt-2 flex items-center justify-between text-xs text-ink-muted">
-                              <span>Severity {entry.severity_weight}</span>
-                              <span>{entry.language === "en" ? "Reviewed by MHO" : "Pending review"}</span>
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="rounded-sm border border-dashed border-border bg-white/60 p-4 text-sm text-ink-muted">
-                          No custom entries are available.
-                        </p>
-                      )}
-                    </div>
-                  </div>
+                    {filteredLexicon.length > 0 ? (
+                      <div className="max-h-[32rem] overflow-auto">
+                        <table className="w-full min-w-[560px] text-left text-sm">
+                          <thead className="sticky top-0 bg-white text-xs uppercase tracking-wide text-ink-muted">
+                            <tr>
+                              <th className="px-4 py-3 font-medium">Term</th>
+                              <th className="px-4 py-3 font-medium">Normalized to</th>
+                              <th className="px-4 py-3 font-medium">Severity</th>
+                              <th className="px-4 py-3 font-medium">Review</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border">
+                            {filteredLexicon.map((entry) => (
+                              <tr key={entry.id} className="bg-card hover:bg-white">
+                                <td className="px-4 py-3">
+                                  <p className="font-medium text-ink">{entry.local_term}</p>
+                                  <p className="mt-1 text-xs uppercase text-ink-muted">{entry.language} · {entry.category}</p>
+                                </td>
+                                <td className="px-4 py-3 text-ink-secondary">{entry.medical_term}</td>
+                                <td className="px-4 py-3 text-ink-secondary">{entry.severity_weight}</td>
+                                <td className="px-4 py-3 text-xs text-ink-muted">{entry.language === "en" ? "Reviewed by MHO" : "Pending review"}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : <p className="p-5 text-sm text-ink-muted">No custom entries are available.</p>}
+                  </section>
                 </div>
               </Panel>
 
@@ -514,6 +572,7 @@ export default function AdminPage() {
           <Disclaimer />
         </div>
       </PageMain>
+      {toast && <Toast message={toast.message} tone={toast.tone} onDismiss={() => setToast(null)} />}
     </>
   );
 }
