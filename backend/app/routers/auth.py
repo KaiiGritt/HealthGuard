@@ -68,7 +68,8 @@ def _require_smtp() -> None:
 def _send_verification_email(email: str, code: str) -> None:
     try:
         sent = send_message(send_verification_code(email, code))
-    except Exception:
+    except Exception as exc:
+        print(f"[email] verification delivery failed: {type(exc).__name__}: {exc}")
         sent = False
     if not sent:
         raise HTTPException(
@@ -80,7 +81,8 @@ def _send_verification_email(email: str, code: str) -> None:
 def _send_password_reset_email(email: str, code: str) -> None:
     try:
         sent = send_message(send_password_reset_code(email, code))
-    except Exception:
+    except Exception as exc:
+        print(f"[email] password reset delivery failed: {type(exc).__name__}: {exc}")
         sent = False
     if not sent:
         raise HTTPException(
