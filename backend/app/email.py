@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import smtplib
+import json
+from urllib.request import Request, urlopen
 from email.message import EmailMessage
 from email.utils import formataddr
 
@@ -60,6 +62,8 @@ def send_password_reset_code(email: str, code: str) -> EmailMessage:
 
 def send_message(message: EmailMessage) -> bool:
     """Send an email message over SMTP using configured settings."""
+    if settings.resend_api_key:
+        return _send_with_resend(message)
     if not settings.smtp_enabled:
         return False
 
@@ -70,3 +74,28 @@ def send_message(message: EmailMessage) -> bool:
             client.login(settings.smtp_username, settings.smtp_password)
         client.send_message(message)
     return True
+
+
+def _send_with_resend(message: EmailMessage) -> bool:
+    """Send email over HTTPS, which works on hosts that block outbound SMTP."""
+    body = message.get_body(preferencelist=("html", "plain"))
+    payload = {
+        "from": settings.resend_from_email,
+        "to": [message["To"]],
+        "subject": message["Subject"],
+    }
+    if body is not None and body.get_content_type() == "text/html":
+        payload["html"] = body.get_content()
+    else:
+        payload["text"] = body.get_content() if body is not None else ""
+    request = Request(
+        "https://api.resend.com/emails",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {settings.resend_api_key}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    with urlopen(request, timeout=10) as response:
+        return 200 <= response.status < 300

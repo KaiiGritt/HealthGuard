@@ -32,6 +32,17 @@ Keep the password URL-encoded if it contains characters such as `@`, `:`, `/`, o
 The backend creates its tables and seeds the lexicon on startup. Existing SQLite data is
 not copied automatically; export/import it separately if needed.
 
+Render free services may block outbound SMTP connections. For deployed email delivery,
+use Resend over HTTPS instead of SMTP:
+
+```env
+RESEND_API_KEY=re_your_api_key
+RESEND_FROM_EMAIL=onboarding@resend.dev
+```
+
+Verify a sender/domain in Resend before using a custom `RESEND_FROM_EMAIL`. The default
+Resend sender is intended for initial testing and may only deliver to the account email.
+
 ### 3. Python environment
 ```bash
 py -m venv .venv

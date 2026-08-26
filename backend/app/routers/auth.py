@@ -53,6 +53,8 @@ def _set_auth_cookie(response: Response, user: User) -> None:
 
 
 def _require_smtp() -> None:
+    if settings.resend_api_key:
+        return
     if not settings.smtp_enabled:
         print("[email] SMTP is disabled; set SMTP_ENABLED=true in the deployment environment")
         raise HTTPException(

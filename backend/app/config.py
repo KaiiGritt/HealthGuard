@@ -44,6 +44,11 @@ class Settings(BaseSettings):
         default="HealthGuard AI",
         validation_alias=AliasChoices("SMTP_FROM_NAME", "smtp_from_name"),
     )
+    resend_api_key: str = Field(default="", validation_alias=AliasChoices("RESEND_API_KEY", "resend_api_key"))
+    resend_from_email: str = Field(
+        default="onboarding@resend.dev",
+        validation_alias=AliasChoices("RESEND_FROM_EMAIL", "resend_from_email"),
+    )
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
