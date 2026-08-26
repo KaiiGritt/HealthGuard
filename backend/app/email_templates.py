@@ -71,6 +71,29 @@ def verification_email_text(code: str) -> str:
     )
 
 
+def password_reset_email_html(code: str) -> str:
+    body = f"""
+      <p style="margin:0 0 16px;">Use this one-time code to reset your HealthGuard AI password:</p>
+      <div style="margin:20px 0;padding:16px 20px;background:#f3f7eb;border:1px solid #d8ded1;border-radius:4px;text-align:center;">
+        <div style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:#7c8a76;">Password reset code</div>
+        <div style="margin-top:10px;font-size:36px;letter-spacing:0.28em;font-weight:700;color:#1f4a36;font-family:Consolas,Monaco,monospace;">{escape(code)}</div>
+      </div>
+      <p style="margin:0;">This code expires in <strong>10 minutes</strong>. If you did not request this, you can ignore this email.</p>
+    """
+    return _shell("Reset your password", body)
+
+
+def password_reset_email_text(code: str) -> str:
+    return "\n".join([
+        "HealthGuard AI — Reset your password",
+        "",
+        f"Your password reset code is: {code}",
+        "This code expires in 10 minutes.",
+        "",
+        "If you did not request this, you can ignore this email.",
+    ])
+
+
 def login_alert_email_html(email: str, ip_address: str | None) -> str:
     ip = escape(ip_address or "unknown")
     account = escape(email)

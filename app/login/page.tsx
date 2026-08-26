@@ -91,6 +91,12 @@ function LoginForm() {
           </button>
         </AuthProField>
 
+        <div className="-mt-3 text-right">
+          <Link href="/forgot-password" className="text-sm font-semibold text-brand hover:underline">
+            Forgot password?
+          </Link>
+        </div>
+
         {error && <ErrorAlert>{error}</ErrorAlert>}
 
         <button type="submit" disabled={submitting} className={cn(authSubmitClass, "mt-1")}>

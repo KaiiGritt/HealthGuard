@@ -11,9 +11,19 @@ from sqlalchemy.orm import Session
 from ..config import settings
 from ..database import get_db
 from ..deps import COOKIE_NAME, get_current_user
-from ..email import send_login_alert, send_message, send_verification_code
-from ..models import EmailVerification, User
-from ..schemas import LoginRequest, ProfileUpdate, RegisterRequest, RegisterResponse, UserOut, VerifyEmailRequest
+from ..email import send_login_alert, send_message, send_password_reset_code, send_verification_code
+from ..models import EmailVerification, PasswordReset, User
+from ..schemas import (
+    ChangePasswordRequest,
+    LoginRequest,
+    PasswordResetRequest,
+    PasswordResetVerifyRequest,
+    ProfileUpdate,
+    RegisterRequest,
+    RegisterResponse,
+    UserOut,
+    VerifyEmailRequest,
+)
 from ..security import create_access_token, hash_password, verify_password
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -64,6 +74,18 @@ def _send_verification_email(email: str, code: str) -> None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Could not send verification email. Please try again later.",
+        )
+
+
+def _send_password_reset_email(email: str, code: str) -> None:
+    try:
+        sent = send_message(send_password_reset_code(email, code))
+    except Exception:
+        sent = False
+    if not sent:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Could not send password reset email. Please try again later.",
         )
 
 
@@ -170,6 +192,51 @@ def login(payload: LoginRequest, response: Response, db: Session = Depends(get_d
     return user
 
 
+@router.post("/forgot-password")
+def forgot_password(payload: PasswordResetRequest, db: Session = Depends(get_db)) -> dict[str, str]:
+    """Email a reset code without revealing whether the address is registered."""
+    email = payload.email.strip().lower()
+    if "@" not in email:
+        raise HTTPException(status_code=422, detail="Invalid email address.")
+    _require_smtp()
+    user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
+    if user is not None:
+        code = f"{secrets.randbelow(1_000_000):06d}"
+        reset = db.execute(select(PasswordReset).where(PasswordReset.email == email)).scalar_one_or_none()
+        if reset is None:
+            reset = PasswordReset(email=email, code=code, expires_at=_utc_now() + timedelta(minutes=10))
+            db.add(reset)
+        else:
+            reset.code = code
+            reset.expires_at = _utc_now() + timedelta(minutes=10)
+        db.flush()
+        _send_password_reset_email(email, code)
+        db.commit()
+    return {"message": "If an account exists for that email, a reset code has been sent."}
+
+
+@router.post("/reset-password", response_model=UserOut)
+def reset_password(payload: PasswordResetVerifyRequest, response: Response, db: Session = Depends(get_db)) -> User:
+    email = payload.email.strip().lower()
+    reset = db.execute(select(PasswordReset).where(PasswordReset.email == email)).scalar_one_or_none()
+    if reset is None or _as_utc(reset.expires_at) < _utc_now():
+        if reset is not None:
+            db.delete(reset)
+            db.commit()
+        raise HTTPException(status_code=400, detail="Invalid or expired reset code.")
+    if reset.code != payload.code:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset code.")
+    user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
+    if user is None:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset code.")
+    user.password_hash = hash_password(payload.new_password)
+    db.delete(reset)
+    db.commit()
+    db.refresh(user)
+    _set_auth_cookie(response, user)
+    return user
+
+
 @router.post("/logout")
 def logout(response: Response) -> dict:
     response.delete_cookie(key=COOKIE_NAME, path="/")
@@ -196,3 +263,18 @@ def update_profile(
     db.commit()
     db.refresh(user)
     return user
+
+
+@router.post("/change-password")
+def change_password(
+    payload: ChangePasswordRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict[str, str]:
+    if not verify_password(payload.current_password, user.password_hash):
+        raise HTTPException(status_code=400, detail="Current password is incorrect.")
+    if payload.current_password == payload.new_password:
+        raise HTTPException(status_code=400, detail="New password must be different.")
+    user.password_hash = hash_password(payload.new_password)
+    db.commit()
+    return {"message": "Password changed successfully."}

@@ -19,7 +19,7 @@ import {
   submitButtonClass,
 } from "@/app/components/ui/primitives";
 import { irosinBarangays } from "@/app/constants/irosinBarangays";
-import { getMe, updateProfile, type User } from "@/lib/api";
+import { changePassword, getMe, updateProfile, type User } from "@/lib/api";
 import PageHeader from "../components/PageHeader";
 
 function initials(name: string) {
@@ -37,6 +37,10 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [passwordForm, setPasswordForm] = useState({ current: "", next: "", confirm: "" });
+  const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [changingPassword, setChangingPassword] = useState(false);
 
   useEffect(() => {
     async function loadUser() {
@@ -81,6 +85,26 @@ export default function ProfilePage() {
       setError(err instanceof Error ? err.message : "Unable to save profile.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handlePasswordChange(event: FormEvent) {
+    event.preventDefault();
+    setPasswordMessage(null);
+    setPasswordError(null);
+    if (passwordForm.next !== passwordForm.confirm) {
+      setPasswordError("New passwords do not match.");
+      return;
+    }
+    setChangingPassword(true);
+    try {
+      const result = await changePassword(passwordForm.current, passwordForm.next);
+      setPasswordMessage(result.message);
+      setPasswordForm({ current: "", next: "", confirm: "" });
+    } catch (err) {
+      setPasswordError(err instanceof Error && err.message.includes("Current password") ? "Current password is incorrect." : "Could not change your password.");
+    } finally {
+      setChangingPassword(false);
     }
   }
 
@@ -272,6 +296,19 @@ export default function ProfilePage() {
                   </span>
                 </Link>
               </div>
+            </div>
+
+            <div className="rounded-xl border border-border-soft bg-card p-5">
+              <h2 className="font-display text-lg text-ink">Change password</h2>
+              <p className="mt-1 text-sm text-ink-muted">Update your sign-in password securely.</p>
+              <form onSubmit={handlePasswordChange} className="mt-4 space-y-3">
+                <input type="password" required autoComplete="current-password" placeholder="Current password" value={passwordForm.current} onChange={(event) => setPasswordForm((prev) => ({ ...prev, current: event.target.value }))} className={inputClass} />
+                <input type="password" required minLength={8} autoComplete="new-password" placeholder="New password (8+ characters)" value={passwordForm.next} onChange={(event) => setPasswordForm((prev) => ({ ...prev, next: event.target.value }))} className={inputClass} />
+                <input type="password" required minLength={8} autoComplete="new-password" placeholder="Confirm new password" value={passwordForm.confirm} onChange={(event) => setPasswordForm((prev) => ({ ...prev, confirm: event.target.value }))} className={inputClass} />
+                {passwordMessage && <SuccessAlert>{passwordMessage}</SuccessAlert>}
+                {passwordError && <ErrorAlert>{passwordError}</ErrorAlert>}
+                <button type="submit" disabled={changingPassword} className={submitButtonClass}>{changingPassword ? "Updating…" : "Change password"}</button>
+              </form>
             </div>
 
             <GreenAside title="Why this matters">

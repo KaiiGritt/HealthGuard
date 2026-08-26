@@ -52,6 +52,20 @@ class EmailVerification(Base):
     )
 
 
+class PasswordReset(Base):
+    """One-time email code used to reset an existing account password."""
+
+    __tablename__ = "password_resets"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    email: Mapped[str] = mapped_column(String(191), unique=True, index=True)
+    code: Mapped[str] = mapped_column(String(16))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
 class SymptomLexicon(Base):
     """Two-layer bilingual lexicon entry (Layer 2: custom Filipino/English symptom terms)."""
 

@@ -246,6 +246,21 @@ class VerifyEmailRequest(BaseModel):
     code: str
 
 
+class PasswordResetRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=191)
+
+
+class PasswordResetVerifyRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=191)
+    code: str = Field(min_length=6, max_length=6)
+    new_password: str = Field(min_length=8, max_length=128)
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(min_length=1, max_length=128)
+    new_password: str = Field(min_length=8, max_length=128)
+
+
 class ProfileUpdate(BaseModel):
     full_name: str | None = Field(default=None, max_length=128)
     age: int | None = Field(default=None, ge=0, le=150)

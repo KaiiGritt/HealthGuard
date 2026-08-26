@@ -9,6 +9,8 @@ from .config import settings
 from .email_templates import (
     login_alert_email_html,
     login_alert_email_text,
+    password_reset_email_html,
+    password_reset_email_text,
     verification_email_html,
     verification_email_text,
 )
@@ -43,6 +45,16 @@ def send_verification_code(email: str, code: str) -> EmailMessage:
     msg["To"] = email
     msg.set_content(verification_email_text(code))
     msg.add_alternative(verification_email_html(code), subtype="html")
+    return msg
+
+
+def send_password_reset_code(email: str, code: str) -> EmailMessage:
+    msg = EmailMessage()
+    msg["Subject"] = "HealthGuard AI — Reset your password"
+    msg["From"] = _from_header()
+    msg["To"] = email
+    msg.set_content(password_reset_email_text(code))
+    msg.add_alternative(password_reset_email_html(code), subtype="html")
     return msg
 
 

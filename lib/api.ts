@@ -310,6 +310,8 @@ export interface RegisterResponse {
   message: string;
 }
 
+export interface PasswordResetResponse { message: string; }
+
 export function register(payload: RegisterPayload): Promise<RegisterResponse> {
   return request<RegisterResponse>("/auth/register", {
     method: "POST",
@@ -328,6 +330,24 @@ export function login(email: string, password: string): Promise<User> {
   return request<User>("/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password }),
+  });
+}
+
+export function forgotPassword(email: string): Promise<PasswordResetResponse> {
+  return request<PasswordResetResponse>("/auth/forgot-password", { method: "POST", body: JSON.stringify({ email }) });
+}
+
+export function resetPassword(email: string, code: string, newPassword: string): Promise<User> {
+  return request<User>("/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify({ email, code, new_password: newPassword }),
+  });
+}
+
+export function changePassword(currentPassword: string, newPassword: string): Promise<{ message: string }> {
+  return request<{ message: string }>("/auth/change-password", {
+    method: "POST",
+    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
   });
 }
 
