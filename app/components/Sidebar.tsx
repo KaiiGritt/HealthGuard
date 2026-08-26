@@ -57,8 +57,17 @@ export default function Sidebar({ user }: { user: User }) {
   const content: ReactNode = (
     <>
       <div className="border-b border-border px-5 py-6">
-        <p className="font-mono text-[11px] uppercase tracking-wide text-ink-faint">{roleLabel}</p>
-        <p className="mt-1 truncate font-display text-lg font-semibold text-ink">{user.full_name}</p>
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-sm bg-brand font-mono text-lg font-semibold text-brand-foreground">H</span>
+          <div className="min-w-0">
+            <p className="font-display text-lg font-semibold text-ink">HealthGuard <span className="text-brand">AI</span></p>
+            <p className="mt-0.5 truncate font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint">{roleLabel}</p>
+          </div>
+        </div>
+        <div className="mt-5 flex items-center gap-3 rounded-md bg-card px-3 py-3">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-tint font-mono text-xs font-semibold text-brand-dark">{user.full_name.slice(0, 1).toUpperCase()}</span>
+          <p className="truncate text-sm font-medium text-ink">{user.full_name}</p>
+        </div>
       </div>
 
       <nav className="flex-1 space-y-1 px-3 py-4">
@@ -91,9 +100,8 @@ export default function Sidebar({ user }: { user: User }) {
       </nav>
 
       <div className="border-t border-border px-5 py-4">
-        <p className="text-xs leading-relaxed text-ink-faint">
-          HealthGuard AI — Irosin, Sorsogon
-        </p>
+        <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint">Irosin, Sorsogon</p>
+        <p className="mt-1 text-xs leading-relaxed text-ink-muted">Community health workspace</p>
       </div>
     </>
   );
@@ -105,19 +113,23 @@ export default function Sidebar({ user }: { user: User }) {
         {content}
       </aside>
 
-      {/* Mobile: toggle + drawer */}
-      <div className="border-b border-border bg-surface px-4 py-3 md:hidden">
+      {/* Mobile: compact trigger and elevated drawer */}
+      <div className="border-b border-border bg-header px-4 py-3 md:hidden">
         <button
           type="button"
           onClick={() => setMobileOpen((v) => !v)}
-          className="flex min-h-[44px] items-center gap-2 rounded-sm border border-border px-4 text-sm font-medium text-ink-secondary"
+          className="flex min-h-[48px] w-full items-center justify-between rounded-md border border-brand/20 bg-card px-4 text-sm font-medium text-ink-secondary shadow-[0_4px_14px_rgba(47,107,79,0.08)]"
+          aria-expanded={mobileOpen}
+          aria-label="Toggle dashboard navigation"
         >
-          <Icon path={icons.overview} />
-          {mobileOpen ? "Close menu" : "Menu"}
+          <span className="flex items-center gap-3"><span className="flex h-8 w-8 items-center justify-center rounded-sm bg-brand text-brand-foreground"><Icon path={icons.overview} /></span><span className="font-semibold text-ink">{roleLabel}</span></span>
+          <span className="font-mono text-xs uppercase tracking-[0.08em] text-brand-dark">{mobileOpen ? "Close" : "Menu"}</span>
         </button>
       </div>
       {mobileOpen && (
-        <div className="flex flex-col border-b border-border bg-surface md:hidden">{content}</div>
+        <div className="fixed inset-0 top-[73px] z-50 bg-ink/20 backdrop-blur-[2px] md:hidden" onClick={() => setMobileOpen(false)}>
+          <div className="flex min-h-full w-full max-w-sm flex-col border-r border-border bg-header shadow-[12px_0_40px_rgba(24,38,25,0.14)]" onClick={(event) => event.stopPropagation()}>{content}</div>
+        </div>
       )}
     </>
   );

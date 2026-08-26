@@ -199,8 +199,9 @@ export default function PageHeader() {
           <button
             type="button"
             onClick={() => setMobileMenuOpen((v) => !v)}
-            className="inline-flex h-12 w-12 items-center justify-center rounded-sm border border-border text-ink-secondary md:hidden"
+            className="inline-flex h-12 w-12 items-center justify-center rounded-sm border border-brand/20 bg-brand-tint text-brand-dark shadow-[0_4px_14px_rgba(47,107,79,0.12)] transition hover:border-brand/50 md:hidden"
             aria-label="Toggle navigation"
+            aria-expanded={mobileMenuOpen}
           >
             {mobileMenuOpen ? <IconClose size={20} /> : <IconMenu size={20} />}
           </button>
@@ -208,12 +209,21 @@ export default function PageHeader() {
       </div>
 
       {mobileMenuOpen && (
-        <div className="border-t border-border bg-header px-4 py-4 md:hidden">
-          <div className="flex flex-col gap-2">
+        <div className="fixed inset-0 top-[73px] z-50 bg-ink/20 backdrop-blur-[2px] md:hidden" onClick={() => setMobileMenuOpen(false)}>
+          <div className="ml-auto min-h-full w-full max-w-sm border-l border-border bg-header px-5 py-6 shadow-[-12px_0_40px_rgba(24,38,25,0.14)]" onClick={(event) => event.stopPropagation()}>
+            <div className="mb-5 flex items-center justify-between border-b border-border pb-5">
+              <div>
+                <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-ink-faint">HealthGuard AI</p>
+                <p className="mt-1 font-display text-2xl font-semibold text-ink">Your care space</p>
+              </div>
+              {user ? <span className="flex h-10 w-10 items-center justify-center rounded-full bg-brand text-sm font-semibold text-brand-foreground">{initials(user.full_name)}</span> : null}
+            </div>
+            <p className="mb-2 font-mono text-[11px] uppercase tracking-[0.12em] text-ink-faint">Navigate</p>
+            <div className="flex flex-col gap-1">
             {navLinks}
             {loaded && user ? (
               <>
-                <Link href="/profile" className={linkClass("/profile")} onClick={() => setMobileMenuOpen(false)}>
+                <Link href="/profile" className={cn(linkClass("/profile"), "mt-2 border-t border-border pt-4")} onClick={() => setMobileMenuOpen(false)}>
                   <NavIcon>
                     <IconProfile size={18} />
                   </NavIcon>
@@ -222,7 +232,7 @@ export default function PageHeader() {
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="flex items-center gap-2 rounded-sm border border-border px-3 py-2 text-left text-sm font-medium text-ink-secondary"
+                  className="mt-1 flex min-h-[44px] items-center gap-2 rounded-sm border border-border px-4 py-3 text-left text-base font-medium text-ink-secondary transition hover:border-brand/50 hover:text-brand-dark"
                 >
                   <NavIcon>
                     <IconLogout size={18} />
@@ -233,6 +243,7 @@ export default function PageHeader() {
             ) : (
               authLinks
             )}
+            </div>
           </div>
         </div>
       )}
