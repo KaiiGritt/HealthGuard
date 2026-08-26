@@ -21,7 +21,7 @@ from .email_templates import (
 
 def _from_header() -> str:
     """Sender shown in the inbox — use the app name, not a personal name."""
-    address = settings.smtp_from_email or settings.admin_email
+    address = settings.sendgrid_from_email or settings.smtp_from_email or settings.admin_email
     return formataddr((settings.smtp_from_name, address))
 
 
@@ -62,7 +62,9 @@ def send_password_reset_code(email: str, code: str) -> EmailMessage:
 
 
 def send_message(message: EmailMessage) -> bool:
-    """Send an email message over SMTP using configured settings."""
+    """Send an email message using the configured HTTPS provider or SMTP."""
+    if settings.sendgrid_api_key:
+        return _send_with_sendgrid(message)
     if settings.resend_api_key:
         return _send_with_resend(message)
     if not settings.smtp_enabled:
@@ -75,6 +77,39 @@ def send_message(message: EmailMessage) -> bool:
             client.login(settings.smtp_username, settings.smtp_password)
         client.send_message(message)
     return True
+
+
+def _message_parts(message: EmailMessage) -> tuple[str, str]:
+    body = message.get_body(preferencelist=("html", "plain"))
+    if body is None:
+        return "", "text/plain"
+    return body.get_content(), body.get_content_type()
+
+
+def _send_with_sendgrid(message: EmailMessage) -> bool:
+    body, content_type = _message_parts(message)
+    content = [{"type": content_type, "value": body}]
+    payload = {
+        "personalizations": [{"to": [{"email": message["To"]}]}],
+        "from": {"email": settings.sendgrid_from_email},
+        "subject": message["Subject"],
+        "content": content,
+    }
+    request = Request(
+        "https://api.sendgrid.com/v3/mail/send",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {settings.sendgrid_api_key}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urlopen(request, timeout=10) as response:
+            return 200 <= response.status < 300
+    except HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"SendGrid rejected email ({exc.code}): {detail}") from exc
 
 
 def _send_with_resend(message: EmailMessage) -> bool:

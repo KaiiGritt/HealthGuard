@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import secrets
+import logging
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
@@ -27,6 +28,7 @@ from ..schemas import (
 from ..security import create_access_token, hash_password, verify_password
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+logger = logging.getLogger(__name__)
 
 
 def _utc_now() -> datetime:
@@ -53,7 +55,7 @@ def _set_auth_cookie(response: Response, user: User) -> None:
 
 
 def _require_smtp() -> None:
-    if settings.resend_api_key:
+    if settings.sendgrid_api_key or settings.resend_api_key:
         return
     if not settings.smtp_enabled:
         print("[email] SMTP is disabled; set SMTP_ENABLED=true in the deployment environment")
@@ -185,8 +187,10 @@ def login(payload: LoginRequest, response: Response, db: Session = Depends(get_d
     user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
     # Generic error to avoid leaking which emails exist.
     if user is None or not verify_password(payload.password, user.password_hash):
+        logger.warning("Sign-in failed: invalid credentials")
         raise HTTPException(status_code=401, detail="Incorrect email or password.")
     if not user.is_active:
+        logger.warning("Sign-in rejected: inactive account")
         raise HTTPException(status_code=403, detail="This account is disabled.")
     _set_auth_cookie(response, user)
     try:
@@ -194,7 +198,8 @@ def login(payload: LoginRequest, response: Response, db: Session = Depends(get_d
         send_message(message)
     except Exception:
         # Login should still succeed even if mail delivery is unavailable.
-        pass
+        logger.exception("Login alert delivery failed")
+    logger.info("Sign-in succeeded")
     return user
 
 
