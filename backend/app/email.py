@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import smtplib
 import json
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 from email.message import EmailMessage
 from email.utils import formataddr
@@ -97,5 +98,9 @@ def _send_with_resend(message: EmailMessage) -> bool:
         },
         method="POST",
     )
-    with urlopen(request, timeout=10) as response:
-        return 200 <= response.status < 300
+    try:
+        with urlopen(request, timeout=10) as response:
+            return 200 <= response.status < 300
+    except HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"Resend rejected email ({exc.code}): {detail}") from exc
