@@ -1,0 +1,20 @@
+# HealthGuard AI — FastAPI backend dependencies
+# Unpinned lower bounds so pip selects wheels compatible with the installed Python
+# (including Python 3.14, where older pinned versions had no prebuilt wheels).
+
+fastapi>=0.115
+uvicorn[standard]>=0.34
+SQLAlchemy>=2.0.36
+PyMySQL>=1.1.1
+pydantic>=2.10
+pydantic-settings>=2.7
+python-dotenv>=1.0
+nltk>=3.9
+PyJWT>=2.9
+
+# --- Optional biomedical-normalization layer (Layer 1 / SPECIALIST lexicon) ---
+# scispaCy has no wheels for Python 3.14. Install these ONLY on a Python 3.11/3.12 venv
+# to activate the scispacy_adapter. The app runs fully without them.
+#   spacy==3.7.5
+#   scispacy==0.5.5
+#   https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/releases/v0.5.4/en_core_sci_sm-0.5.4.tar.gz

@@ -1,65 +1,174 @@
-import Image from "next/image";
+import Link from "next/link";
+import { IconChat, IconPhone, IconSearch } from "@/app/components/ui/icons";
+import { IconCircle, TagBadge } from "@/app/components/ui/primitives";
+import Disclaimer from "./components/Disclaimer";
+import PageHeader from "./components/PageHeader";
+
+const STEPS = [
+  {
+    n: "01",
+    title: "Describe how you feel",
+    body: "Type in English or Tagalog, or tap the symptoms that match. No account, no forms to fill first.",
+  },
+  {
+    n: "02",
+    title: "Rules check what you entered",
+    body: "A transparent rule-based system compares your answers against known symptom patterns — no black box, no diagnosis.",
+  },
+  {
+    n: "03",
+    title: "Get your tag: green, yellow, or red",
+    body: "The same colors health workers use, with one plain instruction for what to do next.",
+  },
+];
+
+const FEATURES = [
+  {
+    icon: <IconChat size={22} />,
+    title: "Speaks Bicol Tagalog and English",
+    body: "Type the words you'd actually use at home — walang kunwari, tapat lang.",
+  },
+  {
+    icon: <IconPhone size={22} />,
+    title: "Built for simple phones",
+    body: "Big buttons, short screens, and it stays usable on a slow connection.",
+  },
+  {
+    icon: <IconSearch size={22} />,
+    title: "Shows its reasoning",
+    body: "Every result lists exactly which symptoms and rules led to your tag.",
+  },
+];
+
+function TriageTag() {
+  return (
+    <div className="mx-auto w-full max-w-[300px] rotate-[-5deg] sm:max-w-[340px] lg:max-w-[400px] xl:max-w-[440px]">
+      <svg viewBox="0 0 260 360" className="w-full">
+        <path
+          d="M130 4 L96 40 L96 44 L98 46 L162 46 L164 44 L164 40 Z"
+          fill="none"
+          stroke="#7C7F6E"
+          strokeWidth="2"
+        />
+        <line x1="130" y1="4" x2="130" y2="46" stroke="#7C7F6E" strokeWidth="2" />
+        <circle cx="130" cy="30" r="5" fill="none" stroke="#7C7F6E" strokeWidth="2" />
+
+        <rect x="20" y="46" width="220" height="300" rx="6" fill="#FBF9F2" stroke="#1B2B22" strokeWidth="2" />
+        <line x1="20" y1="46" x2="20" y2="346" stroke="#B9C0AC" strokeWidth="2" strokeDasharray="2 6" />
+
+        <text x="46" y="80" fontFamily="var(--font-tag)" fontSize="12" fill="#7C7F6E" letterSpacing="1">
+          FACED-TRIAGE
+        </text>
+        <text x="46" y="98" fontFamily="var(--font-tag)" fontSize="11" fill="#7C7F6E">
+          NO. 000241
+        </text>
+        <line x1="46" y1="112" x2="214" y2="112" stroke="#DEDFD1" strokeWidth="1.5" />
+
+        <text x="46" y="140" fontFamily="var(--font-display)" fontStyle="italic" fontSize="22" fill="#1B2B22">
+          Your result
+        </text>
+        <text x="46" y="162" fontFamily="var(--font-body)" fontSize="12" fill="#5B5F52">
+          will look like this tag
+        </text>
+
+        <rect x="46" y="190" width="168" height="34" fill="#3E8E41" />
+        <text x="60" y="212" fontFamily="var(--font-tag)" fontSize="12" fill="#F1F4EC">GREEN — monitor at home</text>
+
+        <g>
+          <rect x="46" y="228" width="168" height="34" fill="#D98A2B" />
+          <text
+            x="60"
+            y="250"
+            fontFamily="var(--font-tag)"
+            fontSize="10.5"
+            fill="#4A3410"
+            textLength="146"
+            lengthAdjust="spacingAndGlyphs"
+          >
+            YELLOW — see a health worker
+          </text>
+        </g>
+
+        <rect x="46" y="266" width="168" height="34" fill="#C0432B" />
+        <text x="60" y="288" fontFamily="var(--font-tag)" fontSize="12" fill="#F1F4EC">RED — seek care now</text>
+
+        <path
+          d="M130 30 C 40 90, 210 140, 60 320"
+          fill="none"
+          stroke="#7C7F6E"
+          strokeWidth="1.5"
+          strokeDasharray="1 5"
+        />
+      </svg>
+    </div>
+  );
+}
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+    <>
+      <PageHeader />
+      <main className="flex-1 bg-surface text-ink">
+        <section className="border-b border-border">
+          <div className="mx-auto grid w-full max-w-[1600px] gap-10 px-5 py-16 sm:px-7 sm:py-20 md:grid-cols-[1.15fr_0.85fr] md:items-center lg:gap-16 lg:px-10 lg:py-28 xl:px-14 xl:py-32 2xl:px-20">
+            <div>
+              <TagBadge>Para sa Irosin, Sorsogon</TagBadge>
+              <h1 className="mt-5 max-w-2xl font-display text-4xl leading-[1.08] sm:text-5xl lg:text-6xl xl:text-[4rem] xl:leading-[1.1]">
+                Not sure if it&apos;s <em className="not-italic text-brand">time to go</em> to the health center?
+              </h1>
+              <p className="mt-6 max-w-md text-xl leading-relaxed text-ink-secondary lg:max-w-lg lg:text-2xl">
+                Describe your symptoms in English or Tagalog. You&apos;ll get a clear tag —
+                green, yellow, or red — and one plain instruction for what to do next.
+              </p>
+              <div className="mt-9 flex flex-wrap items-center gap-4">
+                <Link
+                  href="/assessment"
+                  className="inline-flex min-h-16 items-center justify-center rounded-sm bg-brand px-10 text-xl font-medium text-brand-foreground transition hover:bg-brand-dark lg:min-h-[4.5rem] lg:px-12 lg:text-2xl"
+                >
+                  Start assessment
+                </Link>
+                <span className="text-base text-ink-muted lg:text-lg">Takes about 2 minutes · no sign-up</span>
+              </div>
+            </div>
+            <TriageTag />
+          </div>
+        </section>
+
+        <section className="mx-auto w-full max-w-[1600px] px-5 py-16 sm:px-7 lg:px-10 lg:py-24 xl:px-14 2xl:px-20">
+          <h2 className="font-display text-2xl lg:text-3xl">How it works</h2>
+          <div className="mt-8 grid gap-5 md:grid-cols-3 lg:mt-12 lg:gap-8">
+            {STEPS.map((s) => (
+              <div key={s.n} className="relative rounded-md border border-border bg-card p-6 pt-8 lg:p-8 lg:pt-10">
+                <span className="absolute -top-3 left-6 rounded-sm bg-ink px-2 py-0.5 font-mono text-xs text-brand-foreground">
+                  {s.n}
+                </span>
+                <h3 className="mt-3 text-xl font-medium lg:text-2xl">{s.title}</h3>
+                <p className="mt-3 text-base leading-relaxed text-ink-muted lg:text-lg">{s.body}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="border-y border-border bg-card">
+          <div className="mx-auto grid w-full max-w-[1600px] gap-8 px-5 py-16 sm:grid-cols-3 lg:gap-12 lg:px-10 lg:py-24 xl:px-14 2xl:px-20">
+            {FEATURES.map((f) => (
+              <div key={f.title}>
+                <IconCircle>{f.icon}</IconCircle>
+                <h3 className="mt-5 text-lg font-medium lg:text-xl">{f.title}</h3>
+                <p className="mt-2 text-base leading-relaxed text-ink-muted lg:text-lg">{f.body}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="mx-auto w-full max-w-[1600px] px-5 py-14 sm:px-7 lg:px-10 lg:py-20 xl:px-14 2xl:px-20">
+          <Disclaimer />
+        </section>
       </main>
-    </div>
+
+      <footer className="border-t border-border bg-surface py-6 text-center text-sm text-ink-muted lg:py-8 lg:text-base">
+        HealthGuard AI — a health decision-support tool. Not a substitute for professional care.
+      </footer>
+    </>
   );
 }

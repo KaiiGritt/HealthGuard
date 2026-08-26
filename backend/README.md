@@ -1,0 +1,52 @@
+# HealthGuard AI — Backend (FastAPI)
+
+Three-tier backend: **Next.js → FastAPI → MySQL 8**. Rule-based bilingual NLP triage
+(NLTK + custom two-layer lexicon). The `scispaCy` biomedical layer is optional and dormant
+by default (no wheels for Python 3.14).
+
+## One-time setup
+
+### 1. Install & start MySQL 8
+Install MySQL Community Server (MSI installer) or XAMPP, start the server, then create the DB:
+
+```sql
+CREATE DATABASE healthguard CHARACTER SET utf8mb4;
+```
+
+### 2. Configure the connection
+Copy `.env.example` to `.env` and set your credentials:
+
+```
+DATABASE_URL=mysql+pymysql://root:YOUR_PASSWORD@localhost:3306/healthguard
+CORS_ORIGINS=http://localhost:3000
+```
+
+### 3. Python environment
+```bash
+py -m venv .venv
+.\.venv\Scripts\activate          # PowerShell / cmd
+pip install -r requirements.txt
+```
+
+## Run
+
+```bash
+uvicorn app.main:app --reload --port 8000
+```
+
+- API docs: http://localhost:8000/docs
+- On startup the app creates tables, downloads NLTK `punkt`, and seeds the lexicon (idempotent).
+
+## Test the engine without a database
+
+```bash
+python run_engine_smoketest.py
+```
+
+Runs the full NLP + rule pipeline against representative English/Tagalog inputs and asserts
+the expected Green/Yellow/Red outcomes.
+
+## Activating the optional scispaCy layer (later)
+scispaCy needs Python 3.11/3.12. Create a separate venv on that version and install the
+extras listed at the bottom of `requirements.txt`. The `scispacy_adapter` auto-activates
+when spaCy + the model are importable.

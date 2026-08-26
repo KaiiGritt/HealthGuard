@@ -1,26 +1,167 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
+/* HealthGuard AI — unified rural health-record design system */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-body), "Segoe UI", system-ui, sans-serif;
+  --font-display: "Georgia", serif;
+  --font-mono: var(--font-tag), "Segoe UI", system-ui, sans-serif;
+
+  --color-brand: #2f6b4f;
+  --color-brand-dark: #1f4a36;
+  --color-brand-light: #3a7b57;
+  --color-brand-muted: #cfe3d6;
+  --color-brand-tint: #f3f7eb;
+  --color-brand-foreground: #f1f4ec;
+
+  --color-medical-blue: #2f6b4f;
+  --color-medical-blue-dark: #1f4a36;
+  --color-health-green: #3e8e41;
+
+  --color-ink: #182619;
+  --color-ink-secondary: #3f4a3b;
+  --color-ink-muted: #5b6355;
+  --color-ink-faint: #7c8a76;
+
+  --color-surface: #f1f4ec;
+  --color-surface-alt: #f6f7f0;
+  --color-card: #ffffff;
+  --color-header: #fbf9f2;
+
+  --color-border: #d8ded1;
+  --color-border-soft: #e2e8d5;
+  --color-record-tab: #f1e7d4;
+  --color-record-tab-border: #c9a46a;
+  --color-record-tab-text: #7a5b23;
+
+  --color-warn-amber: #d98a2b;
+  --color-emergency-red: #c0432b;
+  --color-green-tint: #ecfdf3;
+  --color-yellow-tint: #fffbeb;
+  --color-red-tint: #fef2f2;
+  --color-triage-green: #3e8e41;
+  --color-triage-yellow: #d98a2b;
+  --color-triage-red: #c0432b;
+
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-lg: 12px;
+  --radius-xl: 18px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+.premium-page {
+  background-color: #f4f6ef;
+  background-image:
+    radial-gradient(circle at top left, rgba(47, 107, 79, 0.10), transparent 26%),
+    radial-gradient(circle at bottom right, rgba(61, 142, 65, 0.08), transparent 24%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.62), rgba(244, 246, 239, 0.98));
+  background-attachment: fixed;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.65;
+  letter-spacing: 0.005em;
+  color: var(--color-ink);
+  background-color: #f4f6ef;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+@media (min-width: 1280px) {
+  body {
+    font-size: 1.125rem;
+    line-height: 1.7;
+  }
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.015em;
+}
+
+p + p {
+  margin-top: 0.75em;
+}
+
+button,
+input,
+select,
+textarea {
+  font-size: inherit;
+  line-height: inherit;
+}
+
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-color: var(--color-card);
+  color: var(--color-ink);
+  border-radius: 0.875rem;
+  border: 1.5px solid var(--color-border);
+  box-shadow: inset 0 1px 1px rgba(15, 23, 42, 0.02), 0 1px 3px rgba(15, 23, 42, 0.04);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--color-ink-faint) 50%),
+    linear-gradient(135deg, var(--color-ink-faint) 50%, transparent 50%);
+  background-position: calc(100% - 18px) calc(50% - 2px), calc(100% - 12px) calc(50% - 2px);
+  background-size: 6px 6px;
+  background-repeat: no-repeat;
+}
+
+select:hover {
+  border-color: rgba(47, 107, 79, 0.5);
+  background-color: #ffffff;
+}
+
+select:focus {
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 4px rgba(47, 107, 79, 0.1);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--color-brand) 50%),
+    linear-gradient(135deg, var(--color-brand) 50%, transparent 50%);
+}
+
+select option {
+  background-color: #ffffff;
+  color: var(--color-ink);
+}
+
+.auth-pro-shell {
+  background: #ffffff;
+}
+
+.auth-pro-brand {
+  background: linear-gradient(165deg, #1a3d2e 0%, #2f6b4f 45%, #3a7b57 100%);
+}
+
+.auth-pro-brand-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
+}
+
+.auth-pro-form {
+  box-shadow: -1px 0 0 var(--color-border);
+}
+
+@keyframes bar-grow {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+.chart-bar {
+  transform-origin: bottom;
+  animation: bar-grow 0.6s ease-out forwards;
 }

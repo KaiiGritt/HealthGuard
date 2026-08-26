@@ -1,0 +1,114 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
+import AuthLayout from "../components/AuthLayout";
+import { IconEye, IconEyeOff } from "@/app/components/ui/icons";
+import {
+  AuthProField,
+  ErrorAlert,
+  authFormStackClass,
+  authInputClass,
+  authSubmitClass,
+  cn,
+} from "@/app/components/ui/primitives";
+import { login } from "@/lib/api";
+
+function LoginForm() {
+  const router = useRouter();
+  const params = useSearchParams();
+  const next = params.get("next") || "/";
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+
+    if (!email.trim() || !password) {
+      setError("Please enter both your email and password.");
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+    try {
+      await login(email.trim(), password);
+      router.push(next);
+      router.refresh();
+    } catch {
+      setError("Incorrect email or password.");
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <AuthLayout
+      title="Sign in to your account"
+      subtitle="Access your saved assessments, health history, and profile settings."
+      footer={
+        <>
+          Don&apos;t have an account?{" "}
+          <Link href="/register" className="font-semibold text-brand hover:underline">
+            Create an account
+          </Link>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} className={cn(authFormStackClass, "rounded-2xl border border-brand/10 bg-gradient-to-b from-white to-surface/80 p-4 shadow-[0_18px_40px_rgba(24,38,25,0.06)] sm:p-5")}>
+        <AuthProField
+          id="email"
+          label="Email address"
+          type="email"
+          autoComplete="email"
+          required
+          placeholder="you@example.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+
+        <AuthProField id="password" label="Password">
+          <input
+            id="password"
+            type={showPassword ? "text" : "password"}
+            autoComplete="current-password"
+            required
+            placeholder="Enter your password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className={cn(authInputClass, "bg-gradient-to-r from-white to-surface/80 pr-11")}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((v) => !v)}
+            className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-ink-faint transition hover:text-ink-secondary"
+            aria-label={showPassword ? "Hide password" : "Show password"}
+          >
+            {showPassword ? <IconEyeOff size={17} /> : <IconEye size={17} />}
+          </button>
+        </AuthProField>
+
+        {error && <ErrorAlert>{error}</ErrorAlert>}
+
+        <button type="submit" disabled={submitting} className={cn(authSubmitClass, "mt-1")}>
+          {submitting ? "Signing in…" : "Sign in"}
+        </button>
+      </form>
+
+      <p className="mt-6 text-center text-xs leading-relaxed text-ink-faint">
+        By signing in, you agree to use HealthGuard AI as a decision-support tool only — not as a medical diagnosis.
+      </p>
+    </AuthLayout>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="auth-pro-shell min-h-screen bg-white" />}>
+      <LoginForm />
+    </Suspense>
+  );
+}
