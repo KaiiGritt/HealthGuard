@@ -54,11 +54,13 @@ def _set_auth_cookie(response: Response, user: User) -> None:
 
 def _require_smtp() -> None:
     if not settings.smtp_enabled:
+        print("[email] SMTP is disabled; set SMTP_ENABLED=true in the deployment environment")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Email delivery is not configured. Registration is unavailable.",
         )
     if not (settings.smtp_from_email or settings.admin_email):
+        print("[email] SMTP sender is missing; set SMTP_FROM_EMAIL or ADMIN_EMAIL in the deployment environment")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Email sender is not configured. Registration is unavailable.",
