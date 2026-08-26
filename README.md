@@ -31,6 +31,32 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 
 ## Deploy on Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Deploy the Next.js frontend on [Vercel](https://vercel.com/new) from the
+`KaiiGritt/HealthGuard` GitHub repository. Vercel detects Next.js automatically.
+
+Host the FastAPI backend separately on a public Python service such as Render, Railway,
+or Fly.io. Vercel cannot run the local `uvicorn` process.
+
+In Vercel, add this environment variable for Preview and Production:
+
+```env
+BACKEND_ORIGIN=https://your-public-fastapi-service.example.com
+```
+
+Use the backend origin only, without a trailing `/backend` path. The existing rewrite
+proxies browser requests from `/backend/*` to this service.
+
+On the backend host, configure:
+
+```env
+DATABASE_URL=postgresql+psycopg://postgres.PROJECT_REF:PASSWORD@POOLER_HOST:5432/postgres?sslmode=require
+CORS_ORIGINS=https://your-vercel-project.vercel.app
+JWT_SECRET=generate-a-long-random-secret
+COOKIE_SECURE=true
+SMTP_ENABLED=true
+```
+
+Add the SMTP credentials from `backend/.env.example` as well. Never commit database,
+SMTP, or Supabase secret keys, and never expose them in `NEXT_PUBLIC_*` variables.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
