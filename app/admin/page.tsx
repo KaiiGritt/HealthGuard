@@ -428,7 +428,7 @@ export default function AdminPage() {
                     <ListRow key={rule.name}>
                       <div className="flex items-center justify-between gap-3">
                         <p className="font-medium text-ink">{rule.name}</p>
-                        <TriageBadge level={rule.severity.includes("Red") ? "RED" : rule.severity.includes("Yellow") ? "YELLOW" : "GREEN"} />
+                        <TriageBadge level={rule.severity === "Critical" || rule.severity === "High" ? "RED" : rule.severity === "Medium" ? "YELLOW" : "GREEN"} />
                       </div>
                       <p className="mt-2 text-sm text-ink-secondary">Condition: {rule.condition}</p>
                       <p className="mt-1 text-sm text-ink-muted">Action: {rule.action}</p>
@@ -456,7 +456,7 @@ export default function AdminPage() {
                       <div key={rule.name} className="rounded-sm border border-border bg-white p-3">
                         <div className="flex items-center justify-between gap-3">
                           <p className="font-medium text-ink">{rule.name}</p>
-                          <TriageBadge level={rule.severity.includes("Red") ? "RED" : rule.severity.includes("Yellow") ? "YELLOW" : "GREEN"} />
+                          <TriageBadge level={rule.severity === "Critical" || rule.severity === "High" ? "RED" : rule.severity === "Medium" ? "YELLOW" : "GREEN"} />
                         </div>
                         <p className="mt-2 text-sm text-ink-secondary">{rule.condition}</p>
                       </div>
