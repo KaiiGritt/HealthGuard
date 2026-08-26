@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { useEffect, useMemo, useState } from "react";
 import Disclaimer from "../components/Disclaimer";
 import PageHeader from "../components/PageHeader";
@@ -213,7 +214,7 @@ function FilterToolbar({
   );
 }
 
-export default function DashboardPage() {
+function DashboardPageContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -792,5 +793,13 @@ export default function DashboardPage() {
       </PageMain>
       {toast && <Toast message={toast.message} tone={toast.tone} onDismiss={() => setToast(null)} />}
     </>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-surface" aria-busy="true" aria-label="Loading dashboard" />}>
+      <DashboardPageContent />
+    </Suspense>
   );
 }
