@@ -375,7 +375,7 @@ export default function AdminPage() {
                     </div>
                     <div className="mt-4 space-y-3">
                       {filteredLexicon.length > 0 ? (
-                        filteredLexicon.slice(0, 3).map((entry) => (
+                        filteredLexicon.map((entry) => (
                           <div key={entry.id} className="rounded-sm border border-border bg-white p-3">
                             <div className="flex items-center justify-between gap-3">
                               <p className="font-medium text-ink">{entry.medical_term}</p>
@@ -399,7 +399,7 @@ export default function AdminPage() {
                     </div>
                     <div className="mt-4 space-y-3">
                       {filteredLexicon.length > 0 ? (
-                        filteredLexicon.slice(0, 3).map((entry) => (
+                        filteredLexicon.map((entry) => (
                           <div key={entry.id} className="rounded-sm border border-border bg-card p-3">
                             <div className="flex items-center justify-between gap-3">
                               <p className="font-medium text-ink">{entry.local_term}</p>

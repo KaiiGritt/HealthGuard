@@ -385,7 +385,7 @@ def admin_modules(
         db.execute(select(User).order_by(User.created_at.desc()).limit(6)).scalars().all()
     )
     lexicon_rows = (
-        db.execute(select(SymptomLexicon).order_by(SymptomLexicon.category, SymptomLexicon.medical_term).limit(10)).scalars().all()
+        db.execute(select(SymptomLexicon).order_by(SymptomLexicon.category, SymptomLexicon.medical_term)).scalars().all()
     )
 
     return AdminModulesOut(
