@@ -96,6 +96,8 @@ export default function DashboardPage() {
   const redBreakdown = stats?.triage_breakdown.find((item) => (item.level || "").toLowerCase() === "red") ?? { level: "Red", value: 0 };
   const yellowBreakdown = stats?.triage_breakdown.find((item) => (item.level || "").toLowerCase() === "yellow") ?? { level: "Yellow", value: 0 };
   const greenBreakdown = stats?.triage_breakdown.find((item) => (item.level || "").toLowerCase() === "green") ?? { level: "Green", value: 0 };
+  const barangayStats = stats?.barangay_stats ?? [];
+  const maxBarangayCases = Math.max(...barangayStats.map((item) => item.total), 1);
 
   const renderOverview = () => (
     <>
@@ -223,16 +225,29 @@ export default function DashboardPage() {
 
       <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <Panel title="Barangay coverage" badge={<TagBadge tone="neutral">Geographic view</TagBadge>}>
-          <div className="space-y-3">
-            {(stats?.barangay_stats.length ? stats.barangay_stats : [{ barangay: "No barangay data", total: 0, urgent: 0, follow_up: 0 }]).slice(0, 5).map((item) => (
-              <ListRow key={item.barangay} className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="font-medium text-ink">{item.barangay}</p>
-                  <p className="mt-1 text-xs text-ink-muted">{item.total} total • {item.urgent} urgent</p>
+          <div className="space-y-5">
+            {barangayStats.length > 0 ? barangayStats.map((item) => {
+              const otherCases = Math.max(item.total - item.urgent - item.follow_up, 0);
+              const width = `${Math.max((item.total / maxBarangayCases) * 100, 4)}%`;
+              return (
+                <div key={item.barangay}>
+                  <div className="flex items-center justify-between gap-4 text-sm">
+                    <span className="font-medium text-ink">{item.barangay}</span>
+                    <span className="shrink-0 font-mono text-xs text-ink-muted">{item.total} total</span>
+                  </div>
+                  <div className="mt-2 h-5 overflow-hidden rounded-sm bg-surface" style={{ width }} aria-label={`${item.barangay}: ${item.total} total cases, ${item.urgent} urgent, ${item.follow_up} follow-up`}>
+                    {item.urgent > 0 ? <span className="inline-block h-full bg-triage-red" style={{ width: `${(item.urgent / item.total) * 100}%` }} /> : null}
+                    {item.follow_up > 0 ? <span className="inline-block h-full bg-triage-yellow" style={{ width: `${(item.follow_up / item.total) * 100}%` }} /> : null}
+                    {otherCases > 0 ? <span className="inline-block h-full bg-triage-green" style={{ width: `${(otherCases / item.total) * 100}%` }} /> : null}
+                  </div>
+                  <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-muted">
+                    <span>{item.urgent} urgent</span>
+                    <span>{item.follow_up} follow-up</span>
+                    <span>{otherCases} routine</span>
+                  </div>
                 </div>
-                <TagBadge tone={item.urgent > 0 ? "staff" : "neutral"}>{item.follow_up} follow-up</TagBadge>
-              </ListRow>
-            ))}
+              );
+            }) : <p className="rounded-md border border-dashed border-border bg-surface p-5 text-sm text-ink-muted">No barangay data available.</p>}
           </div>
         </Panel>
 
@@ -346,16 +361,29 @@ export default function DashboardPage() {
   const renderReports = () => (
     <>
       <Panel title="Barangay coverage" badge={<TagBadge tone="neutral">Geographic view</TagBadge>}>
-        <div className="space-y-3">
-          {(stats?.barangay_stats.length ? stats.barangay_stats : [{ barangay: "No barangay data", total: 0, urgent: 0, follow_up: 0 }]).slice(0, 5).map((item) => (
-            <ListRow key={item.barangay} className="flex items-center justify-between gap-4">
-              <div>
-                <p className="font-medium text-ink">{item.barangay}</p>
-                <p className="mt-1 text-xs text-ink-muted">{item.total} total • {item.urgent} urgent</p>
+        <div className="space-y-5">
+          {barangayStats.length > 0 ? barangayStats.map((item) => {
+            const otherCases = Math.max(item.total - item.urgent - item.follow_up, 0);
+            const width = `${Math.max((item.total / maxBarangayCases) * 100, 4)}%`;
+            return (
+              <div key={item.barangay}>
+                <div className="flex items-center justify-between gap-4 text-sm">
+                  <span className="font-medium text-ink">{item.barangay}</span>
+                  <span className="shrink-0 font-mono text-xs text-ink-muted">{item.total} total</span>
+                </div>
+                <div className="mt-2 h-5 overflow-hidden rounded-sm bg-surface" style={{ width }} aria-label={`${item.barangay}: ${item.total} total cases, ${item.urgent} urgent, ${item.follow_up} follow-up`}>
+                  {item.urgent > 0 ? <span className="inline-block h-full bg-triage-red" style={{ width: `${(item.urgent / item.total) * 100}%` }} /> : null}
+                  {item.follow_up > 0 ? <span className="inline-block h-full bg-triage-yellow" style={{ width: `${(item.follow_up / item.total) * 100}%` }} /> : null}
+                  {otherCases > 0 ? <span className="inline-block h-full bg-triage-green" style={{ width: `${(otherCases / item.total) * 100}%` }} /> : null}
+                </div>
+                <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-muted">
+                  <span>{item.urgent} urgent</span>
+                  <span>{item.follow_up} follow-up</span>
+                  <span>{otherCases} routine</span>
+                </div>
               </div>
-              <TagBadge tone={item.urgent > 0 ? "staff" : "neutral"}>{item.follow_up} follow-up</TagBadge>
-            </ListRow>
-          ))}
+            );
+          }) : <p className="rounded-md border border-dashed border-border bg-surface p-5 text-sm text-ink-muted">No barangay data available.</p>}
         </div>
       </Panel>
       <Panel title="Operational insights" badge={<TagBadge>Live</TagBadge>}>
