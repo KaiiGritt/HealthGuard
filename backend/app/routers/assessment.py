@@ -59,7 +59,7 @@ def _build_weekly_trend(db: Session) -> list[WeeklyTrendItem]:
     start = today - timedelta(days=6)
     rows = db.execute(
         select(func.date(Assessment.created_at), func.count(Assessment.id))
-        .where(func.date(Assessment.created_at) >= start.isoformat())
+        .where(func.date(Assessment.created_at) >= start)
         .group_by(func.date(Assessment.created_at))
     ).all()
     counts = {str(row[0]): row[1] for row in rows}
@@ -240,7 +240,7 @@ def dashboard_summary(
     today_count = db.scalar(
         select(func.count(Assessment.id)).where(func.date(Assessment.created_at) == func.date("now"))
     ) or 0
-    week_start = (_utc_now().date() - timedelta(days=6)).isoformat()
+    week_start = _utc_now().date() - timedelta(days=6)
     week_count = db.scalar(
         select(func.count(Assessment.id)).where(func.date(Assessment.created_at) >= week_start)
     ) or 0
