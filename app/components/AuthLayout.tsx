@@ -24,7 +24,7 @@ export default function AuthLayout({ children, title, subtitle, footer, step }: 
               H
             </span>
             <span className="font-display text-2xl font-semibold text-white">
-              HealthGuard <span className="text-brand-muted">AI</span>
+              HealthGuard <span className="text-brand-muted"></span>
             </span>
           </Link>
         </div>

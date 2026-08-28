@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Disclaimer from "../components/Disclaimer";
 import PageHeader from "../components/PageHeader";
 import {
   AccessGate,
+  cn,
   HeroBanner,
   ListRow,
   PageMain,
@@ -32,9 +33,152 @@ type UserRole = "resident" | "mho" | "admin";
 type DashboardState = Awaited<ReturnType<typeof getDashboardSummary>>;
 
 // ---------------------------------------------------------------------------
-// Small local components. Kept in this file rather than added to primitives
-// since I haven't seen that file's contents.
+// Widget system — new for this pass. Local to this file since I don't have
+// components/icons.tsx or the internals of Panel/StatCard to extend instead.
+// If you like this direction, these are good candidates to promote into
+// shared components (WidgetCard and DonutChart especially — both are
+// generic enough to reuse on the Admin dashboard too).
 // ---------------------------------------------------------------------------
+
+function WidgetIcon({ path }: { path: string }) {
+  return (
+    <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+      <path d={path} />
+    </svg>
+  );
+}
+
+const widgetIcons = {
+  alert: "M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z",
+  pie: "M21.21 15.89A10 10 0 1 1 8 2.83M22 12A10 10 0 0 0 12 2v10z",
+  trend: "M22 7 13.5 15.5l-5-5L2 18M22 7h-6M22 7v6",
+  book: "M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15Z",
+  map: "M9 20l-6-3V4l6 3 6-3 6 3v13l-6-3-6 3Zm0 0V7m6 13V7",
+  list: "M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01",
+  bulb: "M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.75V17h8v-2.25A7 7 0 0 0 12 2Z",
+} as const;
+
+// Generic card shell: icon + title + optional right-side control, a content
+// area, and an optional "Updated ..." footer. Every Overview widget below
+// uses this instead of Panel, so the tab reads as one coherent system.
+function WidgetCard({
+  icon,
+  title,
+  subtitle,
+  action,
+  updated,
+  urgent,
+  children,
+}: {
+  icon: keyof typeof widgetIcons;
+  title: string;
+  subtitle?: string;
+  action?: ReactNode;
+  updated?: string;
+  urgent?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex flex-col rounded-xl border bg-card shadow-sm transition-shadow hover:shadow-md",
+        urgent ? "border-triage-red/30" : "border-border",
+      )}
+    >
+      <div className="flex items-start justify-between gap-3 border-b border-border/70 px-5 py-4">
+        <div className="flex items-start gap-3">
+          <span
+            className={cn(
+              "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
+              urgent ? "bg-triage-red/10 text-emergency-red" : "bg-brand/10 text-brand-dark",
+            )}
+          >
+            <WidgetIcon path={widgetIcons[icon]} />
+          </span>
+          <div>
+            <h3 className="font-display text-base font-semibold text-ink lg:text-lg">{title}</h3>
+            {subtitle && <p className="mt-0.5 text-xs text-ink-muted">{subtitle}</p>}
+          </div>
+        </div>
+        {action}
+      </div>
+      <div className="flex-1 p-5">{children}</div>
+      {updated && (
+        <div className="border-t border-border/60 px-5 py-2.5">
+          <p className="font-mono text-[10px] uppercase tracking-wide text-ink-faint">Updated {updated}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Segmented ring chart. colorClass/dotClass must be real Tailwind classes
+// already used elsewhere in this codebase (stroke-triage-*, bg-triage-*,
+// stroke-brand, bg-border) — assuming your Tailwind color theme generates
+// stroke-* utilities for the same tokens as bg-*/text-*, which it does by
+// default when colors are defined via theme.extend.colors. Worth a quick
+// visual check the first time this renders.
+function DonutChart({
+  segments,
+  centerLabel,
+  centerSub,
+  size = 128,
+  strokeWidth = 14,
+}: {
+  segments: { value: number; label: string; colorClass: string; dotClass: string }[];
+  centerLabel: string;
+  centerSub?: string;
+  size?: number;
+  strokeWidth?: number;
+}) {
+  const total = Math.max(segments.reduce((sum, s) => sum + s.value, 0), 1);
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  let offset = 0;
+
+  return (
+    <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-center">
+      <div className="relative shrink-0" style={{ width: size, height: size }}>
+        <svg viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
+          <circle cx={size / 2} cy={size / 2} r={radius} fill="none" strokeWidth={strokeWidth} className="stroke-border" />
+          {segments.map((seg) => {
+            const dash = (seg.value / total) * circumference;
+            const el = (
+              <circle
+                key={seg.label}
+                cx={size / 2}
+                cy={size / 2}
+                r={radius}
+                fill="none"
+                strokeWidth={strokeWidth}
+                strokeDasharray={`${dash} ${circumference - dash}`}
+                strokeDashoffset={-offset}
+                className={cn(seg.colorClass, "transition-all duration-500")}
+              />
+            );
+            offset += dash;
+            return el;
+          })}
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <p className="font-mono text-xl font-semibold text-ink">{centerLabel}</p>
+          {centerSub && <p className="text-[10px] text-ink-muted">{centerSub}</p>}
+        </div>
+      </div>
+      <div className="w-full space-y-2">
+        {segments.map((seg) => (
+          <div key={seg.label} className="flex items-center justify-between gap-3 text-sm">
+            <span className="flex items-center gap-2 text-ink-secondary">
+              <span className={cn("h-2.5 w-2.5 rounded-full", seg.dotClass)} />
+              {seg.label}
+            </span>
+            <span className="font-medium text-ink">{seg.value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function SearchIcon() {
   return (
@@ -232,6 +376,7 @@ function DashboardPageContent() {
     (searchParams.get("section") as SectionId) || "overview",
   );
   const [toast, setToast] = useState<{ message: string; tone: "success" | "error" } | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   function setActiveSection(id: SectionId) {
     setActiveSectionState(id);
@@ -272,6 +417,7 @@ function DashboardPageContent() {
       const [summary, lexicon] = await Promise.all([getDashboardSummary(), getMhoLexicon()]);
       setStats(summary);
       setLexiconEntries(lexicon);
+      setLastUpdated(new Date());
       setToast({ message: "Dashboard data refreshed.", tone: "success" });
     } catch {
       setToast({ message: "Could not refresh dashboard data.", tone: "error" });
@@ -293,6 +439,7 @@ function DashboardPageContent() {
           if (!active) return;
           setStats(summary);
           setLexiconEntries(lexicon);
+          setLastUpdated(new Date());
         }
       } finally {
         if (active) setLoading(false);
@@ -309,7 +456,7 @@ function DashboardPageContent() {
     setReviewingLexicon(id);
     try {
       const reviewed = await markLexiconReviewed(id);
-      setLexiconEntries((entries) => entries.map((entry) => entry.id === id ? reviewed : entry));
+      setLexiconEntries((entries) => entries.map((entry) => (entry.id === id ? reviewed : entry)));
       setToast({ message: "Lexicon term reviewed.", tone: "success" });
     } catch {
       setToast({ message: "Could not update lexicon review status.", tone: "error" });
@@ -359,6 +506,11 @@ function DashboardPageContent() {
   const greenBreakdown = stats?.triage_breakdown.find((item) => (item.level || "").toLowerCase() === "green")?.value ?? 0;
   const barangayStats = stats?.barangay_stats ?? [];
   const maxBarangayCases = Math.max(...barangayStats.map((item) => item.total), 1);
+  const pendingLexicon = lexiconEntries.filter((entry) => !entry.reviewed);
+  const reviewedLexicon = lexiconEntries.filter((entry) => entry.reviewed);
+  const updatedLabel = lastUpdated
+    ? lastUpdated.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
+    : undefined;
 
   const renderOverview = () => (
     <div className="space-y-6">
@@ -371,37 +523,21 @@ function DashboardPageContent() {
         </section>
       </div>
 
-      {stats && stats.weekly_trend.length > 0 && (
-        <Panel title="This week" subtitle="Case volume trend" badge={<TagBadge tone="neutral">7-day view</TagBadge>}>
-          <TrendSparkline data={stats.weekly_trend} />
-        </Panel>
-      )}
-
-      <Panel title="Lexicon review queue" subtitle="Validate terms before they are used in triage" badge={<TagBadge tone={lexiconEntries.some((entry) => !entry.reviewed) ? "staff" : "brand"}>{lexiconEntries.filter((entry) => !entry.reviewed).length} pending</TagBadge>}>
-        <div className="space-y-3">
-          {lexiconEntries.filter((entry) => !entry.reviewed).slice(0, 6).map((entry) => (
-            <ListRow key={entry.id} className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="font-medium text-ink">{entry.local_term} <span className="font-normal text-ink-muted">→ {entry.medical_term}</span></p>
-                <p className="mt-1 text-xs uppercase text-ink-muted">{entry.language} · {entry.category} · severity {entry.severity_weight}</p>
-              </div>
-              <button type="button" onClick={() => void reviewLexiconEntry(entry.id)} disabled={reviewingLexicon === entry.id} className="rounded-sm border border-brand/30 bg-brand/10 px-3 py-2 text-sm font-medium text-brand-dark hover:bg-brand/20 disabled:opacity-50">
-                {reviewingLexicon === entry.id ? "Saving..." : "Mark reviewed"}
-              </button>
-            </ListRow>
-          ))}
-          {lexiconEntries.every((entry) => entry.reviewed) ? <p className="rounded-md border border-dashed border-border bg-surface p-5 text-sm text-ink-muted">All lexicon terms have been reviewed.</p> : null}
-        </div>
-      </Panel>
-
-      <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <Panel
+      {/* Primary row: the thing MHO staff need to see first (who needs
+          follow-up) gets the wide, left-hand position — mirrors the
+          reference's "widest card leads" pattern, but content priority is
+          flipped to match what actually matters here. */}
+      <section className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
+        <WidgetCard
+          icon="alert"
           title="Needs attention"
           subtitle="Red-level cases that require follow-up now"
-          badge={
-            <TagBadge tone="staff">
-              {redCases.length > 0 ? `${redCases.length} urgent` : "Urgent"}
-            </TagBadge>
+          urgent={redCases.length > 0}
+          updated={updatedLabel}
+          action={
+            <span className="font-mono text-3xl font-bold text-emergency-red">
+              {redCases.length}
+            </span>
           }
         >
           <div className="space-y-3">
@@ -440,15 +576,90 @@ function DashboardPageContent() {
               </p>
             )}
           </div>
-        </Panel>
+        </WidgetCard>
 
-        <Panel title="Risk distribution" subtitle="Current triage breakdown">
-          <RiskBreakdownBar green={greenBreakdown} yellow={yellowBreakdown} red={redBreakdown} />
-        </Panel>
+        <WidgetCard icon="pie" title="Case mix" subtitle="Current triage breakdown" updated={updatedLabel}>
+          <DonutChart
+            centerLabel={String(greenBreakdown + yellowBreakdown + redBreakdown)}
+            centerSub="total cases"
+            segments={[
+              { label: "Green", value: greenBreakdown, colorClass: "stroke-triage-green", dotClass: "bg-triage-green" },
+              { label: "Yellow", value: yellowBreakdown, colorClass: "stroke-triage-yellow", dotClass: "bg-triage-yellow" },
+              { label: "Red", value: redBreakdown, colorClass: "stroke-triage-red", dotClass: "bg-triage-red" },
+            ]}
+          />
+        </WidgetCard>
       </section>
 
       <section className="grid gap-6 xl:grid-cols-2">
-        <Panel title="Assessment records" badge={<TagBadge tone="neutral">Live list</TagBadge>}>
+        <WidgetCard icon="trend" title="This week" subtitle="Case volume trend" updated={updatedLabel}>
+          {stats && stats.weekly_trend.length > 0 ? (
+            <TrendSparkline data={stats.weekly_trend} />
+          ) : (
+            <p className="text-sm text-ink-muted">No trend data available yet.</p>
+          )}
+        </WidgetCard>
+
+        <WidgetCard
+          icon="book"
+          title="Lexicon review queue"
+          subtitle="Validate terms before they're used in triage"
+          updated={updatedLabel}
+          action={
+            pendingLexicon.length > 0 ? (
+              <TagBadge tone="staff">{pendingLexicon.length} pending</TagBadge>
+            ) : (
+              <TagBadge tone="brand">All reviewed</TagBadge>
+            )
+          }
+        >
+          <div className="space-y-5">
+            <DonutChart
+              size={96}
+              strokeWidth={11}
+              centerLabel={`${reviewedLexicon.length}/${lexiconEntries.length || 0}`}
+              centerSub="reviewed"
+              segments={[
+                { label: "Reviewed", value: reviewedLexicon.length, colorClass: "stroke-brand", dotClass: "bg-brand" },
+                { label: "Pending", value: pendingLexicon.length, colorClass: "stroke-border", dotClass: "bg-border" },
+              ]}
+            />
+            <div className="space-y-2.5">
+              {pendingLexicon.slice(0, 3).map((entry) => (
+                <div key={entry.id} className="flex items-center justify-between gap-3 rounded-sm border border-border bg-surface px-3 py-2.5">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-ink">
+                      {entry.local_term} <span className="font-normal text-ink-muted">→ {entry.medical_term}</span>
+                    </p>
+                    <p className="mt-0.5 text-[11px] uppercase text-ink-muted">{entry.language} · {entry.category}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void reviewLexiconEntry(entry.id)}
+                    disabled={reviewingLexicon === entry.id}
+                    className="shrink-0 rounded-sm border border-brand/30 bg-brand/10 px-2.5 py-1.5 text-xs font-medium text-brand-dark transition hover:bg-brand/20 disabled:opacity-50"
+                  >
+                    {reviewingLexicon === entry.id ? "Saving..." : "Mark reviewed"}
+                  </button>
+                </div>
+              ))}
+              {pendingLexicon.length === 0 && (
+                <p className="rounded-sm border border-dashed border-border bg-surface p-4 text-center text-sm text-ink-muted">
+                  All lexicon terms have been reviewed.
+                </p>
+              )}
+            </div>
+          </div>
+        </WidgetCard>
+      </section>
+
+      <section className="grid gap-6 xl:grid-cols-2">
+        <WidgetCard
+          icon="list"
+          title="Assessment records"
+          subtitle="Filterable live list"
+          updated={updatedLabel}
+        >
           <FilterToolbar
             riskFilter={riskFilter}
             setRiskFilter={setRiskFilter}
@@ -481,9 +692,9 @@ function DashboardPageContent() {
               </p>
             )}
           </div>
-        </Panel>
+        </WidgetCard>
 
-        <Panel title="Symptom frequency" badge={<TagBadge>Current patterns</TagBadge>}>
+        <WidgetCard icon="pie" title="Symptom frequency" subtitle="Current patterns" updated={updatedLabel}>
           <div className="space-y-4">
             {(stats?.top_symptoms.length ? stats.top_symptoms : [{ symptom: "No data available", count: 0 }]).slice(0, 5).map((item) => (
               <div key={item.symptom}>
@@ -500,11 +711,11 @@ function DashboardPageContent() {
               </div>
             ))}
           </div>
-        </Panel>
+        </WidgetCard>
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <Panel title="Barangay coverage" badge={<TagBadge tone="neutral">Geographic view</TagBadge>}>
+        <WidgetCard icon="map" title="Barangay coverage" subtitle="Geographic view" updated={updatedLabel}>
           <div className="space-y-5">
             {barangayStats.length > 0 ? barangayStats.map((item) => {
               const otherCases = Math.max(item.total - item.urgent - item.follow_up, 0);
@@ -533,9 +744,9 @@ function DashboardPageContent() {
               );
             }) : <p className="rounded-md border border-dashed border-border bg-surface p-5 text-sm text-ink-muted">No barangay data available.</p>}
           </div>
-        </Panel>
+        </WidgetCard>
 
-        <Panel title="Operational insights" badge={<TagBadge>Live</TagBadge>}>
+        <WidgetCard icon="bulb" title="Operational insights" subtitle="Live" updated={updatedLabel}>
           <div className="space-y-3">
             {stats?.insights.map((insight) => (
               <ListRow key={insight.title} className="space-y-2">
@@ -549,7 +760,7 @@ function DashboardPageContent() {
               </ListRow>
             ))}
           </div>
-        </Panel>
+        </WidgetCard>
       </section>
     </div>
   );
