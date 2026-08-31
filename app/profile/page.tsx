@@ -32,7 +32,6 @@ function initials(name: string) {
 export default function ProfilePage() {
   const [user, setUser] = useState<User | null>(null);
   const [form, setForm] = useState({ full_name: "", age: "", sex: "", barangay: "" });
-  const [textScale, setTextScale] = useState<0.92 | 1 | 1.18>(1.18);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -142,91 +141,102 @@ export default function ProfilePage() {
   const recordNo = `${(user.barangay || "HG").slice(0, 4).toUpperCase()}-${String(user.id ?? "0000").padStart(4, "0")}`;
 
   return (
-    <div className="min-h-screen bg-surface-alt" style={{ fontSize: `${textScale}em` }}>
+    <div className="min-h-screen bg-gradient-to-br from-brand via-surface-alt to-surface">
       <PageHeader />
       <PageMain>
-        <div className="mb-4 flex justify-end">
-          <div className="flex overflow-hidden rounded-full border border-border font-mono text-xs">
-            {([0.92, 1, 1.18] as const).map((s, i) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setTextScale(s)}
-                className={`px-3 py-2 ${textScale === s ? "bg-brand text-brand-foreground" : "bg-card text-ink-secondary hover:bg-brand-tint"}`}
-              >
-                {["A−", "A", "A+"][i]}
-              </button>
-            ))}
-          </div>
-        </div>
-
         <HeroBanner
           eyebrow="Account · Health worker profile"
           title={user.full_name}
           subtitle="These details are attached to every assessment you run, so patient records and follow-up stay accurate."
         />
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-          <RecordCard tab="Health record">
-            <div className="flex items-start justify-between gap-4 border-b border-dashed border-border pb-4">
-              <div className="flex items-center gap-3.5">
-                <div className="flex h-14 w-14 flex-none items-center justify-center rounded-xl bg-brand-dark font-display text-xl font-semibold text-brand-foreground">
-                  {initials(user.full_name)}
-                </div>
-                <div>
-                  <div className="font-display text-lg font-semibold text-ink">{user.full_name}</div>
-                  <div className="mt-0.5 font-mono text-[11px] uppercase tracking-[0.06em] text-ink-faint">
-                    {user.role} account
+        <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_360px]">
+          <div className="space-y-6">
+            {/* Profile Info Card */}
+            <div className="overflow-hidden rounded-2xl border border-border-soft bg-gradient-to-br from-card via-card/50 to-card/30 shadow-lg">
+              <div className="border-b border-border-soft/50 bg-gradient-to-r from-brand/10 via-brand/5 to-transparent px-8 py-6">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-16 w-16 flex-none items-center justify-center rounded-xl bg-gradient-to-br from-brand to-brand-dark font-display text-2xl font-bold text-brand-foreground shadow-md">
+                    {initials(user.full_name)}
+                  </div>
+                  <div>
+                    <div className="font-display text-xl font-semibold text-ink">{user.full_name}</div>
+                    <div className="mt-1 flex items-center gap-2">
+                      <span className="rounded-full bg-brand-tint px-3 py-1 text-xs font-medium uppercase text-brand">
+                        {user.role} Account
+                      </span>
+                      <span className="font-mono text-xs text-ink-faint">{recordNo}</span>
+                    </div>
                   </div>
                 </div>
+                <div className="mt-4 text-xs text-ink-secondary">
+                  Joined {joinedDate}
+                </div>
               </div>
-              <div className="text-right font-mono text-[11px] text-ink-faint">
-                REC. NO.
-                <div className="text-xs font-medium text-ink-secondary">{recordNo}</div>
-                joined {joinedDate}
-              </div>
-            </div>
 
-            <form onSubmit={handleSubmit} className={`mt-6 ${formStackClass}`}>
-              <div>
-                <label className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
-                  Full name <span className={labelHintClass}>/ Buong pangalan</span>
-                </label>
-                <input
-                  value={form.full_name}
-                  onChange={(event) => setForm((prev) => ({ ...prev, full_name: event.target.value }))}
-                  className={inputClass}
-                  required
-                />
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <form onSubmit={handleSubmit} className={`p-8 ${formStackClass}`}>
                 <div>
                   <label className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
-                    Age <span className={labelHintClass}>/ Edad</span>
+                    Full name <span className={labelHintClass}>/ Buong pangalan</span>
                   </label>
                   <input
-                    type="number"
-                    min="0"
-                    max="120"
-                    value={form.age}
-                    onChange={(event) => setForm((prev) => ({ ...prev, age: event.target.value }))}
+                    value={form.full_name}
+                    onChange={(event) => setForm((prev) => ({ ...prev, full_name: event.target.value }))}
                     className={inputClass}
+                    required
                   />
-                  <p className="mt-1.5 text-xs text-ink-faint">Used to match the right symptom checklist.</p>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
+                      Age <span className={labelHintClass}>/ Edad</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="120"
+                      value={form.age}
+                      onChange={(event) => setForm((prev) => ({ ...prev, age: event.target.value }))}
+                      className={inputClass}
+                    />
+                    <p className="mt-1.5 text-xs text-ink-faint">Used to match the right symptom checklist.</p>
+                  </div>
+                  <div>
+                    <label className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
+                      Sex <span className={labelHintClass}>/ Kasarian</span>
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={form.sex}
+                        onChange={(event) => setForm((prev) => ({ ...prev, sex: event.target.value }))}
+                        className={selectClass}
+                      >
+                        <option value="">Select</option>
+                        <option value="female">Female</option>
+                        <option value="male">Male</option>
+                      </select>
+                      <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-ink-faint">
+                        <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" className="h-4 w-4">
+                          <path d="M5.5 7.5L10 12l4.5-4.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </span>
+                    </div>
+                  </div>
                 </div>
                 <div>
                   <label className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
-                    Sex <span className={labelHintClass}>/ Kasarian</span>
+                    Barangay <span className={labelHintClass}>/ Barangay</span>
                   </label>
                   <div className="relative">
                     <select
-                      value={form.sex}
-                      onChange={(event) => setForm((prev) => ({ ...prev, sex: event.target.value }))}
+                      value={form.barangay}
+                      onChange={(event) => setForm((prev) => ({ ...prev, barangay: event.target.value }))}
                       className={selectClass}
                     >
-                      <option value="">Select</option>
-                      <option value="female">Female</option>
-                      <option value="male">Male</option>
+                      <option value="">Select barangay</option>
+                      {irosinBarangays.map((barangay) => (
+                        <option key={barangay} value={barangay}>{barangay}</option>
+                      ))}
                     </select>
                     <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-ink-faint">
                       <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" className="h-4 w-4">
@@ -234,74 +244,21 @@ export default function ProfilePage() {
                       </svg>
                     </span>
                   </div>
+                  <p className="mt-1.5 text-xs text-ink-faint">Routes urgent (red) cases to the nearest health station.</p>
                 </div>
-              </div>
-              <div>
-                <label className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
-                  Barangay <span className={labelHintClass}>/ Barangay</span>
-                </label>
-                <div className="relative">
-                  <select
-                    value={form.barangay}
-                    onChange={(event) => setForm((prev) => ({ ...prev, barangay: event.target.value }))}
-                    className={selectClass}
-                  >
-                    <option value="">Select barangay</option>
-                    {irosinBarangays.map((barangay) => (
-                      <option key={barangay} value={barangay}>{barangay}</option>
-                    ))}
-                  </select>
-                  <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-ink-faint">
-                    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" className="h-4 w-4">
-                      <path d="M5.5 7.5L10 12l4.5-4.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </span>
-                </div>
-                <p className="mt-1.5 text-xs text-ink-faint">Routes urgent (red) cases to the nearest health station.</p>
-              </div>
-              {message && <SuccessAlert>{message}</SuccessAlert>}
-              {error && <ErrorAlert>{error}</ErrorAlert>}
-              <button type="submit" disabled={saving} className={submitButtonClass}>
-                {saving ? "Saving…" : "Save profile / I-save"}
-              </button>
-            </form>
-          </RecordCard>
-
-          <aside className="space-y-4">
-            <div className="rounded-xl border border-border-soft bg-card p-5">
-              <h2 className="font-display text-lg text-ink">Quick actions</h2>
-              <div className="mt-3 space-y-2.5">
-                <Link
-                  href="/assessment"
-                  className="flex min-h-14 items-center gap-3 rounded-lg border border-border bg-card px-3.5 py-3 text-sm font-medium text-ink transition hover:border-brand"
-                >
-                  <span className="flex h-9 w-9 flex-none items-center justify-center rounded-lg bg-brand-tint text-brand">
-                    <IconPlus size={18} />
-                  </span>
-                  <span>
-                    <span className="block">Start a new assessment</span>
-                    <span className="block text-xs font-normal text-ink-faint">Bago na pagsusuri</span>
-                  </span>
-                </Link>
-                <Link
-                  href="/history"
-                  className="flex min-h-14 items-center gap-3 rounded-lg border border-border bg-card px-3.5 py-3 text-sm font-medium text-ink transition hover:border-brand"
-                >
-                  <span className="flex h-9 w-9 flex-none items-center justify-center rounded-lg bg-brand-tint text-brand">
-                    <IconFolder size={18} />
-                  </span>
-                  <span>
-                    <span className="block">View recent history</span>
-                    <span className="block text-xs font-normal text-ink-faint">Mga naunang tala</span>
-                  </span>
-                </Link>
-              </div>
+                {message && <SuccessAlert>{message}</SuccessAlert>}
+                {error && <ErrorAlert>{error}</ErrorAlert>}
+                <button type="submit" disabled={saving} className={submitButtonClass}>
+                  {saving ? "Saving…" : "Save profile / I-save"}
+                </button>
+              </form>
             </div>
 
-            <div className="rounded-xl border border-border-soft bg-card p-5">
-              <h2 className="font-display text-lg text-ink">Change password</h2>
-              <p className="mt-1 text-sm text-ink-muted">Update your sign-in password securely.</p>
-              <form onSubmit={handlePasswordChange} className="mt-4 space-y-3">
+            {/* Change Password Card */}
+            <div className="overflow-hidden rounded-2xl border border-border-soft bg-gradient-to-br from-card via-card/50 to-card/30 shadow-lg p-8">
+              <h2 className="font-display text-lg font-semibold text-ink">Change password</h2>
+              <p className="mt-1.5 text-sm text-ink-secondary">Update your sign-in password securely.</p>
+              <form onSubmit={handlePasswordChange} className="mt-6 space-y-4">
                 <input type="password" required autoComplete="current-password" placeholder="Current password" value={passwordForm.current} onChange={(event) => setPasswordForm((prev) => ({ ...prev, current: event.target.value }))} className={inputClass} />
                 <input type="password" required minLength={8} autoComplete="new-password" placeholder="New password (8+ characters)" value={passwordForm.next} onChange={(event) => setPasswordForm((prev) => ({ ...prev, next: event.target.value }))} className={inputClass} />
                 <input type="password" required minLength={8} autoComplete="new-password" placeholder="Confirm new password" value={passwordForm.confirm} onChange={(event) => setPasswordForm((prev) => ({ ...prev, confirm: event.target.value }))} className={inputClass} />
@@ -310,7 +267,41 @@ export default function ProfilePage() {
                 <button type="submit" disabled={changingPassword} className={submitButtonClass}>{changingPassword ? "Updating…" : "Change password"}</button>
               </form>
             </div>
+          </div>
 
+          <aside className="space-y-6">
+            {/* Quick actions Card */}
+            <div className="overflow-hidden rounded-2xl border border-border-soft bg-gradient-to-br from-card via-card/50 to-card/30 shadow-lg p-6">
+              <h2 className="font-display text-lg font-semibold text-ink">Quick actions</h2>
+              <div className="mt-4 space-y-3">
+                <Link
+                  href="/assessment"
+                  className="group flex items-center gap-3 rounded-lg border border-border bg-gradient-to-r from-brand-tint/50 to-transparent px-4 py-3.5 text-sm font-medium text-ink transition hover:border-brand hover:from-brand-tint"
+                >
+                  <span className="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-brand-tint text-brand transition group-hover:bg-brand group-hover:text-brand-foreground">
+                    <IconPlus size={20} />
+                  </span>
+                  <span className="flex-1">
+                    <span className="block font-medium">Start assessment</span>
+                    <span className="block text-xs text-ink-faint">Bago na pagsusuri</span>
+                  </span>
+                </Link>
+                <Link
+                  href="/history"
+                  className="group flex items-center gap-3 rounded-lg border border-border bg-gradient-to-r from-brand-tint/50 to-transparent px-4 py-3.5 text-sm font-medium text-ink transition hover:border-brand hover:from-brand-tint"
+                >
+                  <span className="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-brand-tint text-brand transition group-hover:bg-brand group-hover:text-brand-foreground">
+                    <IconFolder size={20} />
+                  </span>
+                  <span className="flex-1">
+                    <span className="block font-medium">View history</span>
+                    <span className="block text-xs text-ink-faint">Mga naunang tala</span>
+                  </span>
+                </Link>
+              </div>
+            </div>
+
+            {/* Why this matters Card */}
             <GreenAside title="Why this matters">
               <ul className="mt-3 space-y-3 text-sm leading-6 text-brand-foreground/90">
                 {[

@@ -277,17 +277,21 @@ export default function AdminPage() {
     <>
       <PageHeader />
       <PageMain wide>
-        <HeroBanner
-          eyebrow="For administrators"
-          title="Administration center"
-          subtitle="Oversee accounts, govern the bilingual symptom lexicon, tune rule logic, and protect platform integrity for the municipal health system."
-          actions={
-            <PrimaryButton type="button" onClick={generateReport} disabled={!modules}>Generate report</PrimaryButton>
-          }
-        />
+        <div className="overflow-hidden rounded-[28px] border border-[#D8DED1] bg-[linear-gradient(135deg,#183D2D_0%,#1F4A36_42%,#2E6A52_100%)] p-px shadow-[0_28px_56px_rgba(23,63,45,0.18)]">
+          <HeroBanner
+            eyebrow="For administrators"
+            title="Administration center"
+            subtitle="Oversee accounts, govern the bilingual symptom lexicon, tune rule logic, and protect platform integrity for the municipal health system."
+            actions={
+              <PrimaryButton type="button" onClick={generateReport} disabled={!modules} className="rounded-xl bg-[#E9F4EF] px-5 text-sm text-[#183D2D] hover:bg-white">
+                Generate report
+              </PrimaryButton>
+            }
+          />
+        </div>
 
         <div className="mt-6 grid gap-6 xl:grid-cols-[220px_minmax(0,1fr)]">
-          <aside className="rounded-lg border border-border bg-card p-4 xl:p-5">
+          <aside className="rounded-[24px] border border-[#D7E0D2] bg-[linear-gradient(180deg,#FBF9F2_0%,#F2F6EE_100%)] p-4 shadow-[0_18px_40px_rgba(15,23,42,0.04)] xl:p-5">
             <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-ink-muted">Admin</p>
             <nav className="mt-4 space-y-2">
               {adminNav.map((item, index) => (

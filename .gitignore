@@ -44,6 +44,11 @@ next-env.d.ts
 
 # python backend
 backend/.venv/
+backend/.venv312/
 __pycache__/
 *.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
 nltk_data/

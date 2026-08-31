@@ -247,20 +247,83 @@ export function openReportForPrinting({
   sections: ReportSection[];
 }) {
   const reportHtml = buildStyledReportHtml({ title, subtitle, generatedAt, sections });
-  const popup = window.open("", "_blank", "noopener,noreferrer,width=1200,height=1400");
 
-  if (!popup) {
-    return false;
+  const printReady = (target: Window | null) => {
+    if (!target) return;
+
+    try {
+      target.focus();
+      target.document.title = title;
+      target.print();
+    } catch {
+      // Ignore browser-level print restrictions; the user will still see the report.
+    }
+  };
+
+  try {
+    const popup = window.open("", "_blank", "noopener,noreferrer,width=1200,height=1400");
+
+    if (popup) {
+      popup.document.open();
+      popup.document.write(reportHtml);
+      popup.document.close();
+
+      const triggerPrint = () => {
+        setTimeout(() => printReady(popup), 300);
+      };
+
+      if (popup.document.readyState === "complete") {
+        triggerPrint();
+      } else {
+        popup.addEventListener("load", triggerPrint, { once: true });
+      }
+
+      return true;
+    }
+  } catch {
+    // Fall through to iframe fallback below.
   }
 
-  popup.document.title = title;
-  popup.document.write(reportHtml);
-  popup.document.close();
-  popup.focus();
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "0";
+  iframe.style.opacity = "0";
+  iframe.style.pointerEvents = "none";
+  iframe.setAttribute("aria-hidden", "true");
+  iframe.srcdoc = reportHtml;
+  document.body.appendChild(iframe);
 
-  setTimeout(() => {
-    popup.print();
-  }, 350);
+  const cleanup = () => {
+    setTimeout(() => {
+      try {
+        iframe.remove();
+      } catch {
+        // No-op when the element is already gone.
+      }
+    }, 800);
+  };
+
+  iframe.onload = () => {
+    setTimeout(() => {
+      try {
+        const printWindow = iframe.contentWindow;
+        if (!printWindow) {
+          cleanup();
+          return;
+        }
+
+        printWindow.focus();
+        printWindow.print();
+      } catch {
+        // Some browsers still block programmatic printing, but the user can print via the preview.
+      }
+      cleanup();
+    }, 400);
+  };
 
   return true;
 }

@@ -1034,25 +1034,27 @@ function DashboardPageContent() {
     <>
       <PageHeader />
       <PageMain wide>
-        <div className="rounded-3xl border border-[#D8DED1] bg-linear-to-br from-[#183D2D] via-[#1F4A36] to-[#2E6A52] p-px shadow-[0_24px_48px_rgba(31,74,54,0.18)]">
+        <div className="overflow-hidden rounded-[28px] border border-[#D8DED1] bg-[linear-gradient(135deg,#183D2D_0%,#1F4A36_42%,#2E6A52_100%)] p-px shadow-[0_28px_56px_rgba(23,63,45,0.18)]">
           <HeroBanner
             eyebrow="For municipal health office"
             title="Community health overview"
             subtitle="Track incoming risk signals, prioritize urgent cases, and understand community health trends across barangays."
             actions={
               <>
-                <PrimaryButton type="button" onClick={() => void refreshSummary()} disabled={refreshing}>
+                <PrimaryButton type="button" onClick={() => void refreshSummary()} disabled={refreshing} className="rounded-xl border border-white/20 bg-white/10 px-5 text-sm text-white hover:bg-white/15">
                   {refreshing ? "Refreshing…" : "Refresh data"}
                 </PrimaryButton>
-                <PrimaryButton type="button" onClick={generateReport} disabled={!stats}>Generate report</PrimaryButton>
+                <PrimaryButton type="button" onClick={generateReport} disabled={!stats} className="rounded-xl bg-[#E9F4EF] px-5 text-sm text-[#183D2D] hover:bg-white">
+                  Generate report
+                </PrimaryButton>
               </>
             }
           />
         </div>
 
         <div className="mt-6 grid gap-6 xl:grid-cols-[240px_minmax(0,1fr)]">
-          <aside className="h-fit rounded-[22px] border border-[#D7E0D2] bg-[linear-gradient(180deg,#FBF9F2_0%,#F2F6EE_100%)] p-3 shadow-[0_18px_42px_rgba(24,38,25,0.07)] backdrop-blur xl:sticky xl:top-24 xl:p-4">
-            <div className="mb-4 flex items-center justify-between rounded-xl border border-[#DDE7DB] bg-white/60 px-3 py-2.5">
+          <aside className="h-fit rounded-[26px] border border-[#D7E0D2] bg-[linear-gradient(180deg,#FBF9F2_0%,#F2F6EE_100%)] p-3 shadow-[0_18px_42px_rgba(24,38,25,0.07)] backdrop-blur xl:sticky xl:top-24 xl:p-4">
+            <div className="mb-4 flex items-center justify-between rounded-2xl border border-[#DDE7DB] bg-white/70 px-3 py-2.5 shadow-sm">
               <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-muted">Dashboard</p>
               <span className="rounded-full border border-[#CFE0D3] bg-[#EEF6F0] px-2 py-1 font-mono text-[9px] uppercase tracking-[0.12em] text-brand-dark">Live</span>
             </div>

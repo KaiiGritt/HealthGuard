@@ -262,16 +262,17 @@ export function StatCard({
   };
 
   return (
-    <div className="group relative overflow-hidden rounded-lg border border-border bg-card p-6 transition hover:border-brand/30 hover:shadow-[0_8px_24px_rgba(47,107,79,0.08)] xl:p-7 2xl:p-8">
+    <div className="group relative overflow-hidden rounded-[22px] border border-[#DDE7DB] bg-[linear-gradient(180deg,#FFFFFF_0%,#F7FAF4_100%)] p-6 shadow-[0_18px_38px_rgba(15,23,42,0.04)] transition duration-200 hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-[0_22px_48px_rgba(31,74,54,0.08)] xl:p-7 2xl:p-8">
+      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" />
       <div className="flex items-start justify-between gap-4">
-        <p className="font-mono text-sm font-semibold uppercase tracking-wide text-ink-muted xl:text-base">{label}</p>
+        <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted xl:text-xs">{label}</p>
         {icon ? (
-          <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-md", accents[accent ?? "brand"])}>
+          <span className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-current/10", accents[accent ?? "brand"])}>
             {icon}
           </span>
         ) : null}
       </div>
-      <p className="mt-3 font-mono text-4xl font-semibold tabular-nums text-ink xl:text-5xl 2xl:text-[3.25rem]">{value}</p>
+      <p className="mt-5 font-mono text-4xl font-semibold tabular-nums text-ink xl:text-5xl 2xl:text-[3.25rem]">{value}</p>
       {hint ? <p className="mt-3 text-base leading-relaxed text-ink-muted xl:text-lg">{hint}</p> : null}
     </div>
   );
@@ -285,7 +286,7 @@ export function Panel({ title, subtitle, badge, children, className }: {
   className?: string;
 }) {
   return (
-    <div className={cn("rounded-lg border border-border bg-card p-6 xl:p-7 2xl:p-8", className)}>
+    <div className={cn("overflow-hidden rounded-[24px] border border-[#DDE7DB] bg-[linear-gradient(180deg,#FFFFFF_0%,#F9FBF7_100%)] p-6 shadow-[0_18px_40px_rgba(15,23,42,0.04)] xl:p-7 2xl:p-8", className)}>
       <div className="flex items-center justify-between gap-4">
         <div>
           <h2 className="font-display text-xl font-semibold text-ink sm:text-2xl xl:text-[1.65rem]">{title}</h2>
