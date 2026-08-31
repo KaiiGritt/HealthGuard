@@ -29,21 +29,30 @@ export default function PageHeader() {
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
-  const [loaded, setLoaded] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
-    getMe().then((u) => {
-      if (active) {
+    setAuthReady(false);
+    getMe()
+      .then((u) => {
+        if (!active) return;
         setUser(u);
-        setLoaded(true);
-      }
-    });
+      })
+      .catch(() => {
+        if (!active) return;
+        setUser(null);
+      })
+      .finally(() => {
+        if (active) {
+          setAuthReady(true);
+        }
+      });
     return () => {
       active = false;
     };
-  }, []);
+  }, [pathname]);
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => setMobileMenuOpen(false));
@@ -71,11 +80,11 @@ export default function PageHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b border-[#D8DED1] bg-[#FBF9F2]/95 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b border-[#D8DED1] bg-[#F6F8F1]/90 backdrop-blur-xl">
       <div className="mx-auto grid w-full max-w-[1800px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 px-5 py-4 sm:px-8 sm:py-5 lg:px-12 lg:py-5 2xl:px-16">
         <Link href="/" className="justify-self-start flex items-center gap-2.5 lg:gap-3">
           <span
-            className="flex h-9 w-9 items-center justify-center rounded-[3px] bg-[#2F6B4F] text-lg text-[#F1F4EC] lg:h-11 lg:w-11 lg:text-xl"
+            className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#2F6B4F] to-[#183D2D] text-lg text-[#F1F4EC] shadow-md shadow-[#2F6B4F]/20 lg:h-11 lg:w-11 lg:text-xl"
             style={{ fontFamily: "var(--font-tag)" }}
           >
             H
@@ -86,7 +95,7 @@ export default function PageHeader() {
         </Link>
 
         <div className="col-start-3 justify-self-end flex items-center gap-3 lg:gap-4">
-          <nav className="hidden items-center gap-1.5 md:flex lg:gap-2">
+          <nav className="hidden items-center gap-1.5 rounded-full border border-[#D8DED1] bg-white/70 p-1.5 shadow-sm backdrop-blur md:flex lg:gap-2">
             {pathname !== "/" && user?.role === "resident" && <Link href="/assessment" className={linkClass("/assessment")}>
               <IconWrapper>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 lg:h-5 lg:w-5">
@@ -125,7 +134,9 @@ export default function PageHeader() {
               </Link>
             )}
 
-            {loaded && user ? (
+            {!authReady ? (
+              <div className="h-10 w-28 animate-pulse rounded-full bg-[#EDF1E8]" aria-label="Loading user menu" />
+            ) : user ? (
               <>
                 <Link href="/profile" className={linkClass("/profile")}>
                   <IconWrapper>
@@ -138,7 +149,7 @@ export default function PageHeader() {
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="rounded-[3px] border border-[#D8DED1] px-3 py-2 text-sm font-medium text-[#3F4A3B] transition hover:border-[#2F6B4F]/50 hover:text-[#1F4A36] lg:px-4 lg:py-2.5 lg:text-base"
+                  className="rounded-full border border-[#D8DED1] bg-white px-3 py-2 text-sm font-medium text-[#3F4A3B] transition hover:border-[#2F6B4F]/50 hover:text-[#1F4A36] lg:px-4 lg:py-2.5 lg:text-base"
                 >
                   Log out
                 </button>
@@ -155,7 +166,7 @@ export default function PageHeader() {
                 </Link>
                 <Link
                   href="/register"
-                  className="flex items-center gap-2 rounded-[3px] bg-[#2F6B4F] px-3 py-2 text-sm font-medium text-[#F1F4EC] transition hover:bg-[#1F4A36] lg:gap-2.5 lg:px-5 lg:py-2.5 lg:text-base"
+                  className="flex items-center gap-2 rounded-full bg-[#2F6B4F] px-3 py-2 text-sm font-medium text-[#F1F4EC] shadow-sm shadow-[#2F6B4F]/25 transition hover:bg-[#1F4A36] lg:gap-2.5 lg:px-5 lg:py-2.5 lg:text-base"
                 >
                   <IconWrapper>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 lg:h-5 lg:w-5">
@@ -171,7 +182,7 @@ export default function PageHeader() {
           <button
             type="button"
             onClick={() => setMobileMenuOpen((v) => !v)}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-[3px] border border-[#D8DED1] text-[#3F4A3B] md:hidden"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#D8DED1] bg-white text-[#3F4A3B] shadow-sm md:hidden"
             aria-label="Toggle navigation"
           >
             {mobileMenuOpen ? <CloseIcon /> : <MenuIcon />}
@@ -218,7 +229,9 @@ export default function PageHeader() {
                 Admin
               </Link>
             )}
-            {loaded && user ? (
+            {!authReady ? (
+              <div className="h-10 w-28 animate-pulse rounded-full bg-[#EDF1E8]" aria-label="Loading user menu" />
+            ) : user ? (
               <>
                 <Link href="/profile" className={linkClass("/profile")}>
                   <IconWrapper>
@@ -231,7 +244,7 @@ export default function PageHeader() {
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="flex items-center gap-2 rounded-[3px] border border-[#D8DED1] px-3 py-2 text-left text-sm font-medium text-[#3F4A3B]"
+                  className="flex items-center gap-2 rounded-full border border-[#D8DED1] bg-white px-3 py-2 text-left text-sm font-medium text-[#3F4A3B]"
                 >
                   <IconWrapper>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 lg:h-5 lg:w-5">
@@ -253,7 +266,7 @@ export default function PageHeader() {
                 </Link>
                 <Link
                   href="/register"
-                  className="flex items-center gap-2 rounded-[3px] bg-[#2F6B4F] px-3 py-2 text-sm font-medium text-[#F1F4EC]"
+                  className="flex items-center gap-2 rounded-full bg-[#2F6B4F] px-3 py-2 text-sm font-medium text-[#F1F4EC]"
                 >
                   <IconWrapper>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 lg:h-5 lg:w-5">

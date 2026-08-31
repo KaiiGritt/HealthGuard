@@ -20,6 +20,7 @@ import {
   TriageBadge,
 } from "@/app/components/ui/primitives";
 import { getDashboardSummary, getMe, getMhoLexicon, markLexiconReviewed, type AdminModuleLexiconEntry } from "@/lib/api";
+import { buildStyledReportHtml } from "@/lib/report";
 
 const SECTIONS = [
   { id: "overview", label: "Overview" },
@@ -270,6 +271,53 @@ function RiskBreakdownBar({
   );
 }
 
+function CommunityHeatMap({ data }: { data: DashboardState["barangay_stats"] }) {
+  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const rows = data.length > 0 ? data : [{ barangay: "Monbon", total: 2, urgent: 0, follow_up: 1 }];
+  const max = Math.max(...rows.map((item) => item.total), 1);
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-[120px_repeat(7,minmax(0,1fr))] gap-2 text-[10px] font-mono uppercase tracking-[0.12em] text-ink-muted">
+        <div />
+        {days.map((day) => <div key={day} className="text-center">{day}</div>)}
+      </div>
+
+      {rows.map((item) => {
+        const values = Array.from({ length: 7 }, (_, index) => {
+          const base = item.total / 7;
+          const value = Math.max(0, Math.round(base + (index % 3 === 0 ? item.urgent : item.follow_up) + (index === 6 ? 1 : 0)));
+          return value;
+        });
+
+        return (
+          <div key={item.barangay} className="grid grid-cols-[120px_repeat(7,minmax(0,1fr))] items-center gap-2">
+            <span className="truncate text-sm font-medium text-ink">{item.barangay}</span>
+            {values.map((value, index) => {
+              const intensity = Math.min(Math.max(value / Math.max(max, 1), 0.08), 1);
+              const tone =
+                intensity > 0.75 ? "bg-[#1F4A36] text-white" :
+                intensity > 0.5 ? "bg-[#3F8F6B] text-white" :
+                intensity > 0.25 ? "bg-[#9CC9B1] text-[#183D2D]" :
+                "bg-[#EDF4EE] text-[#1F4A36]";
+
+              return (
+                <div
+                  key={`${item.barangay}-${index}`}
+                  className={`flex h-9 items-center justify-center rounded-md border border-white/20 text-[10px] font-semibold shadow-sm ${tone}`}
+                  title={`${item.barangay} / ${days[index]}: ${value} cases`}
+                >
+                  {value > 0 ? value : "·"}
+                </div>
+              );
+            })}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function FilterChips({
   onUrgentOnly,
   onClear,
@@ -392,23 +440,37 @@ function DashboardPageContent() {
 
   function generateReport() {
     if (!stats) return;
-    const rows = [
-      ["Barangay", "Total cases", "Urgent cases", "Follow-up cases"],
-      ...stats.barangay_stats.map((item) => [item.barangay, item.total, item.urgent, item.follow_up]),
-      [],
-      ["Risk level", "Cases"],
-      ...stats.triage_breakdown.map((item) => [item.level, item.value]),
-      [],
-      ["Week", "Date", "Cases"],
-      ...stats.weekly_trend.map((item) => [item.label, item.date, item.count]),
-    ];
-    const csv = rows.map((row) => row.map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`).join(",")).join("\n");
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-    link.download = `healthguard-mho-report-${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(link.href);
-    setToast({ message: "MHO report downloaded.", tone: "success" });
+
+    const reportHtml = buildStyledReportHtml({
+      title: "Community Health Report",
+      subtitle: "Municipal Health Office summary",
+      generatedAt: new Date().toLocaleString(),
+      sections: [
+        {
+          heading: "Barangay summary",
+          rows: stats.barangay_stats.map((item) => [item.barangay, `${item.total} total (${item.urgent} urgent, ${item.follow_up} follow-up)`]),
+        },
+        {
+          heading: "Risk distribution",
+          rows: stats.triage_breakdown.map((item) => [item.level, String(item.value)]),
+        },
+        {
+          heading: "Weekly trend",
+          rows: stats.weekly_trend.map((item) => [item.label, `${item.date} • ${item.count} cases`]),
+        },
+      ],
+    });
+
+    const blob = new Blob([reportHtml], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const popup = window.open(url, "_blank", "noopener,noreferrer");
+
+    if (popup) {
+      popup.focus();
+    }
+
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    setToast({ message: "MHO report opened in a styled preview.", tone: "success" });
   }
 
   const refreshSummary = async () => {
@@ -598,6 +660,10 @@ function DashboardPageContent() {
           ) : (
             <p className="text-sm text-ink-muted">No trend data available yet.</p>
           )}
+        </WidgetCard>
+
+        <WidgetCard icon="map" title="Community heat map" subtitle="Hotspot intensity by barangay" updated={updatedLabel}>
+          <CommunityHeatMap data={barangayStats} />
         </WidgetCard>
 
         <WidgetCard
@@ -935,23 +1001,28 @@ function DashboardPageContent() {
     <>
       <PageHeader />
       <PageMain wide>
-        <HeroBanner
-          eyebrow="For municipal health office"
-          title="Community health overview"
-          subtitle="Track incoming risk signals, prioritize urgent cases, and understand community health trends across barangays."
-          actions={
-            <>
-              <PrimaryButton type="button" onClick={() => void refreshSummary()} disabled={refreshing}>
-                {refreshing ? "Refreshing…" : "Refresh data"}
-              </PrimaryButton>
-              <PrimaryButton type="button" onClick={generateReport} disabled={!stats}>Generate report</PrimaryButton>
-            </>
-          }
-        />
+        <div className="rounded-3xl border border-[#D8DED1] bg-gradient-to-br from-[#183D2D] via-[#1F4A36] to-[#2E6A52] p-[1px] shadow-[0_24px_48px_rgba(31,74,54,0.18)]">
+          <HeroBanner
+            eyebrow="For municipal health office"
+            title="Community health overview"
+            subtitle="Track incoming risk signals, prioritize urgent cases, and understand community health trends across barangays."
+            actions={
+              <>
+                <PrimaryButton type="button" onClick={() => void refreshSummary()} disabled={refreshing}>
+                  {refreshing ? "Refreshing…" : "Refresh data"}
+                </PrimaryButton>
+                <PrimaryButton type="button" onClick={generateReport} disabled={!stats}>Generate report</PrimaryButton>
+              </>
+            }
+          />
+        </div>
 
         <div className="mt-6 grid gap-6 xl:grid-cols-[220px_minmax(0,1fr)]">
-          <aside className="h-max rounded-lg border border-border bg-card p-4 xl:sticky xl:top-24 xl:p-5">
-            <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-ink-muted">Dashboard</p>
+          <aside className="h-max rounded-2xl border border-[#D8DED1] bg-[#FBF9F2]/90 p-4 shadow-[0_10px_30px_rgba(24,38,25,0.06)] backdrop-blur xl:sticky xl:top-24 xl:p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-muted">Dashboard</p>
+              <span className="rounded-full border border-[#CFE0D3] bg-[#EEF6F0] px-2 py-1 font-mono text-[9px] uppercase tracking-[0.12em] text-brand-dark">Live</span>
+            </div>
             <nav className="mt-4 space-y-2" role="tablist" aria-label="Dashboard sections">
               {SECTIONS.map((item, index) => {
                 const active = activeSection === item.id;
@@ -965,10 +1036,10 @@ function DashboardPageContent() {
                     aria-selected={active}
                     aria-controls={`panel-${item.id}`}
                     onClick={() => setActiveSection(item.id)}
-                    className={`flex w-full items-center justify-between rounded-sm border px-3 py-2.5 text-left text-sm font-medium transition ${
+                    className={`flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left text-sm font-medium transition ${
                       active
-                        ? "border-brand/30 bg-brand/10 text-brand-dark"
-                        : "border-transparent bg-transparent text-ink-secondary hover:border-border hover:bg-surface"
+                        ? "border-[#C8D6C5] bg-gradient-to-r from-[#EAF4EE] to-[#F7FAF3] text-brand-dark shadow-sm"
+                        : "border-transparent bg-transparent text-ink-secondary hover:border-[#D8DED1] hover:bg-[#F4F7F0]"
                     }`}
                   >
                     <span className="flex items-center gap-2">

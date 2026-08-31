@@ -16,6 +16,7 @@ import {
   TriageBadge,
 } from "@/app/components/ui/primitives";
 import { createLexiconEntry, getAdminModules, getAdminSummary, getMe, updateUserRole, updateUserStatus } from "@/lib/api";
+import { buildStyledReportHtml } from "@/lib/report";
 
 const adminNav = [
   { id: "overview", label: "Overview" },
@@ -80,26 +81,37 @@ export default function AdminPage() {
 
   function generateReport() {
     if (!modules) return;
-    const rows = [
-      ["Users"],
-      ["Name", "Email", "Role", "Active", "Barangay"],
-      ...modules.users.map((item) => [item.full_name, item.email, item.role, item.is_active ? "Yes" : "No", item.barangay ?? ""]),
-      [],
-      ["Lexicon"],
-      ["Local term", "Language", "Medical term", "Severity", "Category"],
-      ...modules.lexicon_entries.map((item) => [item.local_term, item.language, item.medical_term, item.severity_weight, item.category]),
-      [],
-      ["Triage rules"],
-      ["Name", "Severity", "Condition", "Action"],
-      ...modules.triage_rules.map((item) => [item.name, item.severity, item.condition, item.action]),
-    ];
-    const csv = rows.map((row) => row.map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`).join(",")).join("\n");
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-    link.download = `healthguard-admin-report-${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(link.href);
-    setToast({ message: "Admin report downloaded.", tone: "success" });
+
+    const reportHtml = buildStyledReportHtml({
+      title: "System Administration Report",
+      subtitle: "HealthGuard admin summary",
+      generatedAt: new Date().toLocaleString(),
+      sections: [
+        {
+          heading: "Users",
+          rows: modules.users.map((item) => [item.full_name, `${item.role} • ${item.is_active ? "Active" : "Inactive"} • ${item.barangay ?? "No barangay"}`]),
+        },
+        {
+          heading: "Lexicon",
+          rows: modules.lexicon_entries.map((item) => [item.local_term, `${item.language} • ${item.medical_term} • ${item.category}`]),
+        },
+        {
+          heading: "Triage rules",
+          rows: modules.triage_rules.map((item) => [item.name, `${item.severity} • ${item.condition}`]),
+        },
+      ],
+    });
+
+    const blob = new Blob([reportHtml], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const popup = window.open(url, "_blank", "noopener,noreferrer");
+
+    if (popup) {
+      popup.focus();
+    }
+
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    setToast({ message: "Admin report opened in a styled preview.", tone: "success" });
   }
 
   const refreshAdminData = async () => {
