@@ -16,7 +16,7 @@ import {
   TriageBadge,
 } from "@/app/components/ui/primitives";
 import { createLexiconEntry, getAdminModules, getAdminSummary, getMe, updateUserRole, updateUserStatus } from "@/lib/api";
-import { buildStyledReportHtml } from "@/lib/report";
+import { openReportForPrinting } from "@/lib/report";
 
 const adminNav = [
   { id: "overview", label: "Overview" },
@@ -82,7 +82,7 @@ export default function AdminPage() {
   function generateReport() {
     if (!modules) return;
 
-    const reportHtml = buildStyledReportHtml({
+    const printed = openReportForPrinting({
       title: "System Administration Report",
       subtitle: "HealthGuard admin summary",
       generatedAt: new Date().toLocaleString(),
@@ -102,16 +102,10 @@ export default function AdminPage() {
       ],
     });
 
-    const blob = new Blob([reportHtml], { type: "text/html;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const popup = window.open(url, "_blank", "noopener,noreferrer");
-
-    if (popup) {
-      popup.focus();
-    }
-
-    setTimeout(() => URL.revokeObjectURL(url), 5000);
-    setToast({ message: "Admin report opened in a styled preview.", tone: "success" });
+    setToast({
+      message: printed ? "Report ready. Use Save as PDF in the print dialog." : "Could not open the print window.",
+      tone: printed ? "success" : "error",
+    });
   }
 
   const refreshAdminData = async () => {
