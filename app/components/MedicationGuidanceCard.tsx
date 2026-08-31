@@ -42,20 +42,20 @@ const buildGuidance = (riskLevel: string, detectedSymptoms: string[] = []): Medi
   }
 
   return {
-    drugName: "Paracetamol (Biogesic / Tempra / Calpol)",
-    dosage: "Common adult dose is 500 mg every 4 to 6 hours as needed. Do not exceed the label dose in 24 hours.",
+    drugName: "General Symptom Support",
+    dosage: "Follow the product label for the specific medicine you choose, and limit use to the lowest effective dose for the shortest time needed.",
     contraindications: [
-      "Severe liver disease",
-      "Known allergy to paracetamol",
-      "Taking another medicine that also contains acetaminophen",
+      "Known allergy to any ingredient in the medicine",
+      "Use with another medicine that has the same active ingredient without professional advice",
+      "Severe underlying medical conditions that require clinician review",
     ],
-    sideEffects: ["Nausea or stomach upset", "Sleepiness", "Rash in some people"],
+    sideEffects: ["Drowsiness", "Dry mouth", "Mild stomach discomfort"],
     precautions: [
-      "Use the lowest dose that works for the shortest time needed",
-      "Avoid alcohol while taking it",
-      "Ask a pharmacist or doctor if you are pregnant, breastfeeding, or have kidney or liver problems",
+      "Rest and stay hydrated while monitoring symptoms",
+      "Avoid driving if it causes drowsiness",
+      "Seek assessment if symptoms persist, worsen, or are accompanied by breathing difficulty or severe pain",
     ],
-    note: "Good for simple fever and body aches when used as directed on the label.",
+    note: "This is a general supportive recommendation for non-specific symptoms. A clinician should still review unclear or worsening symptoms.",
   };
 };
 
