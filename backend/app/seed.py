@@ -103,7 +103,19 @@ def seed_lexicon_rules(db: Session) -> None:
     """Seed the rule metadata used by the medication generation model."""
     from sqlalchemy import select
 
-    from .models import GuideLevel, LexiconRule, RiskLevel
+    from .models import GuideLevel, LexiconRule, LexiconRuleBase, RiskLevel
+
+    base = db.execute(
+        select(LexiconRuleBase).where(LexiconRuleBase.name == "default_rule_base")
+    ).scalar_one_or_none()
+    if base is None:
+        base = LexiconRuleBase(
+            name="default_rule_base",
+            description="Default rule base for symptom mappings and escalation thresholds.",
+            version="1.0",
+        )
+        db.add(base)
+        db.flush()
 
     rules = [
         ("fever", "fever", "GREEN", "general", 1.0),
@@ -116,9 +128,11 @@ def seed_lexicon_rules(db: Session) -> None:
     for term, normalized_term, risk_name, guide_name, weight in rules:
         risk = db.execute(select(RiskLevel).where(RiskLevel.name == risk_name)).scalar_one_or_none() if risk_name else None
         guide = db.execute(select(GuideLevel).where(GuideLevel.guide_name == guide_name)).scalar_one_or_none() if guide_name else None
-        existing = db.execute(
+        matches = db.execute(
             select(LexiconRule).where(LexiconRule.term == term, LexiconRule.normalized_term == normalized_term)
-        ).scalar_one_or_none()
+        ).scalars().all()
+
+        existing = matches[0] if matches else None
         if existing is None:
             db.add(
                 LexiconRule(
@@ -128,8 +142,19 @@ def seed_lexicon_rules(db: Session) -> None:
                     guide_level_id=guide.id if guide else None,
                     weight=weight,
                     is_active=True,
+                    rule_base_id=base.id,
                 )
             )
+            continue
+
+        existing.rule_base_id = base.id
+        existing.risk_level_id = risk.id if risk else existing.risk_level_id
+        existing.guide_level_id = guide.id if guide else existing.guide_level_id
+        existing.weight = weight
+        existing.is_active = True
+
+        for duplicate in matches[1:]:
+            db.delete(duplicate)
 
     db.commit()
 
