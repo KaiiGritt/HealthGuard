@@ -78,7 +78,24 @@ export default async function ResultPage({
             )}
           </section>
 
-          {record.risk_level !== "RED" && <MedicationGuidanceCard />}
+          {record.risk_level !== "RED" && (
+            <MedicationGuidanceCard
+              riskLevel={record.risk_level}
+              detectedSymptoms={record.detected_symptoms}
+              guidance={
+                record.pre_medication
+                  ? {
+                      drugName: record.pre_medication.medication_name,
+                      dosage: record.pre_medication.dosage,
+                      contraindications: record.pre_medication.contraindications,
+                      sideEffects: record.pre_medication.side_effects,
+                      precautions: record.pre_medication.precautions,
+                      note: record.pre_medication.note,
+                    }
+                  : undefined
+              }
+            />
+          )}
 
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
             <PrimaryLink href="/assessment" className="min-h-12 flex-1">

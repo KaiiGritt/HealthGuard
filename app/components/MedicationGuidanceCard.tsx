@@ -8,24 +8,55 @@ interface MedicationInfo {
 }
 
 interface MedicationGuidanceCardProps {
+  riskLevel?: "GREEN" | "YELLOW" | "RED";
+  detectedSymptoms?: string[];
   guidance?: MedicationInfo;
 }
 
-const defaultGuidance: MedicationInfo = {
-  drugName: "Paracetamol (Biogesic / Tempra / Calpol)",
-  dosage: "Common adult dose is 500 mg every 4 to 6 hours as needed. Do not take more than the label dose in 24 hours.",
-  contraindications: [
-    "Severe liver disease",
-    "Known allergy to paracetamol",
-    "Taking another medicine that also contains acetaminophen",
-  ],
-  sideEffects: ["Nausea or stomach upset", "Sleepiness", "Rash in some people"],
-  precautions: [
-    "Use the lowest dose that works for the shortest time needed",
-    "Avoid alcohol while taking it",
-    "Ask a pharmacist or doctor if you are pregnant, breastfeeding, or have kidney or liver problems",
-  ],
-  note: "Good for simple fever and body aches when used as directed on the label.",
+const buildGuidance = (riskLevel: string, detectedSymptoms: string[] = []): MedicationInfo => {
+  const normalized = (riskLevel || "GREEN").toUpperCase();
+  const hasFever = detectedSymptoms.some((symptom) => symptom.toLowerCase().includes("fever") || symptom.toLowerCase().includes("lagnat"));
+  const hasCough = detectedSymptoms.some((symptom) => symptom.toLowerCase().includes("cough") || symptom.toLowerCase().includes("ubo"));
+
+  if (normalized === "YELLOW") {
+    return {
+      drugName: "Paracetamol (Biogesic / Tempra / Calpol)",
+      dosage: "Common adult dose is 500 mg every 4 to 6 hours as needed. Use the lowest effective dose and avoid exceeding the label instructions.",
+      contraindications: [
+        "Severe liver disease",
+        "Known allergy to paracetamol",
+        "Taking another medicine that also contains acetaminophen",
+      ],
+      sideEffects: ["Nausea or stomach upset", "Drowsiness", "Rash in some people"],
+      precautions: [
+        "Use only as directed and do not continue longer than needed",
+        "Avoid alcohol while taking it",
+        "Seek advice from a pharmacist or doctor if you are pregnant, breastfeeding, or have kidney or liver issues",
+      ],
+      note: hasFever
+        ? "Good for mild fever and body aches when used according to the label. Follow-up evaluation is still recommended."
+        : hasCough
+          ? "Useful for low-grade discomfort and fever, but persistent cough should still be evaluated by a health worker."
+          : "This is a general supportive option for mild discomfort and low-risk cases; a health worker should still review your symptoms.",
+    };
+  }
+
+  return {
+    drugName: "Paracetamol (Biogesic / Tempra / Calpol)",
+    dosage: "Common adult dose is 500 mg every 4 to 6 hours as needed. Do not exceed the label dose in 24 hours.",
+    contraindications: [
+      "Severe liver disease",
+      "Known allergy to paracetamol",
+      "Taking another medicine that also contains acetaminophen",
+    ],
+    sideEffects: ["Nausea or stomach upset", "Sleepiness", "Rash in some people"],
+    precautions: [
+      "Use the lowest dose that works for the shortest time needed",
+      "Avoid alcohol while taking it",
+      "Ask a pharmacist or doctor if you are pregnant, breastfeeding, or have kidney or liver problems",
+    ],
+    note: "Good for simple fever and body aches when used as directed on the label.",
+  };
 };
 
 function SectionBlock({ title, items }: { title: string; items: string[] }) {
@@ -61,7 +92,17 @@ function MedicationCard({ item }: { item: MedicationInfo }) {
   );
 }
 
-export default function MedicationGuidanceCard({ guidance = defaultGuidance }: MedicationGuidanceCardProps) {
+export default function MedicationGuidanceCard({
+  riskLevel = "GREEN",
+  detectedSymptoms = [],
+  guidance,
+}: MedicationGuidanceCardProps) {
+  const computedGuidance = guidance ?? buildGuidance(riskLevel, detectedSymptoms);
+
+  if ((riskLevel || "").toUpperCase() === "RED") {
+    return null;
+  }
+
   return (
     <section className="mt-6 rounded-md border border-triage-yellow/40 bg-yellow-tint p-5">
       <div className="flex items-start gap-3">
@@ -77,7 +118,7 @@ export default function MedicationGuidanceCard({ guidance = defaultGuidance }: M
       </div>
 
       <div className="mt-4">
-        <MedicationCard item={guidance} />
+        <MedicationCard item={computedGuidance} />
       </div>
 
       <p className="mt-4 text-sm leading-relaxed text-ink-faint lg:text-base">

@@ -31,6 +31,15 @@ export interface AnalyzeResult {
   disclaimer: string;
 }
 
+export interface PreMedicationOut {
+  medication_name: string;
+  dosage: string;
+  contraindications: string[];
+  side_effects: string[];
+  precautions: string[];
+  note: string;
+}
+
 export interface AssessmentOut {
   id: number;
   input_text: string;
@@ -40,6 +49,7 @@ export interface AssessmentOut {
   reason: string;
   recommendation: string;
   created_at: string;
+  pre_medication?: PreMedicationOut | null;
 }
 
 export interface DashboardMetric {

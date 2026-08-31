@@ -35,6 +35,17 @@ class TriggeredRule(BaseModel):
     description: str
 
 
+class PreMedicationOut(BaseModel):
+    """Medication guidance generated for non-emergency assessments."""
+
+    medication_name: str
+    dosage: str
+    contraindications: list[str]
+    side_effects: list[str]
+    precautions: list[str]
+    note: str
+
+
 class AnalyzeResult(BaseModel):
     """The explainable triage result returned to the frontend."""
 
@@ -50,6 +61,7 @@ class AnalyzeResult(BaseModel):
     method: str
     created_at: datetime
     disclaimer: str = DISCLAIMER
+    pre_medication: PreMedicationOut | None = None
 
 
 class AssessmentOut(BaseModel):
@@ -65,6 +77,7 @@ class AssessmentOut(BaseModel):
     reason: str
     recommendation: str
     created_at: datetime
+    pre_medication: PreMedicationOut | None = None
 
 
 class DashboardMetric(BaseModel):

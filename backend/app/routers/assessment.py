@@ -10,9 +10,11 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..deps import get_current_user_optional, require_role
-from ..models import Assessment, SymptomLexicon, User
+from ..models import Assessment, AssessmentSymptom, Symptom, SymptomLexicon, User
 from ..nlp.engine import analyze
 from ..nlp.lexicon import LexiconEntry
+from ..nlp.rules import build_premedication_guide
+from ..premedication_service import create_assessment_premedication, get_premedication_for_assessment
 from ..schemas import (
     AdminActivityItem,
     AdminLexiconItem,
@@ -35,6 +37,7 @@ from ..schemas import (
     DetectedSymptom,
     LexiconCreateRequest,
     MethodBreakdownItem,
+    PreMedicationOut,
     SymptomStatItem,
     TriageBreakdownItem,
     TriggeredRule,
@@ -106,7 +109,17 @@ def _build_barangay_stats(db: Session) -> list[BarangayStatItem]:
 
 def _build_top_symptoms(db: Session) -> list[SymptomStatItem]:
     counter: Counter[str] = Counter()
-    for symptoms in db.execute(select(Assessment.detected_symptoms)).scalars():
+
+    rows = db.execute(
+        select(AssessmentSymptom.assessment_id, Symptom.name)
+        .join(Symptom, AssessmentSymptom.symptom_id == Symptom.id)
+    ).all()
+    for _, symptom_name in rows:
+        if str(symptom_name).strip():
+            counter[str(symptom_name).strip()] += 1
+
+    legacy_rows = db.execute(select(Assessment.detected_symptoms)).scalars().all()
+    for symptoms in legacy_rows:
         if not isinstance(symptoms, list):
             continue
         for item in symptoms:
@@ -560,9 +573,64 @@ def _load_entries(db: Session) -> list[LexiconEntry]:
     ]
 
 
+def _assessment_symptom_terms(db: Session, assessment: Assessment) -> list[str]:
+    rows = (
+        db.execute(
+            select(Symptom.name)
+            .join(AssessmentSymptom, AssessmentSymptom.symptom_id == Symptom.id)
+            .where(AssessmentSymptom.assessment_id == assessment.id)
+        )
+        .scalars()
+        .all()
+    )
+    if rows:
+        return [str(item).strip().lower() for item in rows if str(item).strip()]
+    return [str(item).strip().lower() for item in (assessment.detected_symptoms or []) if str(item).strip()]
+
+
+def _sync_assessment_symptoms(db: Session, assessment: Assessment, matches: list) -> None:
+    seen: set[int] = set()
+    for match in matches:
+        symptom_name = str(getattr(match, "medical_term", "") or "").strip()
+        if not symptom_name:
+            continue
+        symptom = db.execute(select(Symptom).where(Symptom.name == symptom_name)).scalar_one_or_none()
+        if symptom is None:
+            symptom = Symptom(name=symptom_name, description=symptom_name, category=getattr(match, "category", "general") or "general")
+            db.add(symptom)
+            db.flush()
+        if symptom.id in seen:
+            continue
+        seen.add(symptom.id)
+        existing = db.execute(
+            select(AssessmentSymptom).where(
+                AssessmentSymptom.assessment_id == assessment.id,
+                AssessmentSymptom.symptom_id == symptom.id,
+            )
+        ).scalar_one_or_none()
+        if existing is None:
+            db.add(
+                AssessmentSymptom(
+                    assessment_id=assessment.id,
+                    symptom_id=symptom.id,
+                    matched_text=str(getattr(match, "matched_text", symptom_name) or symptom_name).strip(),
+                    language=str(getattr(match, "language", "en") or "en").strip() or "en",
+                    category=str(getattr(match, "category", "general") or "general").strip() or "general",
+                    severity_weight=int(getattr(match, "severity_weight", 1) or 1),
+                )
+            )
+    assessment.detected_symptoms = [name for name in {symptom_name for symptom_name in (assessment.detected_symptoms or []) if str(symptom_name).strip()}]
+    if not assessment.detected_symptoms:
+        assessment.detected_symptoms = [str(getattr(match, "medical_term", "") or "").strip() for match in matches if str(getattr(match, "medical_term", "") or "").strip()]
+    db.flush()
+
+
 @router.get("/symptoms", response_model=list[str])
-def list_selectable_symptoms() -> list[str]:
-    """The canonical symptom list for the selection chips."""
+def list_selectable_symptoms(db: Session = Depends(get_db)) -> list[str]:
+    """The canonical symptom list for the selection chips, backed by the Symptom table when available."""
+    names = db.execute(select(Symptom.name).where(Symptom.is_active.is_(True)).order_by(Symptom.name)).scalars().all()
+    if names:
+        return [str(name).strip() for name in names if str(name).strip()]
     return SELECTABLE_SYMPTOMS
 
 
@@ -597,8 +665,26 @@ def analyze_symptoms(
         recommendation=result.classification.recommendation,
     )
     db.add(record)
+    db.flush()
+    _sync_assessment_symptoms(db, record, result.matches)
     db.commit()
     db.refresh(record)
+    create_assessment_premedication(db, record)
+
+    guide = build_premedication_guide(record.risk_level, _assessment_symptom_terms(db, record))
+    db_guide = get_premedication_for_assessment(db, record.id)
+    pre_medication = (
+        PreMedicationOut(
+            medication_name=db_guide.medication_name if db_guide else (guide.medication_name if guide else ""),
+            dosage=db_guide.dosage if db_guide else (guide.dosage if guide else ""),
+            contraindications=list(guide.contraindications) if guide else [],
+            side_effects=list(guide.side_effects) if guide else [],
+            precautions=list(guide.precautions) if guide else [],
+            note=(db_guide.instruction if db_guide else (guide.note if guide else "")),
+        )
+        if (db_guide is not None or guide is not None)
+        else None
+    )
 
     return AnalyzeResult(
         id=record.id,
@@ -615,6 +701,7 @@ def analyze_symptoms(
         input_text=record.input_text,
         method=record.method,
         created_at=record.created_at,
+        pre_medication=pre_medication,
     )
 
 
@@ -641,7 +728,38 @@ def history(
             .order_by(Assessment.created_at.desc())
             .limit(limit)
         )
-    return list(db.execute(stmt).scalars().all())
+
+    records = list(db.execute(stmt).scalars().all())
+    response = []
+    for record in records:
+        terms = _assessment_symptom_terms(db, record)
+        guide = build_premedication_guide(record.risk_level, terms)
+        db_guide = get_premedication_for_assessment(db, record.id)
+        response.append(
+            AssessmentOut(
+                id=record.id,
+                input_text=record.input_text,
+                method=record.method,
+                detected_symptoms=record.detected_symptoms,
+                risk_level=record.risk_level,
+                reason=record.reason,
+                recommendation=record.recommendation,
+                created_at=record.created_at,
+                pre_medication=(
+                    PreMedicationOut(
+                        medication_name=db_guide.medication_name if db_guide else (guide.medication_name if guide else ""),
+                        dosage=db_guide.dosage if db_guide else (guide.dosage if guide else ""),
+                        contraindications=list(guide.contraindications) if guide else [],
+                        side_effects=list(guide.side_effects) if guide else [],
+                        precautions=list(guide.precautions) if guide else [],
+                        note=(db_guide.instruction if db_guide else (guide.note if guide else "")),
+                    )
+                    if (db_guide is not None or guide is not None)
+                    else None
+                ),
+            )
+        )
+    return response
 
 
 @router.get("/{assessment_id}", response_model=AssessmentOut)
@@ -649,11 +767,36 @@ def get_assessment(
     assessment_id: int,
     db: Session = Depends(get_db),
     user: User | None = Depends(get_current_user_optional),
-) -> Assessment:
+) -> AssessmentOut:
     record = db.get(Assessment, assessment_id)
     if record is None:
         raise HTTPException(status_code=404, detail="Assessment not found")
     # A record owned by a user is only viewable by that user; anonymous records are open.
     if record.user_id is not None and (user is None or user.id != record.user_id):
         raise HTTPException(status_code=404, detail="Assessment not found")
-    return record
+
+    terms = _assessment_symptom_terms(db, record)
+    guide = build_premedication_guide(record.risk_level, terms)
+    db_guide = get_premedication_for_assessment(db, record.id)
+    return AssessmentOut(
+        id=record.id,
+        input_text=record.input_text,
+        method=record.method,
+        detected_symptoms=record.detected_symptoms,
+        risk_level=record.risk_level,
+        reason=record.reason,
+        recommendation=record.recommendation,
+        created_at=record.created_at,
+        pre_medication=(
+            PreMedicationOut(
+                medication_name=db_guide.medication_name if db_guide else (guide.medication_name if guide else ""),
+                dosage=db_guide.dosage if db_guide else (guide.dosage if guide else ""),
+                contraindications=list(guide.contraindications) if guide else [],
+                side_effects=list(guide.side_effects) if guide else [],
+                precautions=list(guide.precautions) if guide else [],
+                note=(db_guide.instruction if db_guide else (guide.note if guide else "")),
+            )
+            if (db_guide is not None or guide is not None)
+            else None
+        ),
+    )

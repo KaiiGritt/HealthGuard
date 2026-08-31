@@ -14,7 +14,7 @@ from .config import settings
 from .database import Base, SessionLocal, engine, migrate_email_verification_schema, migrate_lexicon_review_schema
 from .nlp import scispacy_adapter
 from .routers import assessment, auth
-from .seed import seed_admin, seed_lexicon, seed_mho
+from .seed import seed_admin, seed_lexicon, seed_lexicon_rules, seed_mho, seed_risk_and_guide_levels, seed_symptoms
 
 
 def _ensure_nltk() -> None:
@@ -40,9 +40,13 @@ async def lifespan(app: FastAPI):
     migrate_lexicon_review_schema()
     with SessionLocal() as db:
         inserted = seed_lexicon(db)
+        symptoms_inserted = seed_symptoms(db)
+        seed_risk_and_guide_levels(db)
+        seed_lexicon_rules(db)
         admin_created = seed_admin(db)
         mho_created = seed_mho(db)
     print(f"[startup] Lexicon seeded (+{inserted} new entries). "
+          f"Symptoms seeded (+{symptoms_inserted} new entries). "
           f"scispaCy layer: {'ACTIVE' if scispacy_adapter.is_available() else 'dormant'}.")
     if admin_created:
         print(f"[startup] Bootstrap admin created: {settings.admin_email} "

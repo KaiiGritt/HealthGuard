@@ -54,6 +54,86 @@ SELECTABLE_SYMPTOMS: list[str] = [
 ]
 
 
+def seed_symptoms(db: Session) -> int:
+    """Seed the canonical symptom registry used by the class diagram."""
+    from sqlalchemy import select
+
+    from .models import Symptom
+
+    inserted = 0
+    for name in SELECTABLE_SYMPTOMS:
+        existing = db.execute(select(Symptom).where(Symptom.name == name)).scalar_one_or_none()
+        if existing is None:
+            db.add(Symptom(name=name, description=name, category="general", is_active=True))
+            inserted += 1
+    if inserted:
+        db.commit()
+    return inserted
+
+
+def seed_risk_and_guide_levels(db: Session) -> None:
+    """Seed the triage and guidance tables used by the class diagram."""
+    from sqlalchemy import select
+
+    from .models import GuideLevel, RiskLevel
+
+    risk_levels = [
+        ("GREEN", "Mild symptoms requiring monitoring and general advice.", 1),
+        ("YELLOW", "Moderate symptoms requiring health worker review.", 2),
+        ("RED", "Emergency-level symptoms requiring immediate escalation.", 3),
+    ]
+    for name, description, order in risk_levels:
+        existing = db.execute(select(RiskLevel).where(RiskLevel.name == name)).scalar_one_or_none()
+        if existing is None:
+            db.add(RiskLevel(name=name, description=description, display_order=order))
+
+    guide_levels = [
+        ("general", "Standard self-care and mild symptom support.", 1),
+        ("follow_up", "Follow-up guidance for yellow-tier cases.", 2),
+    ]
+    for name, description, order in guide_levels:
+        existing = db.execute(select(GuideLevel).where(GuideLevel.guide_name == name)).scalar_one_or_none()
+        if existing is None:
+            db.add(GuideLevel(guide_name=name, description=description, display_order=order))
+
+    db.commit()
+
+
+def seed_lexicon_rules(db: Session) -> None:
+    """Seed the rule metadata used by the medication generation model."""
+    from sqlalchemy import select
+
+    from .models import GuideLevel, LexiconRule, RiskLevel
+
+    rules = [
+        ("fever", "fever", "GREEN", "general", 1.0),
+        ("fever", "fever", "YELLOW", "follow_up", 1.2),
+        ("cough", "cough", "GREEN", "general", 0.8),
+        ("cough", "cough", "YELLOW", "follow_up", 1.0),
+        ("difficulty breathing", "difficulty breathing", "RED", None, 5.0),
+    ]
+
+    for term, normalized_term, risk_name, guide_name, weight in rules:
+        risk = db.execute(select(RiskLevel).where(RiskLevel.name == risk_name)).scalar_one_or_none() if risk_name else None
+        guide = db.execute(select(GuideLevel).where(GuideLevel.guide_name == guide_name)).scalar_one_or_none() if guide_name else None
+        existing = db.execute(
+            select(LexiconRule).where(LexiconRule.term == term, LexiconRule.normalized_term == normalized_term)
+        ).scalar_one_or_none()
+        if existing is None:
+            db.add(
+                LexiconRule(
+                    term=term,
+                    normalized_term=normalized_term,
+                    risk_level_id=risk.id if risk else None,
+                    guide_level_id=guide.id if guide else None,
+                    weight=weight,
+                    is_active=True,
+                )
+            )
+
+    db.commit()
+
+
 def seed_lexicon(db: Session) -> int:
     """Insert any lexicon entries that are not already present. Idempotent.
 
