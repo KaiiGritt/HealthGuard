@@ -11,7 +11,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
-from .database import Base, SessionLocal, engine, migrate_email_verification_schema, migrate_lexicon_review_schema
+from .database import (
+    Base,
+    SessionLocal,
+    engine,
+    migrate_email_verification_schema,
+    migrate_lexicon_review_schema,
+    migrate_lexicon_rule_base_schema,
+)
 from .nlp import scispacy_adapter
 from .routers import assessment, auth
 from .seed import seed_admin, seed_lexicon, seed_lexicon_rules, seed_mho, seed_risk_and_guide_levels, seed_symptoms
@@ -38,6 +45,7 @@ async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     migrate_email_verification_schema()
     migrate_lexicon_review_schema()
+    migrate_lexicon_rule_base_schema()
     with SessionLocal() as db:
         inserted = seed_lexicon(db)
         symptoms_inserted = seed_symptoms(db)

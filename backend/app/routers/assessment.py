@@ -50,9 +50,6 @@ from ..seed import SELECTABLE_SYMPTOMS
 router = APIRouter(prefix="/assessment", tags=["assessment"])
 
 
-router = APIRouter(prefix="/assessment", tags=["assessment"])
-
-
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
 

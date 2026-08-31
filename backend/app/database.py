@@ -124,3 +124,29 @@ def migrate_lexicon_review_schema() -> None:
         for column, ddl in alters.items():
             if column not in cols:
                 conn.execute(text(f"ALTER TABLE symptom_lexicon ADD COLUMN {column} {ddl}"))
+
+
+def migrate_lexicon_rule_base_schema() -> None:
+    """Add rule_base_id to legacy lexicon_rules tables created before the diagram refactor."""
+    from sqlalchemy import inspect, text
+
+    insp = inspect(engine)
+    if "lexicon_rules" not in insp.get_table_names():
+        return
+
+    cols = {c["name"] for c in insp.get_columns("lexicon_rules")}
+    if "rule_base_id" in cols:
+        return
+
+    if engine.url.get_backend_name() == "sqlite":
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE lexicon_rules ADD COLUMN rule_base_id INTEGER"))
+        return
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "ALTER TABLE lexicon_rules ADD COLUMN rule_base_id INTEGER "
+                "REFERENCES lexicon_rule_bases(id) ON DELETE SET NULL"
+            )
+        )
