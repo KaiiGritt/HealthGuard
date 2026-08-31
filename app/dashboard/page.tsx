@@ -135,31 +135,35 @@ function DonutChart({
   const total = Math.max(segments.reduce((sum, s) => sum + s.value, 0), 1);
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
-  let offset = 0;
+  const segmentLayout = segments.reduce(
+    (acc, seg) => {
+      const dash = (seg.value / total) * circumference;
+      const offset = acc.current;
+      acc.current += dash;
+      acc.items.push({ ...seg, dash, offset });
+      return acc;
+    },
+    { current: 0, items: [] as Array<{ label: string; value: number; colorClass: string; dotClass: string; dash: number; offset: number }> },
+  ).items;
 
   return (
     <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-center">
       <div className="relative shrink-0" style={{ width: size, height: size }}>
         <svg viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
           <circle cx={size / 2} cy={size / 2} r={radius} fill="none" strokeWidth={strokeWidth} className="stroke-border" />
-          {segments.map((seg) => {
-            const dash = (seg.value / total) * circumference;
-            const el = (
-              <circle
-                key={seg.label}
-                cx={size / 2}
-                cy={size / 2}
-                r={radius}
-                fill="none"
-                strokeWidth={strokeWidth}
-                strokeDasharray={`${dash} ${circumference - dash}`}
-                strokeDashoffset={-offset}
-                className={cn(seg.colorClass, "transition-all duration-500")}
-              />
-            );
-            offset += dash;
-            return el;
-          })}
+          {segmentLayout.map((seg) => (
+            <circle
+              key={seg.label}
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              fill="none"
+              strokeWidth={strokeWidth}
+              strokeDasharray={`${seg.dash} ${circumference - seg.dash}`}
+              strokeDashoffset={-seg.offset}
+              className={cn(seg.colorClass, "transition-all duration-500")}
+            />
+          ))}
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <p className="font-mono text-xl font-semibold text-ink">{centerLabel}</p>
@@ -423,6 +427,7 @@ function DashboardPageContent() {
   const [activeSection, setActiveSectionState] = useState<SectionId>(
     (searchParams.get("section") as SectionId) || "overview",
   );
+  const [selectedAssessmentId, setSelectedAssessmentId] = useState<number | null>(null);
   const [toast, setToast] = useState<{ message: string; tone: "success" | "error" } | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
@@ -560,6 +565,10 @@ function DashboardPageContent() {
   const redBreakdown = stats?.triage_breakdown.find((item) => (item.level || "").toLowerCase() === "red")?.value ?? 0;
   const yellowBreakdown = stats?.triage_breakdown.find((item) => (item.level || "").toLowerCase() === "yellow")?.value ?? 0;
   const greenBreakdown = stats?.triage_breakdown.find((item) => (item.level || "").toLowerCase() === "green")?.value ?? 0;
+  const selectedAssessment = useMemo(
+    () => stats?.recent_assessments.find((item) => item.id === selectedAssessmentId) ?? stats?.recent_assessments[0] ?? null,
+    [stats, selectedAssessmentId],
+  );
   const barangayStats = stats?.barangay_stats ?? [];
   const maxBarangayCases = Math.max(...barangayStats.map((item) => item.total), 1);
   const pendingLexicon = lexiconEntries.filter((entry) => !entry.reviewed);
@@ -744,6 +753,13 @@ function DashboardPageContent() {
                     <p className="mt-2 text-sm text-ink-secondary">{item.note}</p>
                     <p className="mt-2 text-xs text-ink-muted">{new Date(item.created_at).toLocaleString()}</p>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedAssessmentId(item.id)}
+                    className="inline-flex min-h-11 items-center justify-center rounded-sm border border-border bg-white px-3 text-sm font-medium text-brand-dark transition hover:border-brand/40 hover:bg-brand-tint"
+                  >
+                    View result
+                  </button>
                 </ListRow>
               ))
             ) : (
@@ -752,6 +768,29 @@ function DashboardPageContent() {
               </p>
             )}
           </div>
+
+          {selectedAssessment && (
+            <div className="mt-5 rounded-xl border border-[#D8DED1] bg-[#F8FAF5] p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-faint">Selected assessment</p>
+                  <h4 className="mt-1 text-lg font-semibold text-ink">{selectedAssessment.resident_name}</h4>
+                </div>
+                <TriageBadge level={selectedAssessment.risk_level} />
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-faint">Barangay</p>
+                  <p className="mt-1 text-sm text-ink-secondary">{selectedAssessment.barangay ?? "Unassigned"}</p>
+                </div>
+                <div>
+                  <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-faint">Date</p>
+                  <p className="mt-1 text-sm text-ink-secondary">{new Date(selectedAssessment.created_at).toLocaleString()}</p>
+                </div>
+              </div>
+              <p className="mt-4 text-sm leading-relaxed text-ink-secondary">{selectedAssessment.note || "No assessment details were captured for this result."}</p>
+            </div>
+          )}
         </WidgetCard>
 
         <WidgetCard icon="pie" title="Symptom frequency" subtitle="Current patterns" updated={updatedLabel}>
@@ -983,7 +1022,7 @@ function DashboardPageContent() {
               ? "Administrator accounts use the Admin panel for account and system management. The community dashboard is reserved for municipal health officers."
               : "Please sign in with an MHO account to open the community health dashboard."
           }
-          hint={isAdmin ? undefined : "MHO: healthguard.irosin@gmail.com / ChangeMe!123"}
+          hint={isAdmin ? undefined : "Restricted access for authorized MHO staff only"}
           actionHref={isAdmin ? "/admin" : "/login"}
           actionLabel={isAdmin ? "Go to admin panel" : "Go to login"}
         />
@@ -995,7 +1034,7 @@ function DashboardPageContent() {
     <>
       <PageHeader />
       <PageMain wide>
-        <div className="rounded-3xl border border-[#D8DED1] bg-gradient-to-br from-[#183D2D] via-[#1F4A36] to-[#2E6A52] p-[1px] shadow-[0_24px_48px_rgba(31,74,54,0.18)]">
+        <div className="rounded-3xl border border-[#D8DED1] bg-linear-to-br from-[#183D2D] via-[#1F4A36] to-[#2E6A52] p-px shadow-[0_24px_48px_rgba(31,74,54,0.18)]">
           <HeroBanner
             eyebrow="For municipal health office"
             title="Community health overview"
@@ -1011,13 +1050,13 @@ function DashboardPageContent() {
           />
         </div>
 
-        <div className="mt-6 grid gap-6 xl:grid-cols-[220px_minmax(0,1fr)]">
-          <aside className="h-max rounded-2xl border border-[#D8DED1] bg-[#FBF9F2]/90 p-4 shadow-[0_10px_30px_rgba(24,38,25,0.06)] backdrop-blur xl:sticky xl:top-24 xl:p-5">
-            <div className="mb-4 flex items-center justify-between">
+        <div className="mt-6 grid gap-6 xl:grid-cols-[240px_minmax(0,1fr)]">
+          <aside className="h-fit rounded-[22px] border border-[#D7E0D2] bg-[linear-gradient(180deg,#FBF9F2_0%,#F2F6EE_100%)] p-3 shadow-[0_18px_42px_rgba(24,38,25,0.07)] backdrop-blur xl:sticky xl:top-24 xl:p-4">
+            <div className="mb-4 flex items-center justify-between rounded-xl border border-[#DDE7DB] bg-white/60 px-3 py-2.5">
               <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-muted">Dashboard</p>
               <span className="rounded-full border border-[#CFE0D3] bg-[#EEF6F0] px-2 py-1 font-mono text-[9px] uppercase tracking-[0.12em] text-brand-dark">Live</span>
             </div>
-            <nav className="mt-4 space-y-2" role="tablist" aria-label="Dashboard sections">
+            <nav className="space-y-2" role="tablist" aria-label="Dashboard sections">
               {SECTIONS.map((item, index) => {
                 const active = activeSection === item.id;
                 const urgentCount = item.id === "records" ? redCases.length : 0;
@@ -1030,10 +1069,10 @@ function DashboardPageContent() {
                     aria-selected={active}
                     aria-controls={`panel-${item.id}`}
                     onClick={() => setActiveSection(item.id)}
-                    className={`flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left text-sm font-medium transition ${
+                    className={`flex w-full items-center justify-between rounded-xl border px-3 py-2.75 text-left text-sm font-medium transition-all duration-200 ${
                       active
-                        ? "border-[#C8D6C5] bg-gradient-to-r from-[#EAF4EE] to-[#F7FAF3] text-brand-dark shadow-sm"
-                        : "border-transparent bg-transparent text-ink-secondary hover:border-[#D8DED1] hover:bg-[#F4F7F0]"
+                        ? "border-[#C8D6C5] bg-linear-to-r from-[#EAF4EE] to-[#F7FAF3] text-brand-dark shadow-[0_8px_18px_rgba(31,74,54,0.08)]"
+                        : "border-transparent bg-transparent text-ink-secondary hover:border-[#D8DED1] hover:bg-[#F4F7F0] hover:text-[#1F4A36]"
                     }`}
                   >
                     <span className="flex items-center gap-2">

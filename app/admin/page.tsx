@@ -265,7 +265,7 @@ export default function AdminPage() {
               ? "MHO staff should use the community dashboard to review assessments and barangay trends. System administration is limited to administrator accounts."
               : "Please sign in with an administrator account to open the admin panel."
           }
-          hint={isMho ? undefined : "acefin24@gmail.com / ChangeMe!123"}
+          hint={isMho ? undefined : "Restricted access for authorized administrators only"}
           actionHref={isMho ? "/dashboard" : "/login"}
           actionLabel={isMho ? "Go to community dashboard" : "Go to login"}
         />

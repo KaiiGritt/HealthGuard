@@ -269,6 +269,7 @@ def dashboard_summary(
                 Assessment.input_text,
                 Assessment.risk_level,
                 Assessment.created_at,
+                Assessment.user_id,
                 User.full_name,
                 User.barangay,
             )
@@ -284,11 +285,15 @@ def dashboard_summary(
         note = (row[1] or "No details provided").strip() or "No details provided"
         if len(note) > 72:
             note = note[:69] + "..."
+        # row[4] = Assessment.user_id; row[5] = User.full_name
+        # If user_id is NULL (anonymous submission), show "Anonymous submission"
+        # If user_id exists but full_name is NULL, still show a placeholder
+        resident_name = "Anonymous submission" if row[4] is None else (row[5] or f"Resident #{row[4]}")
         recent_assessments.append(
             DashboardAssessmentItem(
                 id=row[0],
-                resident_name=row[4] or "Anonymous resident",
-                barangay=row[5],
+                resident_name=resident_name,
+                barangay=row[6],
                 risk_level=row[2],
                 note=note,
                 created_at=row[3],

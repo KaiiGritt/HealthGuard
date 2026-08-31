@@ -340,15 +340,27 @@ export function AccessGate({
   actionLabel: string;
 }) {
   return (
-    <PageMain narrow className="flex min-h-[60vh] items-center justify-center">
-      <div className="w-full max-w-lg rounded-md border border-border bg-card p-9 text-center">
-        <TagBadge tone="staff">{tag}</TagBadge>
-        <h1 className="mt-5 font-display text-3xl font-semibold leading-tight text-ink xl:text-4xl">{title}</h1>
-        <p className="mt-4 text-lg leading-relaxed text-ink-secondary">{description}</p>
-        {hint ? <p className="mt-3 font-mono text-base text-ink-muted">{hint}</p> : null}
-        <PrimaryLink href={actionHref} className="mt-8">
-          {actionLabel}
-        </PrimaryLink>
+    <PageMain narrow className="flex min-h-[60vh] items-center justify-center py-10">
+      <div className="relative w-full max-w-xl overflow-hidden rounded-[28px] border border-[#D8DED1] bg-gradient-to-br from-[#F8FAF5] via-[#F2F6F0] to-[#EAF1E8] p-8 shadow-[0_24px_64px_rgba(18,40,28,0.10)] sm:p-10">
+        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#173F2D] via-[#2E6A52] to-[#C7B37A]" />
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-[#D7E3D7] bg-white/80 shadow-sm">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-8 w-8 text-[#173F2D]" aria-hidden="true">
+            <rect x="5" y="11" width="14" height="9" rx="2" />
+            <path d="M8 11V8a4 4 0 1 1 8 0v3" />
+          </svg>
+        </div>
+        <div className="mt-6 text-center">
+          <TagBadge tone="staff">{tag}</TagBadge>
+          <h1 className="mt-5 font-display text-3xl font-semibold leading-tight text-[#183D2D] xl:text-4xl">{title}</h1>
+          <p className="mt-4 text-base leading-relaxed text-[#49564B] sm:text-lg">{description}</p>
+          {hint ? <p className="mt-4 rounded-full border border-[#D7E3D7] bg-white/70 px-4 py-2 font-mono text-xs uppercase tracking-[0.12em] text-[#3F5246]">{hint}</p> : null}
+        </div>
+
+        <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <PrimaryLink href={actionHref} className="min-w-[180px] justify-center rounded-xl px-5 py-3 text-base shadow-[0_14px_28px_rgba(23,63,45,0.14)]">
+            {actionLabel}
+          </PrimaryLink>
+        </div>
       </div>
     </PageMain>
   );
