@@ -13,7 +13,7 @@ from ..deps import get_current_user_optional, require_role
 from ..models import Assessment, AssessmentSymptom, Symptom, SymptomLexicon, User
 from ..nlp.engine import analyze
 from ..nlp.lexicon import LexiconEntry
-from ..nlp.rules import build_premedication_guide
+from ..nlp.rules import build_premedication_guide, has_supported_symptom_input
 from ..premedication_service import create_assessment_premedication, get_premedication_for_assessment
 from ..schemas import (
     AdminActivityItem,
@@ -642,8 +642,14 @@ def analyze_symptoms(
     db: Session = Depends(get_db),
     user: User | None = Depends(get_current_user_optional),
 ) -> AnalyzeResult:
+    if not has_supported_symptom_input(payload.input_text, payload.selected_symptoms):
+        raise HTTPException(
+            status_code=422,
+            detail="No recognized symptom was detected. Please select a supported symptom or describe one of the supported symptoms.",
+        )
+
     entries = _load_entries(db)
-    result = analyze(payload.input_text, payload.selected_symptoms, entries)
+    result = analyze(payload.input_text, payload.selected_symptoms, entries, age=payload.age, sex=payload.sex)
 
     detected = [
         DetectedSymptom(

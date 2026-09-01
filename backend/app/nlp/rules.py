@@ -8,7 +8,38 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .lexicon import Match
+from .lexicon import LexiconEntry, Match, match_selected, match_text
+
+
+def _supported_lexicon_entries() -> list[LexiconEntry]:
+    """Return the canonical symptom lexicon used for validation and symptom matching."""
+    from ..seed import LEXICON_SEED
+
+    entries: list[LexiconEntry] = []
+    for item in LEXICON_SEED:
+        entries.append(
+            LexiconEntry(
+                local_term=str(item.get("local_term", "")).strip(),
+                language=str(item.get("language", "en")).strip() or "en",
+                medical_term=str(item.get("medical_term", "")).strip(),
+                severity_weight=int(item.get("severity_weight", 1) or 1),
+                category=str(item.get("category", "general")).strip() or "general",
+            )
+        )
+    return entries
+
+
+def has_supported_symptom_input(input_text: str, selected_symptoms: list[str] | None = None) -> bool:
+    """Allow an assessment only when at least one recognized symptom is present.
+
+    This prevents random free-text like "I don't have money" from generating a triage result.
+    """
+    entries = _supported_lexicon_entries()
+    cleaned_selected = [str(item).strip() for item in (selected_symptoms or []) if str(item).strip()]
+    if not cleaned_selected and not str(input_text or "").strip():
+        return False
+
+    return bool(match_text(str(input_text or ""), entries) or match_selected(cleaned_selected, entries))
 
 
 @dataclass(frozen=True)
@@ -338,7 +369,36 @@ _RECOMMENDATIONS = {
 }
 
 
-def classify(matches: list[Match]) -> Classification:
+def _apply_demographic_adjustment(
+    score: int, age: int | None = None, sex: str | None = None
+) -> tuple[int, list[Rule]]:
+    """Increase urgency for higher-risk age/sex contexts without diagnosing conditions."""
+    adjusted_score = score
+    triggered: list[Rule] = []
+
+    if age is not None and (age < 5 or age > 65):
+        adjusted_score += 1
+        triggered.append(
+            Rule(
+                name="age-risk-modifier",
+                description="Age is outside the typical low-risk adult range, which increases urgency for symptom review.",
+            )
+        )
+
+    normalized_sex = (sex or "").strip().lower()
+    if normalized_sex in {"female", "woman", "pregnant"}:
+        adjusted_score += 1
+        triggered.append(
+            Rule(
+                name="sex-risk-modifier",
+                description="Female/pregnancy context increases caution for symptom review and follow-up when symptoms are present.",
+            )
+        )
+
+    return adjusted_score, triggered
+
+
+def classify(matches: list[Match], age: int | None = None, sex: str | None = None) -> Classification:
     """Evaluate triage rules over detected symptom matches."""
     triggered: list[Rule] = []
     score = sum(m.severity_weight for m in matches)
@@ -353,23 +413,27 @@ def classify(matches: list[Match]) -> Classification:
                 description=f"'{symptom}' is a red-flag symptom requiring urgent care.",
             )
         )
-    if score >= RED_SCORE_THRESHOLD:
+
+    adjusted_score, demographic_rules = _apply_demographic_adjustment(score, age=age, sex=sex)
+    triggered.extend(demographic_rules)
+
+    if adjusted_score >= RED_SCORE_THRESHOLD:
         triggered.append(
             Rule(
                 name="high-severity-score",
-                description=f"Combined symptom severity ({score}) meets the high-risk threshold "
+                description=f"Combined symptom severity ({adjusted_score}) meets the high-risk threshold "
                 f"({RED_SCORE_THRESHOLD}).",
             )
         )
 
-    if critical_hit or score >= RED_SCORE_THRESHOLD:
+    if critical_hit or adjusted_score >= RED_SCORE_THRESHOLD:
         level = "RED"
-    elif score >= YELLOW_SCORE_THRESHOLD:
+    elif adjusted_score >= YELLOW_SCORE_THRESHOLD:
         level = "YELLOW"
         triggered.append(
             Rule(
                 name="moderate-severity-score",
-                description=f"Combined symptom severity ({score}) suggests a consultation "
+                description=f"Combined symptom severity ({adjusted_score}) suggests a consultation "
                 f"(threshold {YELLOW_SCORE_THRESHOLD}).",
             )
         )
@@ -393,7 +457,7 @@ def classify(matches: list[Match]) -> Classification:
     reason = _build_reason(matches, triggered)
     return Classification(
         risk_level=level,
-        score=score,
+        score=adjusted_score,
         triggered_rules=triggered,
         reason=reason,
         recommendation=_RECOMMENDATIONS[level],

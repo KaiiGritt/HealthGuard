@@ -27,7 +27,25 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(191), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255))
     role: Mapped[str] = mapped_column(String(16), default="resident", index=True)
+    language_preference: Mapped[str | None] = mapped_column(String(16), nullable=True, default="en")
+    notification_preferences: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=lambda: {"email": True, "sms": False, "push": True})
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class ProfileAuditLog(Base):
+    """Minimal audit trail for user profile modifications and security events."""
+
+    __tablename__ = "profile_audit_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(Integer, index=True)
+    action: Mapped[str] = mapped_column(String(64), default="profile_update", index=True)
+    details: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

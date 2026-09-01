@@ -195,6 +195,19 @@ export interface AnalyzePayload {
 
 export type Role = "resident" | "mho" | "admin";
 
+export interface NotificationPreferences {
+  email: boolean;
+  sms: boolean;
+  push: boolean;
+}
+
+export interface ProfileAuditEntry {
+  id: number;
+  action: string;
+  details: string;
+  created_at: string;
+}
+
 export interface User {
   id: number;
   full_name: string;
@@ -203,6 +216,8 @@ export interface User {
   age: number | null;
   sex: string | null;
   barangay: string | null;
+  language_preference?: string | null;
+  notification_preferences?: NotificationPreferences | null;
   created_at: string;
 }
 
@@ -378,11 +393,18 @@ export function logout(): Promise<{ ok: boolean }> {
   return request<{ ok: boolean }>("/auth/logout", { method: "POST" });
 }
 
-export function updateProfile(payload: Partial<RegisterPayload>): Promise<User> {
+export function updateProfile(payload: Partial<RegisterPayload> & {
+  language_preference?: string | null;
+  notification_preferences?: NotificationPreferences | null;
+}): Promise<User> {
   return request<User>("/auth/profile", {
     method: "PUT",
     body: JSON.stringify(payload),
   });
+}
+
+export function getProfileAudit(): Promise<ProfileAuditEntry[]> {
+  return request<ProfileAuditEntry[]>("/auth/profile/audit");
 }
 
 // Returns the current user, or null if not authenticated (401).

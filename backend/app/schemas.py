@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 DISCLAIMER = (
     "This system does not provide a medical diagnosis. It offers a preliminary health "
@@ -19,6 +19,8 @@ class AnalyzeRequest(BaseModel):
         default_factory=list, description="Standard symptom terms chosen from chips."
     )
     method: str = Field(default="text", description="'text' or 'select'.")
+    age: int | None = Field(default=None, ge=0, le=150, description="Patient age for risk weighting.")
+    sex: str | None = Field(default=None, max_length=16, description="Patient sex for contextual risk weighting.")
     user_id: int | None = None
 
 
@@ -238,6 +240,46 @@ class LexiconCreateRequest(BaseModel):
 # --- Auth ---
 
 
+VALID_SEX_VALUES = {"female", "male", "other", "prefer not to say"}
+VALID_LANGUAGE_VALUES = {"en", "fil", "both"}
+VALID_BARANGAYS = {
+    "Bacolod",
+    "Bagsangan",
+    "Batang",
+    "Bolos",
+    "Buenavista",
+    "Bulawan",
+    "Carriedo",
+    "Casini",
+    "Cawayan",
+    "Cogon",
+    "Gabao",
+    "Gulang-Gulang",
+    "Gumapia",
+    "Liang",
+    "Macawayan",
+    "Mapaso",
+    "Monbon",
+    "Patag",
+    "Salvacion",
+    "San Agustin",
+    "San Isidro",
+    "San Juan",
+    "San Julian",
+    "San Pedro",
+    "Santo Domingo",
+    "Tabon-Tabon",
+    "Tinampo",
+    "Tongdol",
+}
+
+
+class NotificationPreferences(BaseModel):
+    email: bool = True
+    sms: bool = False
+    push: bool = True
+
+
 class RegisterRequest(BaseModel):
     full_name: str = Field(min_length=1, max_length=128)
     email: str = Field(min_length=3, max_length=191)
@@ -245,6 +287,36 @@ class RegisterRequest(BaseModel):
     age: int | None = Field(default=None, ge=0, le=150)
     sex: str | None = Field(default=None, max_length=16)
     barangay: str = Field(min_length=1, max_length=96)
+    language_preference: str | None = Field(default="en", max_length=16)
+    notification_preferences: NotificationPreferences | None = None
+
+    @field_validator("sex")
+    @classmethod
+    def validate_sex(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip().lower()
+        if normalized not in VALID_SEX_VALUES:
+            raise ValueError("Sex must be one of: female, male, other, prefer not to say.")
+        return normalized
+
+    @field_validator("language_preference")
+    @classmethod
+    def validate_language_preference(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip().lower()
+        if normalized not in VALID_LANGUAGE_VALUES:
+            raise ValueError("Language preference must be one of: en, fil, both.")
+        return normalized
+
+    @field_validator("barangay")
+    @classmethod
+    def validate_barangay(cls, value: str) -> str:
+        normalized = value.strip()
+        if normalized not in VALID_BARANGAYS:
+            raise ValueError("Barangay is not recognized in the HealthGuard registry.")
+        return normalized
 
 
 class RegisterResponse(BaseModel):
@@ -282,6 +354,45 @@ class ProfileUpdate(BaseModel):
     age: int | None = Field(default=None, ge=0, le=150)
     sex: str | None = Field(default=None, max_length=16)
     barangay: str | None = Field(default=None, max_length=96)
+    language_preference: str | None = Field(default=None, max_length=16)
+    notification_preferences: NotificationPreferences | None = None
+
+    @field_validator("sex")
+    @classmethod
+    def validate_sex(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip().lower()
+        if normalized not in VALID_SEX_VALUES:
+            raise ValueError("Sex must be one of: female, male, other, prefer not to say.")
+        return normalized
+
+    @field_validator("language_preference")
+    @classmethod
+    def validate_language_preference(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip().lower()
+        if normalized not in VALID_LANGUAGE_VALUES:
+            raise ValueError("Language preference must be one of: en, fil, both.")
+        return normalized
+
+    @field_validator("barangay")
+    @classmethod
+    def validate_barangay(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        if normalized not in VALID_BARANGAYS:
+            raise ValueError("Barangay is not recognized in the HealthGuard registry.")
+        return normalized
+
+
+class ProfileAuditLogOut(BaseModel):
+    id: int
+    action: str
+    details: str
+    created_at: datetime
 
 
 class UserOut(BaseModel):
@@ -294,4 +405,6 @@ class UserOut(BaseModel):
     age: int | None = None
     sex: str | None = None
     barangay: str | None = None
+    language_preference: str | None = None
+    notification_preferences: dict | None = None
     created_at: datetime

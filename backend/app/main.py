@@ -18,6 +18,7 @@ from .database import (
     migrate_email_verification_schema,
     migrate_lexicon_review_schema,
     migrate_lexicon_rule_base_schema,
+    migrate_user_preferences_schema,
 )
 from .nlp import scispacy_adapter
 from .routers import assessment, auth
@@ -45,6 +46,7 @@ async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     migrate_email_verification_schema()
     migrate_lexicon_review_schema()
+    migrate_user_preferences_schema()
     migrate_lexicon_rule_base_schema()
     with SessionLocal() as db:
         inserted = seed_lexicon(db)

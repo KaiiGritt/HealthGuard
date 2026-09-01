@@ -26,6 +26,8 @@ def analyze(
     input_text: str,
     selected_symptoms: list[str],
     entries: list[LexiconEntry],
+    age: int | None = None,
+    sex: str | None = None,
 ) -> EngineResult:
     """Run the full pipeline and return matches + classification."""
     matches: list[Match] = []
@@ -48,5 +50,5 @@ def analyze(
     if active and matches:
         _ = scispacy_adapter.normalize_terms([m.medical_term for m in matches])
 
-    classification = classify(matches)
+    classification = classify(matches, age=age, sex=sex)
     return EngineResult(matches=matches, classification=classification, scispacy_active=active)

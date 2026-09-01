@@ -38,7 +38,7 @@ def get_current_user_optional(
     if sub is None:
         return None
     user = db.get(User, int(sub))
-    if user is None or not user.is_active:
+    if user is None or not user.is_active or user.is_deleted:
         return None
     return user
 

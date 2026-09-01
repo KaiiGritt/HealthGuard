@@ -126,6 +126,25 @@ def migrate_lexicon_review_schema() -> None:
                 conn.execute(text(f"ALTER TABLE symptom_lexicon ADD COLUMN {column} {ddl}"))
 
 
+def migrate_user_preferences_schema() -> None:
+    """Add preference metadata to legacy user records."""
+    from sqlalchemy import inspect, text
+
+    insp = inspect(engine)
+    if "users" not in insp.get_table_names():
+        return
+
+    cols = {c["name"] for c in insp.get_columns("users")}
+    alters = {
+        "language_preference": "VARCHAR(16)",
+        "notification_preferences": "JSON",
+    }
+    with engine.begin() as conn:
+        for column, ddl in alters.items():
+            if column not in cols:
+                conn.execute(text(f"ALTER TABLE users ADD COLUMN {column} {ddl}"))
+
+
 def migrate_lexicon_rule_base_schema() -> None:
     """Add rule_base_id to legacy lexicon_rules tables created before the diagram refactor."""
     from sqlalchemy import inspect, text

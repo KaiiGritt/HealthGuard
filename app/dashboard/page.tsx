@@ -275,46 +275,26 @@ function RiskBreakdownBar({
   );
 }
 
-function CommunityHeatMap({ data }: { data: DashboardState["barangay_stats"] }) {
-  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  const rows = data.length > 0 ? data : [{ barangay: "Monbon", total: 2, urgent: 0, follow_up: 1 }];
-  const max = Math.max(...rows.map((item) => item.total), 1);
+function BarangayRanking({ data }: { data: DashboardState["barangay_stats"] }) {
+  const sorted = [...data].sort((a, b) => b.total - a.total);
+  const max = Math.max(...sorted.map((item) => item.total), 1);
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-[120px_repeat(7,minmax(0,1fr))] gap-2 text-[10px] font-mono uppercase tracking-[0.12em] text-ink-muted">
-        <div />
-        {days.map((day) => <div key={day} className="text-center">{day}</div>)}
-      </div>
-
-      {rows.map((item) => {
-        const values = Array.from({ length: 7 }, (_, index) => {
-          const base = item.total / 7;
-          const value = Math.max(0, Math.round(base + (index % 3 === 0 ? item.urgent : item.follow_up) + (index === 6 ? 1 : 0)));
-          return value;
-        });
-
+      {sorted.map((item) => {
+        const percentage = (item.total / max) * 100;
         return (
-          <div key={item.barangay} className="grid grid-cols-[120px_repeat(7,minmax(0,1fr))] items-center gap-2">
-            <span className="truncate text-sm font-medium text-ink">{item.barangay}</span>
-            {values.map((value, index) => {
-              const intensity = Math.min(Math.max(value / Math.max(max, 1), 0.08), 1);
-              const tone =
-                intensity > 0.75 ? "bg-[#1F4A36] text-white" :
-                intensity > 0.5 ? "bg-[#3F8F6B] text-white" :
-                intensity > 0.25 ? "bg-[#9CC9B1] text-[#183D2D]" :
-                "bg-[#EDF4EE] text-[#1F4A36]";
-
-              return (
-                <div
-                  key={`${item.barangay}-${index}`}
-                  className={`flex h-9 items-center justify-center rounded-md border border-white/20 text-[10px] font-semibold shadow-sm ${tone}`}
-                  title={`${item.barangay} / ${days[index]}: ${value} cases`}
-                >
-                  {value > 0 ? value : "·"}
-                </div>
-              );
-            })}
+          <div key={item.barangay}>
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <span className="font-medium text-ink">{item.barangay}</span>
+              <span className="font-medium text-ink">{item.total} cases</span>
+            </div>
+            <div className="mt-2 h-3 overflow-hidden rounded-full bg-surface">
+              <div
+                className="h-full bg-brand transition-all duration-500"
+                style={{ width: `${percentage}%` }}
+              />
+            </div>
           </div>
         );
       })}
@@ -418,6 +398,7 @@ function DashboardPageContent() {
   const [currentUser, setCurrentUser] = useState<{ role: UserRole } | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
   const [stats, setStats] = useState<DashboardState | null>(null);
   const [lexiconEntries, setLexiconEntries] = useState<AdminModuleLexiconEntry[]>([]);
   const [reviewingLexicon, setReviewingLexicon] = useState<number | null>(null);
@@ -479,8 +460,11 @@ function DashboardPageContent() {
       setStats(summary);
       setLexiconEntries(lexicon);
       setLastUpdated(new Date());
+      setRefreshError(null);
       setToast({ message: "Dashboard data refreshed.", tone: "success" });
-    } catch {
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : "Unknown error occurred";
+      setRefreshError(errorMsg);
       setToast({ message: "Could not refresh dashboard data.", tone: "error" });
     } finally {
       setRefreshing(false);
@@ -579,45 +563,54 @@ function DashboardPageContent() {
 
   const renderOverview = () => (
     <div className="space-y-6">
-      <div>
-        <p className="mb-3 font-mono text-[11px] uppercase tracking-[0.12em] text-ink-faint">At a glance</p>
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {stats?.summary_cards.map((card) => (
-            <StatCard key={card.label} label={card.label} value={card.value} hint={card.hint} />
-          ))}
-        </section>
-      </div>
+      {refreshError && (
+        <div className="rounded-lg border border-orange-200 bg-orange-50 p-4">
+          <p className="text-sm font-medium text-orange-800">Showing cached data</p>
+          <p className="mt-1 text-sm text-orange-700">{refreshError}</p>
+        </div>
+      )}
+
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {stats?.summary_cards.map((card) => (
+          <StatCard key={card.label} label={card.label} value={card.value} hint={card.hint} />
+        ))}
+      </section>
 
       {/* Primary row: the thing MHO staff need to see first (who needs
           follow-up) gets the wide, left-hand position — mirrors the
           reference's "widest card leads" pattern, but content priority is
           flipped to match what actually matters here. */}
       <section className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
-        <WidgetCard
-          icon="alert"
-          title="Needs attention"
-          subtitle="Red-level cases that require follow-up now"
-          urgent={redCases.length > 0}
-          updated={updatedLabel}
-          action={
+        <div className="flex flex-col rounded-xl border-0 bg-red-tint shadow-sm transition-shadow hover:shadow-md">
+          <div className="flex items-start justify-between gap-3 border-b border-red-200 px-5 py-4">
+            <div className="flex items-start gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-triage-red/10 text-emergency-red">
+                <WidgetIcon path={widgetIcons.alert} />
+              </span>
+              <div>
+                <h3 className="font-display text-lg font-semibold text-emergency-red lg:text-xl">{redCases.length > 0 ? "Urgent Cases Requiring Attention" : "Needs attention"}</h3>
+                <p className="mt-0.5 text-xs text-ink-muted">Red-level cases that require follow-up now</p>
+              </div>
+            </div>
             <span className="font-mono text-3xl font-bold text-emergency-red">
               {redCases.length}
             </span>
-          }
-        >
-          <div className="space-y-3">
+          </div>
+          <div className="flex-1 space-y-3 p-5">
             {redCases.length > 0 ? (
-              redCases.slice(0, 4).map((item) => (
+              redCases.slice(0, 3).map((item, idx) => (
                 <ListRow
                   key={item.id}
                   className="relative flex flex-col gap-3 overflow-hidden border-l-4 border-l-triage-red pl-4 shadow-sm lg:flex-row lg:items-center lg:justify-between"
                 >
+                  {idx === 0 && (
+                    <span className="absolute right-3 top-3 flex h-2.5 w-2.5 shrink-0">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-triage-red/60" />
+                      <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-triage-red" />
+                    </span>
+                  )}
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="relative flex h-2.5 w-2.5 shrink-0">
-                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-triage-red/60" />
-                        <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-triage-red" />
-                      </span>
                       <p className="font-medium text-ink">{item.resident_name}</p>
                       <TriageBadge level={item.risk_level} />
                       <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-muted">#{item.id}</span>
@@ -641,7 +634,7 @@ function DashboardPageContent() {
               </p>
             )}
           </div>
-        </WidgetCard>
+        </div>
 
         <WidgetCard icon="pie" title="Case mix" subtitle="Current triage breakdown" updated={updatedLabel}>
           <DonutChart
@@ -665,137 +658,72 @@ function DashboardPageContent() {
           )}
         </WidgetCard>
 
-        <WidgetCard icon="map" title="Community heat map" subtitle="Hotspot intensity by barangay" updated={updatedLabel}>
-          <CommunityHeatMap data={barangayStats} />
-        </WidgetCard>
-
-        <WidgetCard
-          icon="book"
-          title="Lexicon review queue"
-          subtitle="Validate terms before they're used in triage"
-          updated={updatedLabel}
-          action={
-            pendingLexicon.length > 0 ? (
-              <TagBadge tone="staff">{pendingLexicon.length} pending</TagBadge>
-            ) : (
-              <TagBadge tone="brand">All reviewed</TagBadge>
-            )
-          }
-        >
-          <div className="space-y-5">
-            <DonutChart
-              size={96}
-              strokeWidth={11}
-              centerLabel={`${reviewedLexicon.length}/${lexiconEntries.length || 0}`}
-              centerSub="reviewed"
-              segments={[
-                { label: "Reviewed", value: reviewedLexicon.length, colorClass: "stroke-brand", dotClass: "bg-brand" },
-                { label: "Pending", value: pendingLexicon.length, colorClass: "stroke-border", dotClass: "bg-border" },
-              ]}
-            />
-            <div className="space-y-2.5">
-              {pendingLexicon.slice(0, 3).map((entry) => (
-                <div key={entry.id} className="flex items-center justify-between gap-3 rounded-sm border border-border bg-surface px-3 py-2.5">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-ink">
-                      {entry.local_term} <span className="font-normal text-ink-muted">→ {entry.medical_term}</span>
-                    </p>
-                    <p className="mt-0.5 text-[11px] uppercase text-ink-muted">{entry.language} · {entry.category}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => void reviewLexiconEntry(entry.id)}
-                    disabled={reviewingLexicon === entry.id}
-                    className="shrink-0 rounded-sm border border-brand/30 bg-brand/10 px-2.5 py-1.5 text-xs font-medium text-brand-dark transition hover:bg-brand/20 disabled:opacity-50"
-                  >
-                    {reviewingLexicon === entry.id ? "Saving..." : "Mark reviewed"}
-                  </button>
-                </div>
-              ))}
-              {pendingLexicon.length === 0 && (
-                <p className="rounded-sm border border-dashed border-border bg-surface p-4 text-center text-sm text-ink-muted">
-                  All lexicon terms have been reviewed.
-                </p>
-              )}
-            </div>
-          </div>
+        <WidgetCard icon="map" title="Barangay ranking" subtitle="Cases by location" updated={updatedLabel}>
+          <BarangayRanking data={barangayStats} />
         </WidgetCard>
       </section>
 
       <section className="grid gap-6 xl:grid-cols-2">
         <WidgetCard
           icon="list"
-          title="Assessment records"
-          subtitle="Filterable live list"
+          title="Recent assessments"
+          subtitle="Latest 3 records"
           updated={updatedLabel}
+          action={
+            <Link
+              href="?section=records"
+              onClick={(e) => {
+                e.preventDefault();
+                setActiveSection("records");
+              }}
+              className="text-xs font-medium text-brand-dark hover:text-brand transition"
+            >
+              View all →
+            </Link>
+          }
         >
-          <FilterToolbar
-            riskFilter={riskFilter}
-            setRiskFilter={setRiskFilter}
-            barangayFilter={barangayFilter}
-            setBarangayFilter={setBarangayFilter}
-            barangayOptions={barangayOptions}
-            searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
-            onUrgentOnly={applyUrgentOnly}
-            onClear={clearFilters}
-          />
           <div className="space-y-3">
-            {filteredAssessments.length > 0 ? (
-              filteredAssessments.slice(0, 6).map((item) => (
+            {stats && stats.recent_assessments.length > 0 ? (
+              stats.recent_assessments.slice(0, 3).map((item) => (
                 <ListRow key={item.id} className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="font-medium text-ink">{item.resident_name}</p>
                       <TriageBadge level={item.risk_level} />
-                      <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-muted">{item.barangay ?? "Unknown"}</span>
                     </div>
                     <p className="mt-2 text-sm text-ink-secondary">{item.note}</p>
                     <p className="mt-2 text-xs text-ink-muted">{new Date(item.created_at).toLocaleString()}</p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedAssessmentId(item.id)}
-                    className="inline-flex min-h-11 items-center justify-center rounded-sm border border-border bg-white px-3 text-sm font-medium text-brand-dark transition hover:border-brand/40 hover:bg-brand-tint"
-                  >
-                    View result
-                  </button>
                 </ListRow>
               ))
             ) : (
               <p className="rounded-md border border-dashed border-border bg-surface p-5 text-sm text-ink-muted">
-                No assessment records match the selected filters.
+                No assessment records available.
               </p>
             )}
           </div>
-
-          {selectedAssessment && (
-            <div className="mt-5 rounded-xl border border-[#D8DED1] bg-[#F8FAF5] p-4">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <div>
-                  <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-faint">Selected assessment</p>
-                  <h4 className="mt-1 text-lg font-semibold text-ink">{selectedAssessment.resident_name}</h4>
-                </div>
-                <TriageBadge level={selectedAssessment.risk_level} />
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-faint">Barangay</p>
-                  <p className="mt-1 text-sm text-ink-secondary">{selectedAssessment.barangay ?? "Unassigned"}</p>
-                </div>
-                <div>
-                  <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-faint">Date</p>
-                  <p className="mt-1 text-sm text-ink-secondary">{new Date(selectedAssessment.created_at).toLocaleString()}</p>
-                </div>
-              </div>
-              <p className="mt-4 text-sm leading-relaxed text-ink-secondary">{selectedAssessment.note || "No assessment details were captured for this result."}</p>
-            </div>
-          )}
         </WidgetCard>
 
-        <WidgetCard icon="pie" title="Symptom frequency" subtitle="Current patterns" updated={updatedLabel}>
+        <WidgetCard 
+          icon="pie" 
+          title="Top symptoms" 
+          subtitle="Most common patterns"
+          updated={updatedLabel}
+          action={
+            <Link
+              href="?section=analytics"
+              onClick={(e) => {
+                e.preventDefault();
+                setActiveSection("analytics");
+              }}
+              className="text-xs font-medium text-brand-dark hover:text-brand transition"
+            >
+              View all →
+            </Link>
+          }
+        >
           <div className="space-y-4">
-            {(stats?.top_symptoms.length ? stats.top_symptoms : [{ symptom: "No data available", count: 0 }]).slice(0, 5).map((item) => (
+            {(stats?.top_symptoms.length ? stats.top_symptoms.slice(0, 3) : []).map((item) => (
               <div key={item.symptom}>
                 <div className="mb-1.5 flex items-center justify-between text-sm text-ink-secondary">
                   <span>{item.symptom}</span>
@@ -809,6 +737,11 @@ function DashboardPageContent() {
                 </div>
               </div>
             ))}
+            {(!stats || stats.top_symptoms.length === 0) && (
+              <p className="rounded-md border border-dashed border-border bg-surface p-5 text-sm text-ink-muted">
+                No symptom data available.
+              </p>
+            )}
           </div>
         </WidgetCard>
       </section>
@@ -845,9 +778,26 @@ function DashboardPageContent() {
           </div>
         </WidgetCard>
 
-        <WidgetCard icon="bulb" title="Operational insights" subtitle="Live" updated={updatedLabel}>
+        <WidgetCard 
+          icon="bulb" 
+          title="Operational insights" 
+          subtitle="Top 2 live insights"
+          updated={updatedLabel}
+          action={
+            <Link
+              href="?section=reports"
+              onClick={(e) => {
+                e.preventDefault();
+                setActiveSection("reports");
+              }}
+              className="text-xs font-medium text-brand-dark hover:text-brand transition"
+            >
+              View all →
+            </Link>
+          }
+        >
           <div className="space-y-3">
-            {stats?.insights.map((insight) => (
+            {stats?.insights.slice(0, 2).map((insight) => (
               <ListRow key={insight.title} className="space-y-2">
                 <div className="flex items-center justify-between gap-3">
                   <p className="font-medium text-ink">{insight.title}</p>
@@ -1059,7 +1009,7 @@ function DashboardPageContent() {
               <span className="rounded-full border border-[#CFE0D3] bg-[#EEF6F0] px-2 py-1 font-mono text-[9px] uppercase tracking-[0.12em] text-brand-dark">Live</span>
             </div>
             <nav className="space-y-2" role="tablist" aria-label="Dashboard sections">
-              {SECTIONS.map((item, index) => {
+              {SECTIONS.map((item) => {
                 const active = activeSection === item.id;
                 const urgentCount = item.id === "records" ? redCases.length : 0;
                 return (
@@ -1085,7 +1035,6 @@ function DashboardPageContent() {
                         </span>
                       )}
                     </span>
-                    <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-muted">0{index + 1}</span>
                   </button>
                 );
               })}

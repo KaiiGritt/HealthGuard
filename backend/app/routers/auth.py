@@ -1,6 +1,7 @@
 """Authentication endpoints: register, login, logout, me, profile."""
 from __future__ import annotations
 
+import json
 import secrets
 import logging
 from datetime import datetime, timedelta, timezone
@@ -13,12 +14,13 @@ from ..config import settings
 from ..database import get_db
 from ..deps import COOKIE_NAME, get_current_user
 from ..email import send_login_alert, send_message, send_password_reset_code, send_verification_code
-from ..models import EmailVerification, PasswordReset, User
+from ..models import EmailVerification, PasswordReset, ProfileAuditLog, User
 from ..schemas import (
     ChangePasswordRequest,
     LoginRequest,
     PasswordResetRequest,
     PasswordResetVerifyRequest,
+    ProfileAuditLogOut,
     ProfileUpdate,
     RegisterRequest,
     RegisterResponse,
@@ -29,6 +31,7 @@ from ..security import create_access_token, hash_password, verify_password
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 logger = logging.getLogger(__name__)
+PASSWORD_ATTEMPTS: dict[int, list[datetime]] = {}
 
 
 def _utc_now() -> datetime:
@@ -51,6 +54,30 @@ def _set_auth_cookie(response: Response, user: User) -> None:
         secure=settings.cookie_secure,
         max_age=settings.jwt_expire_days * 24 * 3600,
         path="/",
+    )
+
+
+def _clear_password_attempts(user_id: int) -> None:
+    PASSWORD_ATTEMPTS.pop(user_id, None)
+
+
+def _record_password_attempt(user_id: int, *, success: bool) -> None:
+    now = _utc_now()
+    attempts = [ts for ts in PASSWORD_ATTEMPTS.get(user_id, []) if now - ts < timedelta(minutes=10)]
+    if success:
+        attempts.clear()
+    else:
+        attempts.append(now)
+    PASSWORD_ATTEMPTS[user_id] = attempts
+
+
+def _add_profile_audit(db: Session, user_id: int, action: str, **details: object) -> None:
+    db.add(
+        ProfileAuditLog(
+            user_id=user_id,
+            action=action,
+            details=json.dumps(details, ensure_ascii=False),
+        )
     )
 
 
@@ -259,6 +286,24 @@ def me(user: User = Depends(get_current_user)) -> User:
     return user
 
 
+@router.get("/profile/audit", response_model=list[ProfileAuditLogOut])
+def get_profile_audit(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[ProfileAuditLog]:
+    rows = (
+        db.execute(
+            select(ProfileAuditLog)
+            .where(ProfileAuditLog.user_id == user.id)
+            .order_by(ProfileAuditLog.created_at.desc())
+            .limit(10)
+        )
+        .scalars()
+        .all()
+    )
+    return rows
+
+
 @router.put("/profile", response_model=UserOut)
 def update_profile(
     payload: ProfileUpdate,
@@ -266,11 +311,28 @@ def update_profile(
     db: Session = Depends(get_db),
 ) -> User:
     data = payload.model_dump(exclude_unset=True)
+    changes: dict[str, object] = {}
     if "full_name" in data and data["full_name"]:
-        user.full_name = data["full_name"].strip()
-    for field in ("age", "sex", "barangay"):
+        previous = user.full_name
+        new_value = data["full_name"].strip()
+        if previous != new_value:
+            user.full_name = new_value
+            changes["full_name"] = {"from": previous, "to": new_value}
+    for field in ("age", "sex", "barangay", "language_preference"):
         if field in data:
-            setattr(user, field, data[field])
+            previous = getattr(user, field)
+            new_value = data[field]
+            if previous != new_value:
+                setattr(user, field, new_value)
+                changes[field] = {"from": previous, "to": new_value}
+    if "notification_preferences" in data:
+        previous = user.notification_preferences or {}
+        new_value = data["notification_preferences"]
+        if previous != new_value:
+            user.notification_preferences = new_value
+            changes["notification_preferences"] = {"from": previous, "to": new_value}
+    if changes:
+        _add_profile_audit(db, user.id, "profile_update", **changes)
     db.commit()
     db.refresh(user)
     return user
@@ -282,10 +344,33 @@ def change_password(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict[str, str]:
+    attempts = [ts for ts in PASSWORD_ATTEMPTS.get(user.id, []) if _utc_now() - ts < timedelta(minutes=10)]
+    if len(attempts) >= 5:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many password attempts. Please wait 10 minutes before trying again.",
+        )
+
     if not verify_password(payload.current_password, user.password_hash):
+        _record_password_attempt(user.id, success=False)
         raise HTTPException(status_code=400, detail="Current password is incorrect.")
     if payload.current_password == payload.new_password:
         raise HTTPException(status_code=400, detail="New password must be different.")
     user.password_hash = hash_password(payload.new_password)
+    _record_password_attempt(user.id, success=True)
+    _add_profile_audit(db, user.id, "password_changed", password_changed=True)
     db.commit()
     return {"message": "Password changed successfully."}
+
+
+@router.post("/deactivate")
+def deactivate_account(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict[str, str]:
+    user.is_active = False
+    user.is_deleted = True
+    user.deleted_at = _utc_now()
+    _add_profile_audit(db, user.id, "account_deactivated", deleted_at=user.deleted_at.isoformat())
+    db.commit()
+    return {"message": "Account deactivated successfully."}
