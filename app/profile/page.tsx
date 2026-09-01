@@ -17,7 +17,8 @@ import {
   SuccessAlert,
 } from "@/app/components/ui/primitives";
 import { irosinBarangays } from "@/app/constants/irosinBarangays";
-import { changePassword, getMe, getProfileAudit, updateProfile, type NotificationPreferences, type ProfileAuditEntry, type User } from "@/lib/api";
+import { useInterfaceLanguage } from "@/app/components/LanguageProvider";
+import { changePassword, getMe, getProfileAudit, updateProfile, type ProfileAuditEntry, type User } from "@/lib/api";
 import PageHeader from "../components/PageHeader";
 
 function initials(name: string) {
@@ -75,7 +76,14 @@ function formatAuditEntry(entry: ProfileAuditEntry) {
   return { actionLabel, lines: [entry.details] };
 }
 
+const LANGUAGE_LABELS = {
+  en: "English",
+  fil: "Filipino",
+  both: "English + Filipino",
+} as const;
+
 export default function ProfilePage() {
+  const { language, setLanguage } = useInterfaceLanguage();
   const [user, setUser] = useState<User | null>(null);
   const [form, setForm] = useState({ full_name: "", age: "", sex: "", barangay: "", phone_number: "", language_preference: "en" });
   const [loading, setLoading] = useState(true);
@@ -86,10 +94,14 @@ export default function ProfilePage() {
   const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [changingPassword, setChangingPassword] = useState(false);
-  const [notificationPrefs, setNotificationPrefs] = useState<NotificationPreferences>({ email: true, sms: false, push: true });
   const [auditLog, setAuditLog] = useState<ProfileAuditEntry[]>([]);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [currentLanguage, setCurrentLanguage] = useState<"en" | "fil" | "both">(language);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    setCurrentLanguage(language);
+  }, [language]);
 
   useEffect(() => {
     async function loadUser() {
@@ -103,9 +115,10 @@ export default function ProfilePage() {
         const photoStorageKey = `healthguard-profile-photo-${current.id}`;
         const storedLanguage = typeof window !== "undefined" ? window.localStorage.getItem("healthguard-language") : null;
         const storedPhoto = typeof window !== "undefined" ? window.localStorage.getItem(photoStorageKey) : null;
-        const nextPrefs = current.notification_preferences ?? { email: true, sms: false, push: true };
+        const preferredLanguage = (current.language_preference ?? storedLanguage ?? "en") as "en" | "fil" | "both";
         setUser(current);
-        setNotificationPrefs(nextPrefs);
+        setCurrentLanguage(preferredLanguage);
+        setLanguage(preferredLanguage);
         setPhotoUrl(storedPhoto ?? null);
         setForm({
           full_name: current.full_name ?? "",
@@ -113,10 +126,10 @@ export default function ProfilePage() {
           sex: current.sex ?? "",
           barangay: current.barangay ?? "",
           phone_number: current.phone_number ?? "",
-          language_preference: current.language_preference ?? storedLanguage ?? "en",
+          language_preference: preferredLanguage,
         });
         if (typeof window !== "undefined") {
-          window.localStorage.setItem("healthguard-language", current.language_preference ?? storedLanguage ?? "en");
+          window.localStorage.setItem("healthguard-language", preferredLanguage);
         }
         const entries = await getProfileAudit();
         setAuditLog(entries);
@@ -142,14 +155,18 @@ export default function ProfilePage() {
         barangay: form.barangay.trim() || null,
         phone_number: form.phone_number.trim() || null,
         language_preference: form.language_preference || "en",
-        notification_preferences: notificationPrefs,
+
       });
       setUser(updated);
-      setNotificationPrefs(updated.notification_preferences ?? notificationPrefs);
+      const nextLanguage = (updated.language_preference ?? form.language_preference ?? "en") as "en" | "fil" | "both";
+      setCurrentLanguage(nextLanguage);
+      setLanguage(nextLanguage);
+      setForm((prev) => ({ ...prev, language_preference: nextLanguage }));
+
       const nextAudit = await getProfileAudit();
       setAuditLog(nextAudit);
       if (typeof window !== "undefined") {
-        window.localStorage.setItem("healthguard-language", updated.language_preference ?? form.language_preference);
+        window.localStorage.setItem("healthguard-language", nextLanguage);
       }
       setMessage("Profile updated. / Na-update na.");
     } catch (err) {
@@ -210,9 +227,20 @@ export default function ProfilePage() {
     reader.readAsDataURL(file);
   }
 
-  function handleNotificationChange(key: keyof NotificationPreferences) {
-    setNotificationPrefs((prev) => ({ ...prev, [key]: !prev[key] }));
-  }
+  const labels = {
+    heading: currentLanguage === "fil" ? "Personal details" : currentLanguage === "both" ? "Personal details / Mga detalye" : "Personal details",
+    description: currentLanguage === "fil" ? "Update the information attached to your assessments." : currentLanguage === "both" ? "Update the information attached to your assessments. / I-update ang impormasyon sa iyong pagsusuri." : "Update the information attached to your assessments.",
+    fullName: currentLanguage === "fil" ? "Buong pangalan" : currentLanguage === "both" ? "Full name / Buong pangalan" : "Full name",
+    age: currentLanguage === "fil" ? "Edad" : currentLanguage === "both" ? "Age / Edad" : "Age",
+    sex: currentLanguage === "fil" ? "Kasarian" : currentLanguage === "both" ? "Sex / Kasarian" : "Sex",
+    barangay: currentLanguage === "fil" ? "Barangay" : currentLanguage === "both" ? "Barangay / Barangay" : "Barangay",
+    phone: currentLanguage === "fil" ? "Numero ng telepono" : currentLanguage === "both" ? "Phone number / Numero ng telepono" : "Phone number",
+    interface: currentLanguage === "fil" ? "Wika" : currentLanguage === "both" ? "Interface language / Wika" : "Interface language",
+    save: currentLanguage === "fil" ? "I-save ang profile" : currentLanguage === "both" ? "Save profile / I-save" : "Save profile",
+    saveState: currentLanguage === "fil" ? "Sine-save…" : currentLanguage === "both" ? "Saving… / Sine-save…" : "Saving…",
+    changePassword: currentLanguage === "fil" ? "Palitan ang password" : currentLanguage === "both" ? "Change password / Palitan ang password" : "Change password",
+    passwordHint: currentLanguage === "fil" ? "I-update ang iyong password nang ligtas." : currentLanguage === "both" ? "Update your sign-in password securely. / I-update ang iyong password nang ligtas." : "Update your sign-in password securely.",
+  } as const;
 
   if (loading) {
     return (
@@ -383,15 +411,15 @@ export default function ProfilePage() {
           <div className="space-y-6">
             {/* Profile form */}
             <div className="rounded-2xl border border-border-soft bg-card p-8">
-              <h2 className="font-display text-lg font-semibold text-ink">Personal details</h2>
+              <h2 className="font-display text-lg font-semibold text-ink">{labels.heading}</h2>
               <p className="mt-1 text-sm text-ink-secondary">
-                Update the information attached to your assessments.
+                {labels.description}
               </p>
 
               <form onSubmit={handleSubmit} className={`mt-6 ${formStackClass}`}>
                 <div>
                   <label className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
-                    Full name <span className={labelHintClass}>/ Buong pangalan</span>
+                    {labels.fullName} <span className={labelHintClass}>{currentLanguage === "en" ? "/ Buong pangalan" : currentLanguage === "fil" ? "/ Buong pangalan" : "/ Buong pangalan"}</span>
                   </label>
                   <input
                     value={form.full_name}
@@ -403,7 +431,7 @@ export default function ProfilePage() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
                     <label className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
-                      Age <span className={labelHintClass}>/ Edad</span>
+                      {labels.age} <span className={labelHintClass}>{currentLanguage === "en" ? "/ Edad" : currentLanguage === "fil" ? "/ Edad" : "/ Edad"}</span>
                     </label>
                     <input
                       type="number"
@@ -417,7 +445,7 @@ export default function ProfilePage() {
                   </div>
                   <div>
                     <label className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
-                      Sex <span className={labelHintClass}>/ Kasarian</span>
+                      {labels.sex} <span className={labelHintClass}>{currentLanguage === "en" ? "/ Kasarian" : currentLanguage === "fil" ? "/ Kasarian" : "/ Kasarian"}</span>
                     </label>
                     <div className="relative">
                       <select
@@ -439,7 +467,7 @@ export default function ProfilePage() {
                 </div>
                 <div>
                   <label className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
-                    Barangay <span className={labelHintClass}>/ Barangay</span>
+                    {labels.barangay} <span className={labelHintClass}>/ Barangay</span>
                   </label>
                   <div className="relative">
                     <select
@@ -463,7 +491,7 @@ export default function ProfilePage() {
 
                 <div>
                   <label className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
-                    Phone number <span className={labelHintClass}>/ Numero ng telepono</span>
+                    {labels.phone} <span className={labelHintClass}>/ Numero ng telepono</span>
                   </label>
                   <input
                     type="tel"
@@ -476,53 +504,31 @@ export default function ProfilePage() {
 
                 <div>
                   <label className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
-                    Interface language <span className={labelHintClass}>/ Wika</span>
+                    {labels.interface} <span className={labelHintClass}>/ Wika</span>
                   </label>
                   <select
                     value={form.language_preference}
                     onChange={(event) => setForm((prev) => ({ ...prev, language_preference: event.target.value }))}
                     className={selectClass}
                   >
-                    <option value="en">English</option>
-                    <option value="fil">Filipino</option>
-                    <option value="both">English + Filipino</option>
+                    <option value="en">{LANGUAGE_LABELS.en}</option>
+                    <option value="fil">{LANGUAGE_LABELS.fil}</option>
+                    <option value="both">{LANGUAGE_LABELS.both}</option>
                   </select>
-                </div>
-
-                <div className="rounded-xl border border-border-soft bg-surface-alt p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-medium text-ink">Notifications</p>
-                      <p className="text-xs text-ink-secondary">Choose the updates you want to receive.</p>
-                    </div>
-                  </div>
-                  <div className="mt-4 space-y-3">
-                    {Object.entries(notificationPrefs).map(([key, value]) => (
-                      <label key={key} className="flex cursor-pointer items-center justify-between gap-4 rounded-lg border border-border bg-card px-3 py-2 text-sm text-ink">
-                        <span className="capitalize">{key}</span>
-                        <input
-                          type="checkbox"
-                          checked={value}
-                          onChange={() => handleNotificationChange(key as keyof NotificationPreferences)}
-                          className="h-4 w-4 rounded border-border text-brand focus:ring-brand"
-                        />
-                      </label>
-                    ))}
-                  </div>
                 </div>
 
                 {message && <SuccessAlert>{message}</SuccessAlert>}
                 {error && <ErrorAlert>{error}</ErrorAlert>}
                 <button type="submit" disabled={saving} className={submitButtonClass}>
-                  {saving ? "Saving…" : "Save profile / I-save"}
+                  {saving ? labels.saveState : labels.save}
                 </button>
               </form>
             </div>
 
             {/* Password */}
             <div className="rounded-2xl border border-border-soft bg-card p-8">
-              <h2 className="font-display text-lg font-semibold text-ink">Change password</h2>
-              <p className="mt-1 text-sm text-ink-secondary">Update your sign-in password securely.</p>
+              <h2 className="font-display text-lg font-semibold text-ink">{labels.changePassword}</h2>
+              <p className="mt-1 text-sm text-ink-secondary">{labels.passwordHint}</p>
               <form onSubmit={handlePasswordChange} className="mt-6 space-y-4">
                 <input type="password" required autoComplete="current-password" placeholder="Current password" value={passwordForm.current} onChange={(event) => setPasswordForm((prev) => ({ ...prev, current: event.target.value }))} className={inputClass} />
                 <input type="password" required minLength={8} autoComplete="new-password" placeholder="New password (8+ characters)" value={passwordForm.next} onChange={(event) => setPasswordForm((prev) => ({ ...prev, next: event.target.value }))} className={inputClass} />

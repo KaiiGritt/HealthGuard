@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
+import { useInterfaceLanguage } from "@/app/components/LanguageProvider";
 import { getMe, logout, type User } from "@/lib/api";
 
 function IconWrapper({ children }: { children: ReactNode }) {
@@ -28,9 +29,20 @@ function CloseIcon() {
 export default function PageHeader() {
   const router = useRouter();
   const pathname = usePathname();
+  const { language } = useInterfaceLanguage();
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const uiText = {
+    assessment: language === "fil" ? "Pagsusuri" : language === "both" ? "Assessment / Pagsusuri" : "Assessment",
+    history: language === "fil" ? "Kasaysayan" : language === "both" ? "History / Kasaysayan" : "History",
+    dashboard: language === "fil" ? "Dashboard" : language === "both" ? "Dashboard / Dashboard" : "Dashboard",
+    profile: language === "fil" ? "Profile" : language === "both" ? "Profile / Profile" : "Profile",
+    login: language === "fil" ? "Mag-log in" : language === "both" ? "Log in / Mag-log in" : "Log in",
+    signup: language === "fil" ? "Mag-sign up" : language === "both" ? "Sign up / Mag-sign up" : "Sign up",
+    logout: language === "fil" ? "Mag-logout" : language === "both" ? "Log out / Mag-logout" : "Log out",
+  } as const;
 
   useEffect(() => {
     let active = true;
@@ -103,7 +115,7 @@ export default function PageHeader() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 4H7a2 2 0 01-2-2V6a2 2 0 012-2h5l4 4h5a2 2 0 012 2v10a2 2 0 01-2 2z" />
                 </svg>
               </IconWrapper>
-              Assessment
+              {uiText.assessment}
             </Link>}
             {pathname !== "/" && user?.role === "resident" && <Link href="/history" className={linkClass("/history")}>
               <IconWrapper>
@@ -111,7 +123,7 @@ export default function PageHeader() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </IconWrapper>
-              History
+              {uiText.history}
             </Link>}
 
             {user?.role === "mho" && (
@@ -152,7 +164,7 @@ export default function PageHeader() {
                   onClick={handleLogout}
                   className="rounded-full border border-[#D8DED1] bg-white px-3 py-2 text-sm font-medium text-[#3F4A3B] transition-all duration-200 hover:border-[#2F6B4F]/60 hover:bg-[#F4F8F0] hover:text-[#1F4A36] hover:shadow-[0_8px_20px_rgba(31,74,54,0.08)] lg:px-4 lg:py-2.5 lg:text-base"
                 >
-                  Log out
+                  {uiText.logout}
                 </button>
               </>
             ) : (
@@ -163,7 +175,7 @@ export default function PageHeader() {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h12" />
                     </svg>
                   </IconWrapper>
-                  Log in
+                  {uiText.login}
                 </Link>
                 <Link
                   href="/register"
@@ -174,7 +186,7 @@ export default function PageHeader() {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m-7-7h14" />
                     </svg>
                   </IconWrapper>
-                  Sign up
+                  {uiText.signup}
                 </Link>
               </>
             )}
@@ -200,7 +212,7 @@ export default function PageHeader() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 4H7a2 2 0 01-2-2V6a2 2 0 012-2h5l4 4h5a2 2 0 012 2v10a2 2 0 01-2 2z" />
                 </svg>
               </IconWrapper>
-              Assessment
+              {uiText.assessment}
             </Link>}
             {user?.role === "resident" && <Link href="/history" className={linkClass("/history")}>
               <IconWrapper>
@@ -208,7 +220,7 @@ export default function PageHeader() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </IconWrapper>
-              History
+              {uiText.history}
             </Link>}
             {user?.role === "mho" && (
               <Link href="/dashboard" className={linkClass("/dashboard")}>
@@ -240,7 +252,7 @@ export default function PageHeader() {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 20a7 7 0 0114 0M12 12a4 4 0 100-8 4 4 0 000 8z" />
                     </svg>
                   </IconWrapper>
-                  Profile
+                  {uiText.profile}
                 </Link>
                 <button
                   type="button"
@@ -252,7 +264,7 @@ export default function PageHeader() {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M15 17l5-5m0 0l-5-5m5 5H9" />
                     </svg>
                   </IconWrapper>
-                  Log out
+                  {uiText.logout}
                 </button>
               </>
             ) : (
@@ -263,7 +275,7 @@ export default function PageHeader() {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h12" />
                     </svg>
                   </IconWrapper>
-                  Log in
+                  {uiText.login}
                 </Link>
                 <Link
                   href="/register"
@@ -274,7 +286,7 @@ export default function PageHeader() {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m-7-7h14" />
                     </svg>
                   </IconWrapper>
-                  Sign up
+                  {uiText.signup}
                 </Link>
               </>
             )}

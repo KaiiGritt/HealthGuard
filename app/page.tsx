@@ -1,6 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import { IconChat, IconPhone, IconSearch } from "@/app/components/ui/icons";
 import { IconCircle, TagBadge } from "@/app/components/ui/primitives";
+import { useInterfaceLanguage } from "@/app/components/LanguageProvider";
 import Disclaimer from "./components/Disclaimer";
 import PageHeader from "./components/PageHeader";
 
@@ -105,6 +108,35 @@ function TriageTag() {
 }
 
 export default function Home() {
+  const { language } = useInterfaceLanguage();
+  const strings = {
+    tag: "Para sa Irosin, Sorsogon",
+    heading:
+      language === "fil"
+        ? "Hindi mo alam kung oras na bang pumunta sa health center?"
+        : language === "both"
+          ? "Not sure if it’s time to go to the health center? / Hindi mo alam kung oras na bang pumunta sa health center?"
+          : "Not sure if it’s time to go to the health center?",
+    subhead:
+      language === "fil"
+        ? "Ilarawan ang iyong mga sintomas sa Ingles o Tagalog. Makakakuha ka ng malinaw na tag — green, yellow, o red — at isang simpleng gabay kung ano ang susunod."
+        : language === "both"
+          ? "Describe your symptoms in English or Tagalog. You’ll get a clear tag — green, yellow, or red — and one plain instruction for what to do next. / Ilarawan ang iyong mga sintomas sa Ingles o Tagalog. Makakakuha ka ng malinaw na tag — green, yellow, o red — at isang simpleng gabay kung ano ang susunod."
+          : "Describe your symptoms in English or Tagalog. You’ll get a clear tag — green, yellow, or red — and one plain instruction for what to do next.",
+    cta:
+      language === "fil"
+        ? "Mag-log in para simulan"
+        : language === "both"
+          ? "Log in to start / Mag-log in para simulan"
+          : "Log in to start",
+    helper:
+      language === "fil"
+        ? "Mag-log in muna para i-save ang iyong health history"
+        : language === "both"
+          ? "Sign in first to save your health history / Mag-log in muna para i-save ang iyong health history"
+          : "Sign in first to save your health history",
+  } as const;
+
   return (
     <>
       <PageHeader />
@@ -112,22 +144,21 @@ export default function Home() {
         <section className="border-b border-border">
           <div className="mx-auto grid w-full max-w-[1600px] gap-10 px-5 py-16 sm:px-7 sm:py-20 md:grid-cols-[1.15fr_0.85fr] md:items-center lg:gap-16 lg:px-10 lg:py-28 xl:px-14 xl:py-32 2xl:px-20">
             <div>
-              <TagBadge>Para sa Irosin, Sorsogon</TagBadge>
+              <TagBadge>{strings.tag}</TagBadge>
               <h1 className="mt-5 max-w-2xl font-display text-4xl leading-[1.08] sm:text-5xl lg:text-6xl xl:text-[4rem] xl:leading-[1.1]">
-                Not sure if it&apos;s <em className="not-italic text-brand">time to go</em> to the health center?
+                {strings.heading}
               </h1>
               <p className="mt-6 max-w-md text-xl leading-relaxed text-ink-secondary lg:max-w-lg lg:text-2xl">
-                Describe your symptoms in English or Tagalog. You&apos;ll get a clear tag —
-                green, yellow, or red — and one plain instruction for what to do next.
+                {strings.subhead}
               </p>
               <div className="mt-9 flex flex-wrap items-center gap-4">
                 <Link
                   href="/login?next=/assessment"
                   className="inline-flex min-h-16 items-center justify-center rounded-sm bg-brand px-10 text-xl font-medium text-brand-foreground transition hover:bg-brand-dark lg:min-h-[4.5rem] lg:px-12 lg:text-2xl"
                 >
-                  Log in to start
+                  {strings.cta}
                 </Link>
-                <span className="text-base text-ink-muted lg:text-lg">Sign in first to save your health history</span>
+                <span className="text-base text-ink-muted lg:text-lg">{strings.helper}</span>
               </div>
             </div>
             <TriageTag />

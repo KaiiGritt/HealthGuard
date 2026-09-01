@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, Newsreader, Public_Sans } from "next/font/google";
+import { LanguageProvider } from "./components/LanguageProvider";
 import "./globals.css";
 
 const publicSans = Public_Sans({
@@ -37,7 +38,9 @@ export default function RootLayout({
       lang="en"
       className={`${publicSans.variable} ${newsreader.variable} ${ibmPlexMono.variable} h-full antialiased`}
     >
-      <body className="premium-page flex min-h-full flex-col font-sans text-base leading-relaxed text-ink xl:text-lg">{children}</body>
+      <body className="premium-page flex min-h-full flex-col font-sans text-base leading-relaxed text-ink xl:text-lg">
+        <LanguageProvider>{children}</LanguageProvider>
+      </body>
     </html>
   );
 }
