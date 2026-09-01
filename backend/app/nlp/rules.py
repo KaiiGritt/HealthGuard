@@ -398,6 +398,37 @@ def _apply_demographic_adjustment(
     return adjusted_score, triggered
 
 
+def _apply_symptom_combo_rules(detected_terms: set[str]) -> list[Rule]:
+    """Add explicit combination rules for common high-risk clusters."""
+    triggered: list[Rule] = []
+
+    if "difficulty breathing" in detected_terms and ("chest pain" in detected_terms or "chest tightness" in detected_terms):
+        triggered.append(
+            Rule(
+                name="breathing-plus-chest-pain",
+                description="Difficulty breathing together with chest pain is a high-risk combination and warrants urgent medical review.",
+            )
+        )
+
+    if "fever" in detected_terms and "cough" in detected_terms:
+        triggered.append(
+            Rule(
+                name="fever-plus-cough",
+                description="Fever plus cough may need review if it is persistent, worsening, or accompanied by other warning signs.",
+            )
+        )
+
+    if "abdominal pain" in detected_terms and "vomiting" in detected_terms:
+        triggered.append(
+            Rule(
+                name="abdominal-pain-plus-vomiting",
+                description="Abdominal pain with vomiting suggests a more concerning pattern that may need support or clinical evaluation.",
+            )
+        )
+
+    return triggered
+
+
 def classify(matches: list[Match], age: int | None = None, sex: str | None = None) -> Classification:
     """Evaluate triage rules over detected symptom matches."""
     triggered: list[Rule] = []
@@ -414,6 +445,8 @@ def classify(matches: list[Match], age: int | None = None, sex: str | None = Non
             )
         )
 
+    triggered.extend(_apply_symptom_combo_rules(detected_terms))
+
     adjusted_score, demographic_rules = _apply_demographic_adjustment(score, age=age, sex=sex)
     triggered.extend(demographic_rules)
 
@@ -426,7 +459,7 @@ def classify(matches: list[Match], age: int | None = None, sex: str | None = Non
             )
         )
 
-    if critical_hit or adjusted_score >= RED_SCORE_THRESHOLD:
+    if critical_hit or adjusted_score >= RED_SCORE_THRESHOLD or any(rule.name in {"breathing-plus-chest-pain"} for rule in triggered):
         level = "RED"
     elif adjusted_score >= YELLOW_SCORE_THRESHOLD:
         level = "YELLOW"

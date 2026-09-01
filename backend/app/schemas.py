@@ -96,6 +96,7 @@ class DashboardAssessmentItem(BaseModel):
     risk_level: str
     note: str
     created_at: datetime
+    phone_number: str | None = None
 
 
 class TriageBreakdownItem(BaseModel):
@@ -297,9 +298,13 @@ class RegisterRequest(BaseModel):
     def validate_phone_number(cls, value: str | None) -> str | None:
         if value is None:
             return None
-        normalized = re.sub(r"\s+", "", value.strip())
-        if not re.fullmatch(r"\+?[0-9]{7,15}", normalized):
-            raise ValueError("Phone number must be 7 to 15 digits, optionally starting with +.")
+        normalized = re.sub(r"[^0-9+]", "", value.strip())
+        if normalized.startswith("+63"):
+            normalized = "0" + normalized[3:]
+        elif normalized.startswith("63"):
+            normalized = "0" + normalized[2:]
+        if not re.fullmatch(r"09\d{9}", normalized):
+            raise ValueError("Phone number must be a valid Philippine mobile number like 09XXXXXXXXX or +63XXXXXXXXXX.")
         return normalized
 
     @field_validator("sex")
@@ -375,9 +380,13 @@ class ProfileUpdate(BaseModel):
     def validate_phone_number(cls, value: str | None) -> str | None:
         if value is None:
             return None
-        normalized = re.sub(r"\s+", "", value.strip())
-        if not re.fullmatch(r"\+?[0-9]{7,15}", normalized):
-            raise ValueError("Phone number must be 7 to 15 digits, optionally starting with +.")
+        normalized = re.sub(r"[^0-9+]", "", value.strip())
+        if normalized.startswith("+63"):
+            normalized = "0" + normalized[3:]
+        elif normalized.startswith("63"):
+            normalized = "0" + normalized[2:]
+        if not re.fullmatch(r"09\d{9}", normalized):
+            raise ValueError("Phone number must be a valid Philippine mobile number like 09XXXXXXXXX or +63XXXXXXXXXX.")
         return normalized
 
     @field_validator("sex")

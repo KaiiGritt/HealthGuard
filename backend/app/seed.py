@@ -18,28 +18,45 @@ LEXICON_SEED: list[dict] = [
     # --- fever ---
     {"medical_term": "fever", "local_term": "fever", "language": "en", "severity_weight": 2, "category": "general"},
     {"medical_term": "fever", "local_term": "lagnat", "language": "tl", "severity_weight": 2, "category": "general"},
+    {"medical_term": "fever", "local_term": "may lagnat", "language": "tl", "severity_weight": 2, "category": "general"},
+    {"medical_term": "fever", "local_term": "lumagnat", "language": "tl", "severity_weight": 2, "category": "general"},
     # --- cough ---
     {"medical_term": "cough", "local_term": "cough", "language": "en", "severity_weight": 1, "category": "respiratory"},
     {"medical_term": "cough", "local_term": "ubo", "language": "tl", "severity_weight": 1, "category": "respiratory"},
+    {"medical_term": "cough", "local_term": "may ubo", "language": "tl", "severity_weight": 1, "category": "respiratory"},
+    {"medical_term": "cough", "local_term": "nakakaubo", "language": "tl", "severity_weight": 1, "category": "respiratory"},
     # --- headache ---
     {"medical_term": "headache", "local_term": "headache", "language": "en", "severity_weight": 1, "category": "neurological"},
     {"medical_term": "headache", "local_term": "sakit ng ulo", "language": "tl", "severity_weight": 1, "category": "neurological"},
+    {"medical_term": "headache", "local_term": "masakit ang ulo", "language": "tl", "severity_weight": 1, "category": "neurological"},
+    {"medical_term": "headache", "local_term": "sakit ulo", "language": "tl", "severity_weight": 1, "category": "neurological"},
     # --- abdominal pain ---
     {"medical_term": "abdominal pain", "local_term": "abdominal pain", "language": "en", "severity_weight": 2, "category": "gastrointestinal"},
     {"medical_term": "abdominal pain", "local_term": "sakit ng tiyan", "language": "tl", "severity_weight": 2, "category": "gastrointestinal"},
+    {"medical_term": "abdominal pain", "local_term": "masakit ang tiyan", "language": "tl", "severity_weight": 2, "category": "gastrointestinal"},
+    {"medical_term": "abdominal pain", "local_term": "sakit sa tiyan", "language": "tl", "severity_weight": 2, "category": "gastrointestinal"},
     {"medical_term": "abdominal pain", "local_term": "stomach ache", "language": "en", "severity_weight": 2, "category": "gastrointestinal"},
     # --- vomiting ---
     {"medical_term": "vomiting", "local_term": "vomiting", "language": "en", "severity_weight": 2, "category": "gastrointestinal"},
     {"medical_term": "vomiting", "local_term": "pagsusuka", "language": "tl", "severity_weight": 2, "category": "gastrointestinal"},
     {"medical_term": "vomiting", "local_term": "nagsusuka", "language": "tl", "severity_weight": 2, "category": "gastrointestinal"},
+    {"medical_term": "vomiting", "local_term": "sumusuka", "language": "tl", "severity_weight": 2, "category": "gastrointestinal"},
+    {"medical_term": "vomiting", "local_term": "sumuka", "language": "tl", "severity_weight": 2, "category": "gastrointestinal"},
     # --- diarrhea ---
     {"medical_term": "diarrhea", "local_term": "diarrhea", "language": "en", "severity_weight": 2, "category": "gastrointestinal"},
     {"medical_term": "diarrhea", "local_term": "pagtatae", "language": "tl", "severity_weight": 2, "category": "gastrointestinal"},
+    {"medical_term": "diarrhea", "local_term": "may pagtatae", "language": "tl", "severity_weight": 2, "category": "gastrointestinal"},
+    # --- chest pain ---
+    {"medical_term": "chest pain", "local_term": "chest pain", "language": "en", "severity_weight": 4, "category": "cardiovascular"},
+    {"medical_term": "chest pain", "local_term": "sakit sa dibdib", "language": "tl", "severity_weight": 4, "category": "cardiovascular"},
+    {"medical_term": "chest pain", "local_term": "masakit ang dibdib", "language": "tl", "severity_weight": 4, "category": "cardiovascular"},
     # --- difficulty breathing (high severity) ---
     {"medical_term": "difficulty breathing", "local_term": "difficulty breathing", "language": "en", "severity_weight": 4, "category": "respiratory"},
     {"medical_term": "difficulty breathing", "local_term": "shortness of breath", "language": "en", "severity_weight": 4, "category": "respiratory"},
     {"medical_term": "difficulty breathing", "local_term": "hirap huminga", "language": "tl", "severity_weight": 4, "category": "respiratory"},
+    {"medical_term": "difficulty breathing", "local_term": "nahihirapang huminga", "language": "tl", "severity_weight": 4, "category": "respiratory"},
     {"medical_term": "difficulty breathing", "local_term": "hindi makahinga", "language": "tl", "severity_weight": 4, "category": "respiratory"},
+    {"medical_term": "difficulty breathing", "local_term": "sumisikip ang paghinga", "language": "tl", "severity_weight": 4, "category": "respiratory"},
 ]
 
 # The canonical symptom list surfaced as selectable chips in the UI.

@@ -202,12 +202,34 @@ export function TagBadge({ children, tone = "brand" }: { children: ReactNode; to
 }
 
 export function Toast({ message, tone = "success", onDismiss }: { message: string; tone?: "success" | "error"; onDismiss: () => void }) {
+  const palette =
+    tone === "error"
+      ? "border-red-200/80 bg-red-50/95 text-red-900 shadow-[0_20px_50px_rgba(155,28,28,0.22)]"
+      : "border-brand/20 bg-white/90 text-slate-900 shadow-[0_22px_60px_rgba(12,34,49,0.16)]";
+
   return (
-    <div className={`fixed bottom-5 right-5 z-50 flex max-w-sm items-center gap-4 rounded-md border px-4 py-3 text-sm shadow-lg ${tone === "error" ? "border-red-200 bg-red-50 text-red-900" : "border-brand/30 bg-brand text-white"}`} role="status">
-      <span>{message}</span>
-      <button type="button" onClick={onDismiss} className="shrink-0 font-mono text-xs uppercase tracking-wide opacity-80 hover:opacity-100" aria-label="Dismiss notification">
-        Close
-      </button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/20 p-4 backdrop-blur-[2px]" role="status" aria-live="polite">
+      <div className={`w-full max-w-md rounded-2xl border p-5 shadow-xl ring-1 ring-black/5 ${palette}`}>
+        <div className="flex items-start gap-4">
+          <div className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${tone === "error" ? "bg-red-100 text-red-600" : "bg-brand-tint text-brand"}`} aria-hidden="true">
+            {tone === "error" ? "!" : "✓"}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-500/80">
+              {tone === "error" ? "Alert" : "Notice"}
+            </p>
+            <p className="mt-2 text-base leading-relaxed text-current">{message}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onDismiss}
+            className="shrink-0 rounded-full px-2 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-current/70 transition hover:bg-black/5 hover:text-current"
+            aria-label="Dismiss notification"
+          >
+            Close
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -65,6 +65,7 @@ export interface DashboardAssessmentItem {
   risk_level: string;
   note: string;
   created_at: string;
+  phone_number?: string | null;
 }
 
 export interface TriageBreakdownItem {

@@ -27,6 +27,54 @@ function initials(name: string) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+function formatPhilippinePhone(value: string) {
+  const digits = value.replace(/\D/g, "");
+  if (!digits) return "";
+  if (digits.startsWith("63")) {
+    return `+63 ${digits.slice(2)}`;
+  }
+  if (digits.startsWith("0")) {
+    return digits.replace(/(\d{3})(\d{3})(\d{4})/, "$1 $2 $3");
+  }
+  return `+63 ${digits}`;
+}
+
+function formatAuditValue(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "empty";
+  if (typeof value === "boolean") return value ? "on" : "off";
+  if (typeof value === "object") {
+    if (Array.isArray(value)) return value.join(", ");
+    return JSON.stringify(value, null, 2);
+  }
+  return String(value);
+}
+
+function formatAuditEntry(entry: ProfileAuditEntry) {
+  const actionLabel = entry.action.replace(/_/g, " ");
+
+  try {
+    const parsed = JSON.parse(entry.details);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      const lines = Object.entries(parsed).map(([key, value]) => {
+        if (value && typeof value === "object" && "from" in value && "to" in value) {
+          const change = value as { from?: unknown; to?: unknown };
+          const label = key.replace(/_/g, " ");
+          const from = formatAuditValue(change.from);
+          const to = formatAuditValue(change.to);
+          return `${label}: ${from} → ${to}`;
+        }
+        const label = key.replace(/_/g, " ");
+        return `${label}: ${formatAuditValue(value)}`;
+      });
+      return { actionLabel, lines: lines.length > 0 ? lines : [entry.details] };
+    }
+  } catch {
+    // Fall back to the raw detail text if it is not JSON.
+  }
+
+  return { actionLabel, lines: [entry.details] };
+}
+
 export default function ProfilePage() {
   const [user, setUser] = useState<User | null>(null);
   const [form, setForm] = useState({ full_name: "", age: "", sex: "", barangay: "", phone_number: "", language_preference: "en" });
@@ -171,8 +219,60 @@ export default function ProfilePage() {
       <div className="min-h-screen bg-surface-alt">
         <PageHeader />
         <PageMain>
-          <div className="rounded-2xl border border-border-soft bg-card p-10 text-center text-ink-secondary">
-            Loading your profile…
+          <style jsx>{`
+            @keyframes shimmer {
+              0% {
+                background-position: -1000px 0;
+              }
+              100% {
+                background-position: 1000px 0;
+              }
+            }
+            .skeleton {
+              background: linear-gradient(
+                90deg,
+                rgba(15, 23, 42, 0.08) 0%,
+                rgba(15, 23, 42, 0.12) 50%,
+                rgba(15, 23, 42, 0.08) 100%
+              );
+              background-size: 1000px 100%;
+              animation: shimmer 2s infinite;
+            }
+          `}</style>
+
+          {/* Record card skeleton */}
+          <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-brand via-brand/90 to-brand p-10 sm:p-10">
+            <div className="grid gap-8 md:grid-cols-[auto_1fr_auto] md:items-center md:gap-10">
+              <div className="skeleton h-16 w-16 flex-none rounded-xl bg-brand-foreground/20" />
+              
+              <div className="min-w-0 space-y-3">
+                <div className="skeleton h-4 w-32 rounded bg-brand-foreground/20" />
+                <div className="skeleton h-10 w-64 rounded bg-brand-foreground/20" />
+                <div className="space-y-2">
+                  <div className="skeleton h-3 w-full rounded bg-brand-foreground/20" />
+                  <div className="skeleton h-3 w-5/6 rounded bg-brand-foreground/20" />
+                </div>
+              </div>
+
+              <div className="skeleton h-20 w-48 rounded bg-brand-foreground/20" />
+            </div>
+          </section>
+
+          {/* Form sections skeleton */}
+          <div className="mt-8 space-y-8">
+            {[1, 2, 3].map((idx) => (
+              <section key={idx} className="rounded-2xl border border-border-soft bg-card p-8">
+                <div className="skeleton mb-6 h-6 w-40 rounded bg-ink-secondary/15" />
+                <div className="space-y-4">
+                  {[1, 2, 3].map((jdx) => (
+                    <div key={jdx}>
+                      <div className="skeleton mb-2 h-4 w-24 rounded bg-ink-secondary/10" />
+                      <div className="skeleton h-10 w-full rounded bg-surface" />
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ))}
           </div>
         </PageMain>
       </div>
@@ -368,9 +468,9 @@ export default function ProfilePage() {
                   <input
                     type="tel"
                     value={form.phone_number}
-                    onChange={(event) => setForm((prev) => ({ ...prev, phone_number: event.target.value }))}
+                    onChange={(event) => setForm((prev) => ({ ...prev, phone_number: formatPhilippinePhone(event.target.value) }))}
                     className={inputClass}
-                    placeholder="+63 917 123 4567"
+                    placeholder="09XX XXX XXXX"
                   />
                 </div>
 
@@ -484,15 +584,22 @@ export default function ProfilePage() {
                 {auditLog.length === 0 ? (
                   <li className="text-sm text-ink-secondary">No recent profile changes.</li>
                 ) : (
-                  auditLog.slice(0, 5).map((entry) => (
-                    <li key={entry.id} className="rounded-lg border border-border-soft bg-surface-alt p-3">
-                      <p className="text-sm font-medium text-ink">{entry.action.replace("_", " ")}</p>
-                      <p className="mt-1 break-words text-xs text-ink-secondary">{entry.details}</p>
-                      <p className="mt-1 text-[11px] uppercase tracking-[0.08em] text-ink-faint">
-                        {new Date(entry.created_at).toLocaleString("en", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
-                      </p>
-                    </li>
-                  ))
+                  auditLog.slice(0, 5).map((entry) => {
+                    const formatted = formatAuditEntry(entry);
+                    return (
+                      <li key={entry.id} className="rounded-lg border border-border-soft bg-surface-alt p-3">
+                        <p className="text-sm font-medium text-ink">{formatted.actionLabel}</p>
+                        <div className="mt-1 space-y-1 break-words text-xs text-ink-secondary">
+                          {formatted.lines.map((line) => (
+                            <p key={`${entry.id}-${line}`}>{line}</p>
+                          ))}
+                        </div>
+                        <p className="mt-1 text-[11px] uppercase tracking-[0.08em] text-ink-faint">
+                          {new Date(entry.created_at).toLocaleString("en", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                        </p>
+                      </li>
+                    );
+                  })
                 )}
               </ul>
             </div>

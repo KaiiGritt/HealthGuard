@@ -38,6 +38,18 @@ export default function RegisterPage() {
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
 
+  const formatPhilippinePhone = (value: string) => {
+    const digits = value.replace(/\D/g, "");
+    if (!digits) return "";
+    if (digits.startsWith("63")) {
+      return `+63 ${digits.slice(2)}`;
+    }
+    if (digits.startsWith("0")) {
+      return digits.replace(/(\d{3})(\d{3})(\d{4})/, "$1 $2 $3");
+    }
+    return `+63 ${digits}`;
+  };
+
   const passwordStrength =
     form.password.length >= 12 ? "Strong" : form.password.length >= 8 ? "Good" : form.password.length > 0 ? "Too short" : "";
   const strengthWidth =
@@ -231,9 +243,9 @@ export default function RegisterPage() {
             <input
               id="phone_number"
               type="tel"
-              placeholder="+63 917 123 4567"
+              placeholder="09XX XXX XXXX"
               value={form.phone_number}
-              onChange={set("phone_number")}
+              onChange={(e) => setForm((f) => ({ ...f, phone_number: formatPhilippinePhone(e.target.value) }))}
               className={cn(authInputClass, "mt-1.5")}
             />
           </div>

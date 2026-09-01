@@ -272,6 +272,7 @@ def dashboard_summary(
                 Assessment.user_id,
                 User.full_name,
                 User.barangay,
+                User.phone_number,
             )
             .join(User, Assessment.user_id == User.id, isouter=True)
             .order_by(Assessment.created_at.desc())
@@ -297,6 +298,7 @@ def dashboard_summary(
                 risk_level=row[2],
                 note=note,
                 created_at=row[3],
+                phone_number=row[7],
             )
         )
 

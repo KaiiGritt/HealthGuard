@@ -276,24 +276,75 @@ function RiskBreakdownBar({
 }
 
 function BarangayRanking({ data }: { data: DashboardState["barangay_stats"] }) {
-  const sorted = [...data].sort((a, b) => b.total - a.total);
+  const sorted = [...data].sort((a, b) => b.urgent - a.urgent || b.total - a.total);
   const max = Math.max(...sorted.map((item) => item.total), 1);
 
+  const getSeverity = (urgent: number, total: number) => {
+    if (urgent > 0 && total > 0) {
+      return { label: "High risk", tone: "text-emergency-red border-red-200 bg-red-50", bar: "bg-triage-red" };
+    }
+    if (total > 0) {
+      return { label: "Monitor", tone: "text-amber-700 border-yellow-200 bg-yellow-50", bar: "bg-triage-yellow" };
+    }
+    return { label: "Stable", tone: "text-emerald-700 border-emerald-200 bg-emerald-50", bar: "bg-triage-green" };
+  };
+
   return (
-    <div className="space-y-4">
-      {sorted.map((item) => {
+    <div className="space-y-3">
+      {sorted.map((item, index) => {
         const percentage = (item.total / max) * 100;
+        const severity = getSeverity(item.urgent, item.total);
+
         return (
-          <div key={item.barangay}>
-            <div className="flex items-center justify-between gap-3 text-sm">
-              <span className="font-medium text-ink">{item.barangay}</span>
-              <span className="font-medium text-ink">{item.total} cases</span>
+          <div
+            key={item.barangay}
+            className="rounded-2xl border border-border-soft bg-gradient-to-r from-white via-slate-50 to-white p-3 shadow-[0_8px_24px_rgba(15,23,42,0.04)]"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand/10 font-mono text-xs font-bold text-brand-dark">
+                  {index + 1}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-ink">{item.barangay}</p>
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-ink-faint">
+                    {item.total} total • {item.follow_up} follow-up
+                  </p>
+                </div>
+              </div>
+
+              <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] ${severity.tone}`}>
+                {severity.label}
+              </span>
             </div>
-            <div className="mt-2 h-3 overflow-hidden rounded-full bg-surface">
-              <div
-                className="h-full bg-brand transition-all duration-500"
-                style={{ width: `${percentage}%` }}
-              />
+
+            <div className="mt-3">
+              <div className="mb-1.5 flex items-center justify-between text-[11px] uppercase tracking-[0.08em] text-ink-faint">
+                <span>Coverage</span>
+                <span>{Math.round(percentage)}%</span>
+              </div>
+              <div className="relative h-3 overflow-hidden rounded-full bg-slate-100">
+                <div className="absolute inset-0 bg-gradient-to-r from-brand/10 via-brand/5 to-transparent" />
+                <div
+                  className={`relative h-full rounded-full ${severity.bar} transition-all duration-500`}
+                  style={{ width: `${Math.max(percentage, 8)}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+              <div className="rounded-xl bg-slate-50 px-2 py-2">
+                <div className="font-mono text-base font-semibold text-ink">{item.total}</div>
+                <div className="text-[10px] uppercase tracking-[0.08em] text-ink-faint">Total</div>
+              </div>
+              <div className="rounded-xl bg-red-50 px-2 py-2">
+                <div className="font-mono text-base font-semibold text-emergency-red">{item.urgent}</div>
+                <div className="text-[10px] uppercase tracking-[0.08em] text-emergency-red/80">Urgent</div>
+              </div>
+              <div className="rounded-xl bg-amber-50 px-2 py-2">
+                <div className="font-mono text-base font-semibold text-amber-700">{item.follow_up}</div>
+                <div className="text-[10px] uppercase tracking-[0.08em] text-amber-700/80">Follow-up</div>
+              </div>
             </div>
           </div>
         );
@@ -625,6 +676,14 @@ function DashboardPageContent() {
                         <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-ink-muted">Barangay</p>
                         <p className="mt-1 font-medium text-ink">{item.barangay ?? "Unknown barangay"}</p>
                       </div>
+                      {item.phone_number && (
+                        <div>
+                          <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-ink-muted">Contact</p>
+                          <a href={`tel:${item.phone_number}`} className="mt-1 font-medium text-brand-dark hover:text-brand transition">
+                            {item.phone_number}
+                          </a>
+                        </div>
+                      )}
                       <div className="sm:col-span-2">
                         <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-ink-muted">Assessment details</p>
                         <p className="mt-1 leading-relaxed text-ink-secondary">{item.note}</p>
@@ -646,15 +705,40 @@ function DashboardPageContent() {
         </div>
 
         <WidgetCard icon="pie" title="Case mix" subtitle="Current triage breakdown" updated={updatedLabel}>
-          <DonutChart
-            centerLabel={String(greenBreakdown + yellowBreakdown + redBreakdown)}
-            centerSub="total cases"
-            segments={[
-              { label: "Green", value: greenBreakdown, colorClass: "stroke-triage-green", dotClass: "bg-triage-green" },
-              { label: "Yellow", value: yellowBreakdown, colorClass: "stroke-triage-yellow", dotClass: "bg-triage-yellow" },
-              { label: "Red", value: redBreakdown, colorClass: "stroke-triage-red", dotClass: "bg-triage-red" },
-            ]}
-          />
+          <div className="space-y-6">
+            <DonutChart
+              centerLabel={String(greenBreakdown + yellowBreakdown + redBreakdown)}
+              centerSub="total cases"
+              segments={[
+                { label: "Green", value: greenBreakdown, colorClass: "stroke-triage-green", dotClass: "bg-triage-green" },
+                { label: "Yellow", value: yellowBreakdown, colorClass: "stroke-triage-yellow", dotClass: "bg-triage-yellow" },
+                { label: "Red", value: redBreakdown, colorClass: "stroke-triage-red", dotClass: "bg-triage-red" },
+              ]}
+            />
+            <div className="rounded-2xl border border-border-soft bg-gradient-to-r from-slate-50 via-white to-slate-50 p-3">
+              <div className="space-y-3">
+                {[
+                  { label: "Red", value: redBreakdown, colorClass: "bg-triage-red", bg: "bg-red-50" },
+                  { label: "Yellow", value: yellowBreakdown, colorClass: "bg-triage-yellow", bg: "bg-yellow-50" },
+                  { label: "Green", value: greenBreakdown, colorClass: "bg-triage-green", bg: "bg-emerald-50" },
+                ].map((row) => {
+                  const total = greenBreakdown + yellowBreakdown + redBreakdown || 1;
+                  const percentage = (row.value / total) * 100;
+                  return (
+                    <div key={row.label} className={`rounded-xl ${row.bg} p-2`}>
+                      <div className="mb-1 flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-muted">
+                        <span>{row.label}</span>
+                        <span className="font-mono">{row.value} ({Math.round(percentage)}%)</span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-white/60">
+                        <div className={`h-full ${row.colorClass} transition-all duration-500`} style={{ width: `${percentage}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         </WidgetCard>
       </section>
 
@@ -667,7 +751,7 @@ function DashboardPageContent() {
           )}
         </WidgetCard>
 
-        <WidgetCard icon="map" title="Barangay ranking" subtitle="Cases by location" updated={updatedLabel}>
+        <WidgetCard icon="map" title="Barangay heat map" subtitle="Urgency snapshot by location" updated={updatedLabel}>
           <BarangayRanking data={barangayStats} />
         </WidgetCard>
       </section>
@@ -694,16 +778,19 @@ function DashboardPageContent() {
           <div className="space-y-3">
             {stats && stats.recent_assessments.length > 0 ? (
               stats.recent_assessments.slice(0, 3).map((item) => (
-                <ListRow key={item.id} className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-medium text-ink">{item.resident_name}</p>
-                      <TriageBadge level={item.risk_level} />
+                <div key={item.id} className="rounded-2xl border border-border-soft bg-gradient-to-r from-white via-slate-50 to-white p-3 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium text-ink">{item.resident_name}</p>
+                      <p className="text-[11px] uppercase tracking-[0.08em] text-ink-faint">ID #{item.id}</p>
                     </div>
-                    <p className="mt-2 text-sm text-ink-secondary">{item.note}</p>
-                    <p className="mt-2 text-xs text-ink-muted">{new Date(item.created_at).toLocaleString()}</p>
+                    <TriageBadge level={item.risk_level} />
                   </div>
-                </ListRow>
+                  <p className="mb-2 text-xs leading-relaxed text-ink-secondary">{item.note}</p>
+                  <p className="text-[10px] uppercase tracking-[0.08em] text-ink-faint">
+                    {new Date(item.created_at).toLocaleString()}
+                  </p>
+                </div>
               ))
             ) : (
               <p className="rounded-md border border-dashed border-border bg-surface p-5 text-sm text-ink-muted">
@@ -731,21 +818,38 @@ function DashboardPageContent() {
             </Link>
           }
         >
-          <div className="space-y-4">
-            {(stats?.top_symptoms.length ? stats.top_symptoms.slice(0, 3) : []).map((item) => (
-              <div key={item.symptom}>
-                <div className="mb-1.5 flex items-center justify-between text-sm text-ink-secondary">
-                  <span>{item.symptom}</span>
-                  <span className="font-medium text-ink">{item.count}</span>
+          <div className="space-y-3">
+            {(stats?.top_symptoms.length ? stats.top_symptoms.slice(0, 3) : []).map((item, index) => {
+              const maxCount = Math.max(...(stats?.top_symptoms ?? []).map(s => s.count), 1);
+              const percentage = (item.count / maxCount) * 100;
+              
+              return (
+                <div
+                  key={item.symptom}
+                  className="rounded-2xl border border-border-soft bg-gradient-to-r from-white via-slate-50 to-white p-3 shadow-[0_8px_24px_rgba(15,23,42,0.04)]"
+                >
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand/10 font-mono text-xs font-bold text-brand-dark">
+                        {index + 1}
+                      </div>
+                      <p className="truncate font-medium text-ink">{item.symptom}</p>
+                    </div>
+                    <span className="inline-flex shrink-0 rounded-full bg-brand/10 px-2.5 py-1 font-mono text-xs font-semibold text-brand-dark">
+                      {item.count}
+                    </span>
+                  </div>
+                  
+                  <div className="relative h-2.5 overflow-hidden rounded-full bg-slate-100">
+                    <div className="absolute inset-0 bg-gradient-to-r from-brand/10 via-brand/5 to-transparent" />
+                    <div
+                      className="relative h-full rounded-full bg-brand transition-all duration-500"
+                      style={{ width: `${Math.max(percentage, 8)}%` }}
+                    />
+                  </div>
                 </div>
-                <div className="h-2.5 rounded-full bg-surface">
-                  <div
-                    className="h-2.5 rounded-full bg-brand transition-all duration-500"
-                    style={{ width: `${Math.min(Math.max((item.count || 0) * 18, 10), 100)}%` }}
-                  />
-                </div>
-              </div>
-            ))}
+              );
+            })}
             {(!stats || stats.top_symptoms.length === 0) && (
               <p className="rounded-md border border-dashed border-border bg-surface p-5 text-sm text-ink-muted">
                 No symptom data available.
