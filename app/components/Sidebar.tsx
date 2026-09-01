@@ -127,8 +127,13 @@ export default function Sidebar({ user }: { user: User }) {
         </button>
       </div>
       {mobileOpen && (
-        <div className="fixed inset-0 top-[73px] z-50 bg-ink/20 backdrop-blur-[2px] md:hidden" onClick={() => setMobileOpen(false)}>
-          <div className="flex min-h-full w-full max-w-sm flex-col border-r border-border bg-header shadow-[12px_0_40px_rgba(24,38,25,0.14)]" onClick={(event) => event.stopPropagation()}>{content}</div>
+        <div className="fixed inset-0 z-50 bg-ink/20 backdrop-blur-[2px] md:hidden" onClick={() => setMobileOpen(false)}>
+          <div
+            className="flex h-full w-[82vw] max-w-sm flex-col border-r border-border bg-header shadow-[12px_0_40px_rgba(24,38,25,0.14)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            {content}
+          </div>
         </div>
       )}
     </>
