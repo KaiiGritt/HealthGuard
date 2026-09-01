@@ -216,6 +216,7 @@ export interface User {
   age: number | null;
   sex: string | null;
   barangay: string | null;
+  phone_number?: string | null;
   language_preference?: string | null;
   notification_preferences?: NotificationPreferences | null;
   created_at: string;
@@ -336,6 +337,7 @@ export interface RegisterPayload {
   age?: number | null;
   sex?: string | null;
   barangay?: string | null;
+  phone_number?: string | null;
 }
 
 export interface VerifyEmailPayload {

@@ -29,7 +29,7 @@ function initials(name: string) {
 
 export default function ProfilePage() {
   const [user, setUser] = useState<User | null>(null);
-  const [form, setForm] = useState({ full_name: "", age: "", sex: "", barangay: "", language_preference: "en" });
+  const [form, setForm] = useState({ full_name: "", age: "", sex: "", barangay: "", phone_number: "", language_preference: "en" });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -52,8 +52,9 @@ export default function ProfilePage() {
           setLoading(false);
           return;
         }
+        const photoStorageKey = `healthguard-profile-photo-${current.id}`;
         const storedLanguage = typeof window !== "undefined" ? window.localStorage.getItem("healthguard-language") : null;
-        const storedPhoto = typeof window !== "undefined" ? window.localStorage.getItem("healthguard-profile-photo") : null;
+        const storedPhoto = typeof window !== "undefined" ? window.localStorage.getItem(photoStorageKey) : null;
         const nextPrefs = current.notification_preferences ?? { email: true, sms: false, push: true };
         setUser(current);
         setNotificationPrefs(nextPrefs);
@@ -63,6 +64,7 @@ export default function ProfilePage() {
           age: current.age?.toString() ?? "",
           sex: current.sex ?? "",
           barangay: current.barangay ?? "",
+          phone_number: current.phone_number ?? "",
           language_preference: current.language_preference ?? storedLanguage ?? "en",
         });
         if (typeof window !== "undefined") {
@@ -90,11 +92,14 @@ export default function ProfilePage() {
         age: form.age ? Number(form.age) : null,
         sex: form.sex || null,
         barangay: form.barangay.trim() || null,
+        phone_number: form.phone_number.trim() || null,
         language_preference: form.language_preference || "en",
         notification_preferences: notificationPrefs,
       });
       setUser(updated);
       setNotificationPrefs(updated.notification_preferences ?? notificationPrefs);
+      const nextAudit = await getProfileAudit();
+      setAuditLog(nextAudit);
       if (typeof window !== "undefined") {
         window.localStorage.setItem("healthguard-language", updated.language_preference ?? form.language_preference);
       }
@@ -145,13 +150,13 @@ export default function ProfilePage() {
 
   function handlePhotoSelect(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file || !user) return;
     const reader = new FileReader();
     reader.onload = () => {
       const nextUrl = typeof reader.result === "string" ? reader.result : null;
       setPhotoUrl(nextUrl);
       if (typeof window !== "undefined" && nextUrl) {
-        window.localStorage.setItem("healthguard-profile-photo", nextUrl);
+        window.localStorage.setItem(`healthguard-profile-photo-${user.id}`, nextUrl);
       }
     };
     reader.readAsDataURL(file);
@@ -354,6 +359,19 @@ export default function ProfilePage() {
                     </span>
                   </div>
                   <p className="mt-1.5 text-xs text-ink-faint">Routes urgent (red) cases to the nearest health station.</p>
+                </div>
+
+                <div>
+                  <label className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
+                    Phone number <span className={labelHintClass}>/ Numero ng telepono</span>
+                  </label>
+                  <input
+                    type="tel"
+                    value={form.phone_number}
+                    onChange={(event) => setForm((prev) => ({ ...prev, phone_number: event.target.value }))}
+                    className={inputClass}
+                    placeholder="+63 917 123 4567"
+                  />
                 </div>
 
                 <div>

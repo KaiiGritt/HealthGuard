@@ -27,6 +27,7 @@ export default function RegisterPage() {
     age: "",
     sex: "",
     barangay: "",
+    phone_number: "",
   });
   const [showPassword, setShowPassword] = useState(false);
   const [verificationCode, setVerificationCode] = useState("");
@@ -74,6 +75,7 @@ export default function RegisterPage() {
         age: form.age ? Number(form.age) : null,
         sex: form.sex || null,
         barangay: form.barangay.trim() || null,
+        phone_number: form.phone_number.trim() || null,
       });
       setIsVerificationStage(true);
       setSubmitting(false);
@@ -221,6 +223,20 @@ export default function RegisterPage() {
 
         <fieldset className="rounded-2xl border border-border bg-white/60 px-4 pb-4 pt-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
           <legend className="px-1 text-xs font-medium uppercase tracking-wider text-ink-faint">Profile details</legend>
+
+          <div className="mt-3">
+            <label htmlFor="phone_number" className={authLabelClass}>
+              Phone number
+            </label>
+            <input
+              id="phone_number"
+              type="tel"
+              placeholder="+63 917 123 4567"
+              value={form.phone_number}
+              onChange={set("phone_number")}
+              className={cn(authInputClass, "mt-1.5")}
+            />
+          </div>
 
           <div className="mt-3 grid gap-4 sm:grid-cols-2">
             <div>

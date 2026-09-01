@@ -84,6 +84,10 @@ def migrate_email_verification_schema() -> None:
     cols = {c["name"] for c in insp.get_columns("email_verifications")}
     needed = {"full_name", "password_hash", "age", "sex", "barangay"}
     if needed.issubset(cols):
+        # Some older schemas also need phone_number for registration and profile flows.
+        if "phone_number" not in cols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE email_verifications ADD COLUMN phone_number VARCHAR(32)"))
         return
 
     if engine.url.get_backend_name() == "sqlite":
@@ -98,6 +102,7 @@ def migrate_email_verification_schema() -> None:
         "age": "INTEGER",
         "sex": "VARCHAR(16)",
         "barangay": "VARCHAR(96)",
+        "phone_number": "VARCHAR(32)",
     }
     with engine.begin() as conn:
         for column, ddl in alters.items():
@@ -138,6 +143,7 @@ def migrate_user_preferences_schema() -> None:
     alters = {
         "language_preference": "VARCHAR(16)",
         "notification_preferences": "JSON",
+        "phone_number": "VARCHAR(32)",
         "is_deleted": "BOOLEAN NOT NULL DEFAULT FALSE",
         "deleted_at": "TIMESTAMP",
     }

@@ -1,6 +1,7 @@
 """Pydantic request/response schemas."""
 from __future__ import annotations
 
+import re
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -287,8 +288,19 @@ class RegisterRequest(BaseModel):
     age: int | None = Field(default=None, ge=0, le=150)
     sex: str | None = Field(default=None, max_length=16)
     barangay: str = Field(min_length=1, max_length=96)
+    phone_number: str | None = Field(default=None, max_length=32)
     language_preference: str | None = Field(default="en", max_length=16)
     notification_preferences: NotificationPreferences | None = None
+
+    @field_validator("phone_number")
+    @classmethod
+    def validate_phone_number(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = re.sub(r"\s+", "", value.strip())
+        if not re.fullmatch(r"\+?[0-9]{7,15}", normalized):
+            raise ValueError("Phone number must be 7 to 15 digits, optionally starting with +.")
+        return normalized
 
     @field_validator("sex")
     @classmethod
@@ -354,8 +366,19 @@ class ProfileUpdate(BaseModel):
     age: int | None = Field(default=None, ge=0, le=150)
     sex: str | None = Field(default=None, max_length=16)
     barangay: str | None = Field(default=None, max_length=96)
+    phone_number: str | None = Field(default=None, max_length=32)
     language_preference: str | None = Field(default=None, max_length=16)
     notification_preferences: NotificationPreferences | None = None
+
+    @field_validator("phone_number")
+    @classmethod
+    def validate_phone_number(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = re.sub(r"\s+", "", value.strip())
+        if not re.fullmatch(r"\+?[0-9]{7,15}", normalized):
+            raise ValueError("Phone number must be 7 to 15 digits, optionally starting with +.")
+        return normalized
 
     @field_validator("sex")
     @classmethod
@@ -405,6 +428,7 @@ class UserOut(BaseModel):
     age: int | None = None
     sex: str | None = None
     barangay: str | None = None
+    phone_number: str | None = None
     language_preference: str | None = None
     notification_preferences: dict | None = None
     created_at: datetime

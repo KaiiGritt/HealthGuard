@@ -10,6 +10,7 @@ import {
   PageMain,
   PageTitle,
   submitButtonClass,
+  Toast,
 } from "@/app/components/ui/primitives";
 import Disclaimer from "../components/Disclaimer";
 import PageHeader from "../components/PageHeader";
@@ -43,6 +44,7 @@ export default function AssessmentPage() {
   const [duration, setDuration] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; tone: "success" | "error" } | null>(null);
   const [authChecking, setAuthChecking] = useState(true);
   const [processingStep, setProcessingStep] = useState(0);
 
@@ -71,18 +73,80 @@ export default function AssessmentPage() {
     return () => window.clearInterval(timer);
   }, [submitting]);
 
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(null), 4000);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+
   const toggle = (value: string) =>
     setSelected((prev) =>
       prev.includes(value) ? prev.filter((x) => x !== value) : [...prev, value]
     );
 
+  const matchesSupportedText = (value: string) => {
+    const normalized = value.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+    const tokens = [
+      "fever",
+      "lagnat",
+      "cough",
+      "ubo",
+      "headache",
+      "sakit ng ulo",
+      "abdominal pain",
+      "sakit ng tiyan",
+      "vomiting",
+      "pagsusuka",
+      "diarrhea",
+      "pagtatae",
+      "difficulty breathing",
+      "hirap huminga",
+      "shortness of breath",
+      "breathless",
+      "chest pain",
+      "pain in chest",
+      "weakness",
+      "kahinaan",
+      "rash",
+      "buni",
+      "sore throat",
+      "sakit ng lalamunan",
+      "nasal congestion",
+      "stuffy nose",
+      "runny nose",
+    ];
+    return tokens.some((token) => normalized.includes(token));
+  };
+
   const canSubmit = text.trim().length > 0 || selected.length > 0;
   const showUrgentNudge = selected.some((s) => URGENT_NUDGE_SYMPTOMS.has(s));
+
+  const getSubmissionValidationError = () => {
+    const trimmedText = text.trim();
+    if (!trimmedText && selected.length === 0) {
+      return "Please describe a supported symptom or tap one of the available symptoms.";
+    }
+    if (trimmedText && !matchesSupportedText(trimmedText) && selected.length > 0) {
+      return "Your free-text description was not recognized as a supported symptom. Remove the unsupported text or choose a supported symptom only.";
+    }
+    if (trimmedText && !matchesSupportedText(trimmedText) && selected.length === 0) {
+      return "No recognized symptom was detected. Please select a supported symptom or describe one of the supported symptoms.";
+    }
+    return null;
+  };
 
   if (authChecking) return null;
 
   async function handleSubmit() {
     if (!canSubmit || submitting) return;
+
+    const validationError = getSubmissionValidationError();
+    if (validationError) {
+      setToast({ message: validationError, tone: "error" });
+      setError(null);
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
     try {
@@ -102,7 +166,11 @@ export default function AssessmentPage() {
       });
       router.push(`/result/${result.id}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
+      const message = e instanceof Error ? e.message : "Something went wrong. Please try again.";
+      const friendlyMessage = message.includes("No recognized symptom was detected")
+        ? "No recognized symptom was detected. Please select a supported symptom or describe one of the supported symptoms."
+        : message;
+      setToast({ message: friendlyMessage, tone: "error" });
       setSubmitting(false);
     }
   }
@@ -201,6 +269,8 @@ export default function AssessmentPage() {
                 <button type="button" onClick={handleSubmit} disabled={!canSubmit || submitting} className={`mt-10 ${submitButtonClass}`}>
                   {submitting ? "Checking…" : "Check my symptoms"}
                 </button>
+
+                {toast && <Toast message={toast.message} tone={toast.tone} onDismiss={() => setToast(null)} />}
 
                 <Disclaimer className="mt-6" />
               </>

@@ -615,17 +615,26 @@ function DashboardPageContent() {
                       <TriageBadge level={item.risk_level} />
                       <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-muted">#{item.id}</span>
                     </div>
-                    <p className="mt-2 text-sm leading-relaxed text-ink-secondary">{item.note}</p>
-                    <p className="mt-2 text-xs text-ink-muted">
-                      {item.barangay ?? "Unknown barangay"} • {new Date(item.created_at).toLocaleString()}
+
+                    <div className="mt-3 grid gap-2 rounded-md border border-red-200 bg-white/60 p-3 text-sm text-ink-secondary sm:grid-cols-2">
+                      <div>
+                        <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-ink-muted">Resident</p>
+                        <p className="mt-1 font-medium text-ink">{item.resident_name}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-ink-muted">Barangay</p>
+                        <p className="mt-1 font-medium text-ink">{item.barangay ?? "Unknown barangay"}</p>
+                      </div>
+                      <div className="sm:col-span-2">
+                        <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-ink-muted">Assessment details</p>
+                        <p className="mt-1 leading-relaxed text-ink-secondary">{item.note}</p>
+                      </div>
+                    </div>
+
+                    <p className="mt-3 text-xs text-ink-muted">
+                      Recorded {new Date(item.created_at).toLocaleString()}
                     </p>
                   </div>
-                  <Link
-                    href={`/result/${item.id}`}
-                    className="inline-flex min-h-11 items-center justify-center rounded-sm border border-red-200 bg-red-tint px-3.5 text-sm font-medium text-emergency-red transition hover:bg-red-100"
-                  >
-                    Review
-                  </Link>
                 </ListRow>
               ))
             ) : (

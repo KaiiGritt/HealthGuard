@@ -150,6 +150,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> Registe
             age=payload.age,
             sex=payload.sex,
             barangay=payload.barangay,
+            phone_number=payload.phone_number,
         )
         db.add(pending)
     else:
@@ -160,6 +161,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> Registe
         pending.age = payload.age
         pending.sex = payload.sex
         pending.barangay = payload.barangay
+        pending.phone_number = payload.phone_number
 
     db.flush()
     _send_verification_email(email, code)
@@ -198,6 +200,7 @@ def verify_email(payload: VerifyEmailRequest, response: Response, db: Session = 
         age=record.age,
         sex=record.sex,
         barangay=record.barangay,
+        phone_number=record.phone_number,
         is_active=True,
     )
     db.add(user)
@@ -318,7 +321,7 @@ def update_profile(
         if previous != new_value:
             user.full_name = new_value
             changes["full_name"] = {"from": previous, "to": new_value}
-    for field in ("age", "sex", "barangay", "language_preference"):
+    for field in ("age", "sex", "barangay", "phone_number", "language_preference"):
         if field in data:
             previous = getattr(user, field)
             new_value = data[field]
