@@ -127,7 +127,7 @@ def migrate_lexicon_review_schema() -> None:
 
 
 def migrate_user_preferences_schema() -> None:
-    """Add preference metadata to legacy user records."""
+    """Add preference and soft-delete metadata to legacy user records."""
     from sqlalchemy import inspect, text
 
     insp = inspect(engine)
@@ -138,6 +138,8 @@ def migrate_user_preferences_schema() -> None:
     alters = {
         "language_preference": "VARCHAR(16)",
         "notification_preferences": "JSON",
+        "is_deleted": "BOOLEAN NOT NULL DEFAULT FALSE",
+        "deleted_at": "TIMESTAMP",
     }
     with engine.begin() as conn:
         for column, ddl in alters.items():
