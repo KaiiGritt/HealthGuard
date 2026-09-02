@@ -34,6 +34,15 @@ export default function PageHeader() {
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isCompactNav, setIsCompactNav] = useState(false);
+  const [isIconRail, setIsIconRail] = useState(false);
+
+  const currentPath = pathname ?? "/";
+  const isAssessmentRoute = pathname === "/assessment";
+  const isHistoryRoute = pathname === "/history";
+  const isProfileRoute = pathname === "/profile";
+  const isLoginRoute = pathname === "/login";
+  const isRegisterRoute = pathname === "/register";
 
   const uiText = {
     history: language === "fil" ? "Kasaysayan" : language === "both" ? "History / Kasaysayan" : "History",
@@ -66,6 +75,17 @@ export default function PageHeader() {
   }, []);
 
   useEffect(() => {
+    const onResize = () => {
+      const width = window.innerWidth;
+      setIsCompactNav(width < 768);
+      setIsIconRail(width < 420);
+    };
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  useEffect(() => {
     const frame = window.requestAnimationFrame(() => setMobileMenuOpen(false));
     return () => window.cancelAnimationFrame(frame);
   }, [pathname]);
@@ -80,52 +100,90 @@ export default function PageHeader() {
   function linkClass(href: string) {
     const active = pathname === href;
     return cn(
-      "flex items-center gap-2 rounded-full px-3.5 py-2.5 text-sm font-medium transition-colors sm:gap-2.5 sm:px-4 lg:gap-2.5 lg:px-4.5 lg:py-2.5 lg:text-base",
+      "flex items-center gap-2 rounded-full px-3.5 py-2.5 text-sm font-medium transition-all duration-200 sm:gap-2.5 sm:px-4 lg:gap-2.5 lg:px-4.5 lg:py-2.5 lg:text-base",
       active
-        ? "bg-brand-tint text-brand-dark"
-        : "text-ink-secondary hover:bg-card hover:text-ink",
+        ? "bg-brand-tint text-brand-dark shadow-sm ring-1 ring-brand/15"
+        : "text-ink-secondary hover:bg-card hover:text-ink hover:shadow-sm hover:ring-1 hover:ring-border/80",
     );
   }
 
-  if (pathname === "/") {
+  function compactNavItem(href: string, label: string, icon: ReactNode, active?: boolean) {
     return (
-      <aside className="fixed left-0 top-0 z-40 h-screen w-56 border-r border-border bg-header/95 px-4 py-5 backdrop-blur-xl sm:w-64">
-        <Link href="/" className="flex items-center gap-3">
-          <span
-            className="flex h-9 w-9 items-center justify-center rounded-lg bg-linear-to-br from-brand to-brand-dark text-lg text-brand-foreground shadow-sm"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
-            H
-          </span>
-          <span className="text-lg font-medium text-ink" style={{ fontFamily: "var(--font-display)" }}>
-            HealthGuard
-          </span>
-        </Link>
-
-        <nav className="mt-8 flex flex-col gap-2">
-          <Link href="/" className={linkClass("/")}>Home</Link>
-          <Link href="/assessment" className={linkClass("/assessment")}>Assessment</Link>
-          {!authReady ? (
-            <div className="h-10 w-full animate-pulse rounded-full bg-card" aria-label="Loading user menu" />
-          ) : user ? (
-            <>
-              <Link href="/history" className={linkClass("/history")}>History</Link>
-              <Link href="/profile" className={linkClass("/profile")}>Profile</Link>
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="rounded-full border border-border bg-card px-3 py-2.5 text-left text-sm font-medium text-ink-secondary transition-colors hover:border-brand/40 hover:text-ink"
-              >
-                {uiText.logout}
-              </button>
-            </>
-          ) : (
-            <>
-              <Link href="/login" className={linkClass("/login")}>Login</Link>
-              <Link href="/register" className={linkClass("/register")}>Sign up</Link>
-            </>
+      <Link
+        key={href}
+        href={href}
+        className={cn(
+          "group flex items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-medium transition-all duration-200",
+          active
+            ? "border-brand/20 bg-brand-tint text-brand-dark shadow-sm"
+            : "border-transparent bg-transparent text-ink-secondary hover:border-border hover:bg-card hover:text-ink",
+        )}
+      >
+        <span
+          className={cn(
+            "flex h-8 w-8 items-center justify-center rounded-md transition-colors",
+            active ? "bg-white text-brand-dark shadow-sm" : "bg-surface text-ink-faint group-hover:text-ink",
           )}
-        </nav>
+        >
+          {icon}
+        </span>
+        <span>{label}</span>
+      </Link>
+    );
+  }
+
+  const isHomeRoute = currentPath === "/";
+
+  if (isHomeRoute && isCompactNav) {
+    const compactItems = [
+      { href: "/", label: "Home", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4"><path strokeLinecap="round" strokeLinejoin="round" d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1v-9.5Z" /></svg>, active: isHomeRoute },
+      { href: "/assessment", label: "Assessment", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4"><path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6M9 12h6M9 17h4M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" /></svg>, active: isAssessmentRoute },
+    ];
+
+    const compactRailItems = (
+      <>
+        {compactItems.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={cn(
+              "group flex items-center justify-center rounded-xl border p-2.5 transition-all duration-200",
+              item.active
+                ? "border-brand/20 bg-brand-tint text-brand-dark shadow-sm"
+                : "border-transparent bg-transparent text-ink-secondary hover:border-border hover:bg-card hover:text-ink",
+            )}
+            aria-label={item.label}
+            title={item.label}
+          >
+            <span className={cn("flex h-8 w-8 items-center justify-center rounded-md", item.active ? "bg-white text-brand-dark shadow-sm" : "bg-surface text-ink-faint group-hover:text-ink")}>
+              {item.icon}
+            </span>
+          </Link>
+        ))}
+
+        {!authReady ? (
+          <div className="h-10 w-10 animate-pulse rounded-xl bg-card" aria-label="Loading user menu" />
+        ) : user ? (
+          <>
+            {compactNavItem("/history", uiText.history, <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>, isHistoryRoute)}
+            {compactNavItem("/profile", uiText.profile, <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4"><path strokeLinecap="round" strokeLinejoin="round" d="M5 20a7 7 0 0114 0M12 12a4 4 0 100-8 4 4 0 000 8z" /></svg>, isProfileRoute)}
+            <button type="button" onClick={handleLogout} aria-label={uiText.logout} title={uiText.logout} className="group flex items-center justify-center rounded-xl border border-border bg-card p-2.5 transition-all duration-200 hover:border-brand/30 hover:bg-brand-tint hover:text-brand-dark hover:shadow-sm">
+              <span className="flex h-8 w-8 items-center justify-center rounded-md bg-surface text-ink-faint transition-colors group-hover:text-brand-dark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4"><path strokeLinecap="round" strokeLinejoin="round" d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" /></svg></span>
+            </button>
+          </>
+        ) : (
+          <>
+            {compactNavItem("/login", uiText.login, <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4"><path strokeLinecap="round" strokeLinejoin="round" d="M10 17l5-5-5-5M15 12H3" /></svg>, isLoginRoute)}
+            {compactNavItem("/register", uiText.signup, <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4"><path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" /></svg>, isRegisterRoute)}
+          </>
+        )}
+      </>
+    );
+
+    return (
+      <aside className={cn("fixed left-0 top-0 z-40 flex h-screen flex-col items-center gap-3 border-r border-border bg-[linear-gradient(180deg,#FBF9F2_0%,#F4F7F1_100%)] px-3 py-5 shadow-[8px_0_24px_rgba(20,31,25,0.06)] backdrop-blur-xl", isIconRail ? "w-16" : "w-20")}>
+        <Link href="/" className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br from-brand to-brand-dark text-lg text-brand-foreground shadow-sm" style={{ fontFamily: "var(--font-display)" }} aria-label="HealthGuard home" title="HealthGuard home">H</Link>
+        <nav className="flex w-full flex-col items-center gap-2">{compactRailItems}</nav>
       </aside>
     );
   }
