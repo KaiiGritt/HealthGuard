@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Disclaimer from "../components/Disclaimer";
+import PageHeader from "../components/PageHeader";
 import {
   AccessGate,
   HeroBanner,
@@ -272,6 +273,7 @@ export default function AdminPage() {
 
   return (
     <>
+      <PageHeader />
       <PageMain wide>
         <div className="overflow-hidden rounded-[28px] border border-[#D8DED1] bg-[linear-gradient(135deg,#183D2D_0%,#1F4A36_42%,#2E6A52_100%)] p-px shadow-[0_28px_56px_rgba(23,63,45,0.18)]">
           <HeroBanner

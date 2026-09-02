@@ -13,7 +13,7 @@ type AuthLayoutProps = {
 
 export default function AuthLayout({ children, title, subtitle, footer, step }: AuthLayoutProps) {
   return (
-    <div className="auth-pro-shell flex min-h-screen">
+    <div className="auth-pro-shell flex min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(47,107,79,0.08),_transparent_25%),linear-gradient(180deg,#f8faf6_0%,#f1f5ee_100%)]">
       {/* Brand panel — left on desktop */}
       <aside className="auth-pro-brand relative hidden w-[44%] shrink-0 flex-col justify-between overflow-hidden lg:flex xl:w-[42%]">
         <div className="auth-pro-brand-grid pointer-events-none absolute inset-0" aria-hidden />
@@ -64,8 +64,7 @@ export default function AuthLayout({ children, title, subtitle, footer, step }: 
       </aside>
 
       {/* Form panel — right on desktop, full width on mobile */}
-      <main className="auth-pro-form flex flex-1 flex-col bg-white">
-        {/* Mobile brand bar */}
+      <main className="auth-pro-form flex flex-1 flex-col bg-[linear-gradient(180deg,#ffffff_0%,#f6f9f3_100%)]">
         <div className="flex items-center justify-between border-b border-border px-5 py-4 lg:hidden">
           <Link href="/" className="flex items-center gap-2.5">
             <span
@@ -81,7 +80,7 @@ export default function AuthLayout({ children, title, subtitle, footer, step }: 
         </div>
 
         <div className="flex flex-1 flex-col items-center justify-center px-5 py-10 sm:px-8 lg:px-12 xl:px-16">
-          <div className="w-full max-w-[420px]">
+          <div className="w-full max-w-[420px] rounded-[28px] border border-[#dfe8dc] bg-white/80 p-4 shadow-[0_22px_50px_rgba(21,36,28,0.06)] backdrop-blur-sm sm:p-6">
             {step ? (
               <p className="font-mono text-xs font-medium uppercase tracking-[0.12em] text-brand">{step}</p>
             ) : null}

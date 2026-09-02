@@ -38,11 +38,22 @@ export default async function ResultPage({
     <>
       <PageHeader />
       <PageMain narrow className="max-w-5xl">
-        <div className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
-          <Card className="overflow-hidden rounded-3xl border border-border-soft bg-gradient-to-br from-card via-card/95 to-surface shadow-[0_26px_70px_rgba(15,23,42,0.06)]">
-            <p className="font-mono text-sm uppercase tracking-[0.12em] text-ink-faint lg:text-base">Assessment result · {created}</p>
+        <div className="mb-6 border-b border-border pb-5">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-brand">HealthGuard clinical summary</p>
+              <h1 className="mt-2 font-display text-3xl font-semibold leading-tight text-ink sm:text-4xl">Assessment result</h1>
+            </div>
+            <div className="text-left sm:text-right">
+              <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-faint">Recorded</p>
+              <p className="mt-1 text-sm text-ink-muted">{created}</p>
+            </div>
+          </div>
+        </div>
 
-            <div className="mt-5">
+        <div className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
+          <Card className="overflow-hidden rounded-[24px] border border-[#dfe7dc] bg-[linear-gradient(180deg,#ffffff_0%,#f8faf5_100%)] p-4 shadow-[0_20px_55px_rgba(15,23,42,0.06)] sm:p-6 lg:p-7">
+            <div className="mt-0">
               <RiskCard
                 level={record.risk_level}
                 message={MESSAGES[record.risk_level] ?? ""}
@@ -50,14 +61,17 @@ export default async function ResultPage({
               />
             </div>
 
-            <section className="mt-6 rounded-2xl border border-border bg-surface p-5 lg:p-6">
-              <h3 className="font-mono text-xs uppercase tracking-wide text-ink-faint lg:text-sm">Detected symptoms</h3>
+            <section className="mt-6 rounded-[18px] border border-[#e2e8db] bg-white/80 p-4 sm:p-5">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="font-mono text-xs font-semibold uppercase tracking-[0.1em] text-ink-faint lg:text-sm">Condition summary</h3>
+                <span className="text-xs text-ink-muted">{record.detected_symptoms.length} noted</span>
+              </div>
               {record.detected_symptoms.length > 0 ? (
-                <ul className="mt-3 flex flex-wrap gap-2.5">
+                <ul className="mt-4 flex flex-wrap gap-2">
                   {record.detected_symptoms.map((s) => (
                     <li
                       key={s}
-                      className="flex items-center gap-1.5 rounded-full bg-brand/10 px-3 py-1.5 text-base font-medium capitalize text-brand lg:text-lg"
+                      className="flex items-center gap-1.5 rounded-md border border-[#c9d8cb] bg-[#f1f7f0] px-3 py-2 text-sm font-semibold capitalize text-brand-dark"
                     >
                       <IconCheck size={16} />
                       {s}
@@ -65,16 +79,16 @@ export default async function ResultPage({
                   ))}
                 </ul>
               ) : (
-                <p className="mt-2 text-base text-ink-muted lg:text-lg">No known symptoms were recognized in your input.</p>
+                <p className="mt-3 text-sm leading-relaxed text-ink-muted">No recognized symptoms were found in the information provided.</p>
               )}
             </section>
 
-            <section className="mt-4 rounded-2xl border border-border bg-surface p-5 lg:p-6">
-              <h3 className="font-mono text-xs uppercase tracking-wide text-ink-faint lg:text-sm">Why this result</h3>
-              <p className="mt-2 text-base leading-relaxed text-ink-secondary lg:text-lg">{record.reason}</p>
+            <section className="mt-4 rounded-[18px] border border-[#e2e8db] bg-white/80 p-4 sm:p-5">
+              <h3 className="font-mono text-xs font-semibold uppercase tracking-[0.1em] text-ink-faint lg:text-sm">Clinical explanation</h3>
+              <p className="mt-3 text-base leading-7 text-ink-secondary">{record.reason}</p>
               {record.input_text && (
-                <p className="mt-3 text-base text-ink-faint lg:text-lg">
-                  You entered: <span className="italic text-ink-muted">“{record.input_text}”</span>
+                <p className="mt-4 border-t border-border/70 pt-3 text-sm leading-relaxed text-ink-faint">
+                  Reported information: <span className="italic text-ink-muted">“{record.input_text}”</span>
                 </p>
               )}
             </section>
@@ -99,12 +113,12 @@ export default async function ResultPage({
             )}
 
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <PrimaryLink href="/assessment" className="min-h-12 flex-1">
+              <PrimaryLink href="/assessment" className="min-h-12 flex-1 rounded-xl shadow-[0_12px_28px_rgba(47,107,79,0.15)]">
                 New assessment
               </PrimaryLink>
               <Link
                 href="/history"
-                className="flex min-h-12 flex-1 items-center justify-center rounded-sm border border-border font-medium text-ink-secondary transition hover:border-brand/50 hover:bg-brand-tint"
+                className="flex min-h-12 flex-1 items-center justify-center rounded-xl border border-[#dfe7dc] bg-white font-medium text-ink-secondary transition hover:border-brand/50 hover:bg-brand-tint"
               >
                 View history
               </Link>
@@ -114,7 +128,7 @@ export default async function ResultPage({
           </Card>
 
           <aside className="space-y-6">
-            <div className="overflow-hidden rounded-3xl border border-border-soft bg-gradient-to-br from-brand via-brand-dark to-brand-darker p-6 text-brand-foreground shadow-[0_22px_60px_rgba(26,93,82,0.24)]">
+            <div className="overflow-hidden rounded-[28px] border border-[#dfe7dc] bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.16),_transparent_28%),linear-gradient(135deg,#183D2D_0%,#1F4A36_42%,#2E6A52_100%)] p-6 text-brand-foreground shadow-[0_22px_60px_rgba(26,93,82,0.24)]">
               <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-brand-muted">Irosin emergency</p>
               <h2 className="mt-3 font-display text-2xl font-semibold leading-tight">Call if symptoms worsen</h2>
               <div className="mt-5 space-y-3">
@@ -132,7 +146,7 @@ export default async function ResultPage({
               </p>
             </div>
 
-            <div className="rounded-3xl border border-border-soft bg-card p-6 shadow-[0_18px_40px_rgba(15,23,42,0.04)]">
+            <div className="rounded-[28px] border border-[#dfe7dc] bg-[linear-gradient(180deg,#ffffff_0%,#f8faf5_100%)] p-6 shadow-[0_18px_40px_rgba(15,23,42,0.04)]">
               <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-ink-faint">What to do now</p>
               <ul className="mt-4 space-y-3 text-sm leading-relaxed text-ink-secondary">
                 <li className="flex gap-3">

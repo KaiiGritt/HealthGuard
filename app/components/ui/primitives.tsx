@@ -4,19 +4,19 @@ import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from "react";
 /* Shared class strings — one source of truth for form and layout styling */
 
 export const inputClass =
-  "min-h-[56px] w-full rounded-lg border-2 border-border bg-card px-5 py-3.5 text-lg text-ink outline-none transition focus:border-brand";
+  "min-h-[52px] w-full rounded-xl border border-border bg-card px-4 py-3 text-base text-ink outline-none transition placeholder:text-ink-faint hover:border-brand/50 focus:border-brand focus:ring-4 focus:ring-brand/10";
 
 export const selectClass =
-  "min-h-[56px] w-full cursor-pointer appearance-none rounded-xl border border-border bg-card px-5 py-3.5 pr-12 text-lg text-ink shadow-[0_2px_8px_rgba(15,23,42,0.04)] outline-none transition hover:border-brand/60 hover:bg-white focus:border-brand focus:ring-4 focus:ring-brand/10";
+  "premium-select min-h-[52px] w-full cursor-pointer appearance-none rounded-xl border border-border bg-card px-4 py-3 pr-11 text-base text-ink shadow-[0_2px_8px_rgba(15,23,42,0.04)] outline-none transition hover:border-brand/60 hover:bg-white focus:border-brand focus:ring-4 focus:ring-brand/10";
 
-export const labelClass = "text-base font-semibold leading-snug text-ink";
+export const labelClass = "text-sm font-semibold leading-snug text-ink";
 
 export const labelHintClass = "font-normal text-ink-muted";
 
-export const formStackClass = "space-y-5";
+export const formStackClass = "space-y-4";
 
 export const submitButtonClass =
-  "flex min-h-[58px] w-full items-center justify-center rounded-sm bg-brand px-6 font-mono text-sm uppercase tracking-[0.04em] font-semibold text-brand-foreground transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-60";
+  "flex min-h-[52px] w-full items-center justify-center rounded-xl bg-brand px-5 font-mono text-sm uppercase tracking-[0.04em] font-semibold text-brand-foreground shadow-[0_10px_22px_rgba(47,107,79,0.16)] outline-none transition hover:bg-brand-dark focus-visible:ring-4 focus-visible:ring-brand/25 disabled:cursor-not-allowed disabled:opacity-60";
 
 /** Shared max-width shell — use the full available space on large screens for better readability */
 export const contentShellClass = "mx-auto w-full max-w-[1600px] xl:max-w-[1728px] 2xl:max-w-[1800px]";
@@ -195,7 +195,7 @@ export function TagBadge({ children, tone = "brand" }: { children: ReactNode; to
     staff: "bg-ink text-brand-foreground",
   };
   return (
-    <span className={cn("inline-flex rounded-sm px-3.5 py-1.5 font-mono text-xs uppercase tracking-[0.06em]", tones[tone])}>
+    <span className={cn("inline-flex items-center rounded-md border px-2.5 py-1 font-mono text-[11px] font-semibold uppercase tracking-[0.08em]", tones[tone])}>
       {children}
     </span>
   );
@@ -243,7 +243,7 @@ export function TriageBadge({ level }: { level: "GREEN" | "YELLOW" | "RED" | str
         : "bg-triage-green text-[#EAF3E2]";
 
   return (
-    <span className={cn("rounded-sm px-3 py-1.5 font-mono text-sm font-medium tracking-wide", tone)}>
+    <span className={cn("inline-flex items-center rounded-md px-2.5 py-1 font-mono text-xs font-bold uppercase tracking-[0.08em]", tone)}>
       {level}
     </span>
   );
@@ -479,7 +479,7 @@ export const authInputClass =
 export const authSelectClass =
   "premium-select h-12 w-full cursor-pointer appearance-none rounded-2xl border border-brand/10 bg-[linear-gradient(180deg,#FFFFFF_0%,#F8FBF5_100%)] px-3.75 pr-11 text-[0.9375rem] font-medium text-ink shadow-[0_12px_30px_rgba(17,24,39,0.05),inset_0_1px_0_rgba(255,255,255,0.9)] ring-1 ring-inset ring-border/60 outline-none transition hover:border-brand/50 hover:shadow-[0_14px_32px_rgba(17,24,39,0.06)] focus:border-brand focus:bg-white focus:ring-4 focus:ring-brand/10";
 
-export const authFormStackClass = "space-y-5";
+export const authFormStackClass = "space-y-4";
 
 export const authSubmitClass =
   "flex h-12 w-full items-center justify-center rounded-xl bg-gradient-to-r from-brand to-brand-dark px-4 text-sm font-semibold text-brand-foreground shadow-[0_12px_24px_rgba(47,107,79,0.18)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_28px_rgba(47,107,79,0.22)] disabled:cursor-not-allowed disabled:opacity-60";

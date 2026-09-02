@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Disclaimer from "../components/Disclaimer";
+import PageHeader from "../components/PageHeader";
 import {
   AccessGate,
   cn,
@@ -18,7 +19,7 @@ import {
   Toast,
   TriageBadge,
 } from "@/app/components/ui/primitives";
-import { getDashboardSummary, getMe, getMhoLexicon, markLexiconReviewed, type AdminModuleLexiconEntry } from "@/lib/api";
+import { getDashboardSummary, getMe, getMhoLexicon, markLexiconReviewed, type AdminModuleLexiconEntry, type User } from "@/lib/api";
 import { openReportForPrinting } from "@/lib/report";
 
 const SECTIONS = [
@@ -81,8 +82,8 @@ function WidgetCard({
   return (
     <div
       className={cn(
-        "flex flex-col rounded-xl border bg-card shadow-sm transition-shadow hover:shadow-md",
-        urgent ? "border-triage-red/30" : "border-border",
+        "flex flex-col rounded-[24px] border border-[#e1e7dc] bg-white/95 shadow-[0_18px_40px_rgba(17,39,28,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_48px_rgba(17,39,28,0.08)]",
+        urgent ? "border-red-200/80" : "border-[#e3e9df]",
       )}
     >
       <div className="flex items-start justify-between gap-3 border-b border-border/70 px-5 py-4">
@@ -297,7 +298,7 @@ function BarangayRanking({ data }: { data: DashboardState["barangay_stats"] }) {
         return (
           <div
             key={item.barangay}
-            className="rounded-2xl border border-border-soft bg-gradient-to-r from-white via-slate-50 to-white p-3 shadow-[0_8px_24px_rgba(15,23,42,0.04)]"
+            className="rounded-[20px] border border-[#e4e9df] bg-[linear-gradient(180deg,#ffffff_0%,#f9faf5_100%)] p-3 shadow-[0_12px_28px_rgba(15,23,42,0.04)]"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3">
@@ -445,7 +446,7 @@ function DashboardPageContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const [currentUser, setCurrentUser] = useState<{ role: UserRole } | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState<string | null>(null);
@@ -1092,80 +1093,85 @@ function DashboardPageContent() {
 
   return (
     <>
-      <PageMain wide>
-        <div className="overflow-hidden rounded-[28px] border border-[#D8DED1] bg-[linear-gradient(135deg,#183D2D_0%,#1F4A36_42%,#2E6A52_100%)] p-px shadow-[0_28px_56px_rgba(23,63,45,0.18)]">
-          <HeroBanner
-            eyebrow="For municipal health office"
-            title="Community health overview"
-            subtitle="Track incoming risk signals, prioritize urgent cases, and understand community health trends across barangays."
-            actions={
-              <>
-                <PrimaryButton type="button" onClick={() => void refreshSummary()} disabled={refreshing} className="rounded-xl border border-white/20 bg-white/10 px-5 text-sm text-white hover:bg-white/15">
-                  {refreshing ? "Refreshing…" : "Refresh data"}
-                </PrimaryButton>
-                <PrimaryButton type="button" onClick={generateReport} disabled={!stats} className="rounded-xl bg-[#E9F4EF] px-5 text-sm text-[#183D2D] hover:bg-white">
-                  Generate report
-                </PrimaryButton>
-              </>
-            }
-          />
-        </div>
-
-        <div className="mt-6 grid gap-6 md:grid-cols-[240px_minmax(0,1fr)] md:items-start">
-          <aside className="h-fit rounded-[26px] border border-[#D7E0D2] bg-[linear-gradient(180deg,#FBF9F2_0%,#F2F6EE_100%)] p-3 shadow-[0_18px_42px_rgba(24,38,25,0.07)] backdrop-blur md:sticky md:top-24 md:p-4">
-            <div className="mb-4 flex items-center justify-between rounded-2xl border border-[#DDE7DB] bg-white/70 px-3 py-2.5 shadow-sm">
-              <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-muted">Dashboard</p>
-              <span className="rounded-full border border-[#CFE0D3] bg-[#EEF6F0] px-2 py-1 font-mono text-[9px] uppercase tracking-[0.12em] text-brand-dark">Live</span>
+      <div className="flex min-h-screen bg-surface">
+        <div className="flex-1">
+          <PageHeader />
+          <PageMain wide>
+            <div className="overflow-hidden rounded-[30px] border border-[#d1d9cf] bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.28),_transparent_30%),linear-gradient(135deg,#183D2D_0%,#1F4A36_42%,#2E6A52_100%)] p-px shadow-[0_28px_60px_rgba(23,63,45,0.18)]">
+              <HeroBanner
+                eyebrow="For municipal health office"
+                title="Community health overview"
+                subtitle="Track incoming risk signals, prioritize urgent cases, and understand community health trends across barangays."
+                actions={
+                  <>
+                    <PrimaryButton type="button" onClick={() => void refreshSummary()} disabled={refreshing} className="rounded-xl border border-white/20 bg-white/10 px-5 text-sm text-white hover:bg-white/15">
+                      {refreshing ? "Refreshing…" : "Refresh data"}
+                    </PrimaryButton>
+                    <PrimaryButton type="button" onClick={generateReport} disabled={!stats} className="rounded-xl bg-[#E9F4EF] px-5 text-sm text-[#183D2D] hover:bg-white">
+                      Generate report
+                    </PrimaryButton>
+                  </>
+                }
+              />
             </div>
-            <nav className="space-y-2" role="tablist" aria-label="Dashboard sections">
-              {SECTIONS.map((item) => {
-                const active = activeSection === item.id;
-                const urgentCount = item.id === "records" ? redCases.length : 0;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    role="tab"
-                    id={`tab-${item.id}`}
-                    aria-selected={active}
-                    aria-controls={`panel-${item.id}`}
-                    onClick={() => setActiveSection(item.id)}
-                    className={`flex w-full items-center justify-between rounded-xl border px-3 py-2.75 text-left text-sm font-medium transition-all duration-200 ${
-                      active
-                        ? "border-[#C8D6C5] bg-linear-to-r from-[#EAF4EE] to-[#F7FAF3] text-brand-dark shadow-[0_8px_18px_rgba(31,74,54,0.08)]"
-                        : "border-transparent bg-transparent text-ink-secondary hover:border-[#D8DED1] hover:bg-[#F4F7F0] hover:text-[#1F4A36]"
-                    }`}
-                  >
-                    <span className="flex items-center gap-2">
-                      {item.label}
-                      {urgentCount > 0 && (
-                        <span className="rounded-full bg-triage-red px-1.5 py-0.5 font-mono text-[10px] font-semibold text-white">
-                          {urgentCount}
+
+            <div className="mt-6 grid gap-6 md:grid-cols-[240px_minmax(0,1fr)] md:items-start">
+              <aside className="h-fit rounded-[26px] border border-[#dfe5d8] bg-[linear-gradient(180deg,#fbfaf6_0%,#f2f6ee_100%)] p-3 shadow-[0_18px_42px_rgba(24,38,25,0.07)] backdrop-blur md:sticky md:top-24 md:p-4">
+                <div className="mb-4 flex items-center justify-between rounded-2xl border border-[#dfe8dc] bg-white/60 px-3 py-2.5 shadow-[0_8px_20px_rgba(16,23,20,0.03)]">
+                  <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-muted">Dashboard</p>
+                  <span className="rounded-full border border-[#cfe0d3] bg-[#eef6f0] px-2 py-1 font-mono text-[9px] uppercase tracking-[0.12em] text-brand-dark">Live</span>
+                </div>
+                <nav className="space-y-2" role="tablist" aria-label="Dashboard sections">
+                  {SECTIONS.map((item) => {
+                    const active = activeSection === item.id;
+                    const urgentCount = item.id === "records" ? redCases.length : 0;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        role="tab"
+                        id={`tab-${item.id}`}
+                        aria-selected={active}
+                        aria-controls={`panel-${item.id}`}
+                        onClick={() => setActiveSection(item.id)}
+                        className={`flex w-full items-center justify-between rounded-[16px] border px-3 py-2.75 text-left text-sm font-medium transition-all duration-200 ${
+                          active
+                            ? "border-[#c8d6c5] bg-[linear-gradient(90deg,#edf6ef_0%,#f9faf6_100%)] text-brand-dark shadow-[0_8px_18px_rgba(31,74,54,0.08)]"
+                            : "border-transparent bg-transparent text-ink-secondary hover:border-[#d8ded1] hover:bg-[#f4f7f0] hover:text-[#1f4a36]"
+                        }`}
+                      >
+                        <span className="flex items-center gap-2">
+                          {item.label}
+                          {urgentCount > 0 && (
+                            <span className="rounded-full bg-triage-red px-1.5 py-0.5 font-mono text-[10px] font-semibold text-white">
+                              {urgentCount}
+                            </span>
+                          )}
                         </span>
-                      )}
-                    </span>
-                  </button>
-                );
-              })}
-            </nav>
-          </aside>
+                      </button>
+                    );
+                  })}
+                </nav>
+              </aside>
 
-          <div
-            id={`panel-${activeSection}`}
-            role="tabpanel"
-            aria-labelledby={`tab-${activeSection}`}
-          >
-            {activeSection === "overview" && renderOverview()}
-            {activeSection === "records" && renderAssessmentRecords()}
-            {activeSection === "analytics" && renderAnalytics()}
-            {activeSection === "reports" && renderReports()}
-          </div>
-        </div>
+              <div
+                id={`panel-${activeSection}`}
+                role="tabpanel"
+                aria-labelledby={`tab-${activeSection}`}
+              >
+                {activeSection === "overview" && renderOverview()}
+                {activeSection === "records" && renderAssessmentRecords()}
+                {activeSection === "analytics" && renderAnalytics()}
+                {activeSection === "reports" && renderReports()}
+              </div>
+            </div>
 
-        <div className="mt-6">
-          <Disclaimer />
+            <div className="mt-6">
+              <Disclaimer />
+            </div>
+          </PageMain>
         </div>
-      </PageMain>
+      </div>
       {toast && <Toast message={toast.message} tone={toast.tone} onDismiss={() => setToast(null)} />}
     </>
   );

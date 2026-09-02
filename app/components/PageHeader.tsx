@@ -155,7 +155,7 @@ export default function PageHeader() {
   function linkClass(href: string) {
     const active = pathname === href;
     return cn(
-      "flex items-center gap-2 rounded-full px-3.5 py-2.5 text-sm font-medium transition-all duration-200 sm:gap-2.5 sm:px-4 lg:gap-2.5 lg:px-4.5 lg:py-2.5 lg:text-base",
+      "flex items-center gap-2 rounded-full px-3.5 py-2.5 text-sm font-medium outline-none transition-all duration-200 focus-visible:ring-4 focus-visible:ring-brand/20 sm:gap-2.5 sm:px-4 lg:gap-2.5 lg:px-4.5 lg:py-2.5 lg:text-base",
       active
         ? "bg-brand-tint text-brand-dark shadow-sm ring-1 ring-brand/15"
         : "text-ink-secondary hover:bg-card hover:text-ink hover:shadow-sm hover:ring-1 hover:ring-border/80",
@@ -173,6 +173,8 @@ export default function PageHeader() {
     : user
       ? [
           { href: "/", label: "Home", active: isHomeRoute, icon: "home" as const },
+          ...(user.role === "mho" ? [{ href: "/dashboard", label: uiText.dashboard, active: pathname === "/dashboard", icon: "dashboard" as const }] : []),
+          ...(user.role === "admin" ? [{ href: "/admin", label: "Admin", active: pathname === "/admin", icon: "dashboard" as const }] : []),
           { href: "/history", label: uiText.history, active: isHistoryRoute, icon: "history" as const },
           { href: "/profile", label: uiText.profile, active: isProfileRoute, icon: "profile" as const },
         ]
@@ -281,7 +283,7 @@ export default function PageHeader() {
               type="button"
               aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
               onClick={() => setMobileMenuOpen((value) => !value)}
-              className="flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-surface text-ink-secondary shadow-sm transition hover:border-brand/30 hover:text-ink"
+              className="flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-surface text-ink-secondary shadow-sm outline-none transition hover:border-brand/30 hover:text-ink focus-visible:ring-4 focus-visible:ring-brand/20"
             >
               {mobileMenuOpen ? <CloseIcon /> : <MenuIcon />}
             </button>
@@ -290,15 +292,23 @@ export default function PageHeader() {
       </div>
 
       {isCompactNav && mobileMenuOpen && (
-        <div className="absolute right-4 top-[calc(100%+0.5rem)] z-50 w-[min(82vw,320px)] rounded-2xl border border-border bg-header/95 p-3 shadow-[0_18px_38px_rgba(20,31,25,0.18)] backdrop-blur-xl md:hidden">
-          <nav className="flex flex-col gap-2">
+        <>
+          <button type="button" aria-label="Close navigation" onClick={() => setMobileMenuOpen(false)} className="fixed inset-0 z-40 bg-ink/25 backdrop-blur-[2px] md:hidden" />
+          <div className="fixed inset-y-0 left-0 z-50 flex w-[min(84vw,320px)] flex-col border-r border-border bg-header p-4 shadow-[0_18px_48px_rgba(20,31,25,0.2)] md:hidden">
+            <div className="flex items-center justify-between border-b border-border pb-4">
+              <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Navigation</span>
+              <button type="button" aria-label="Close menu" onClick={() => setMobileMenuOpen(false)} className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-ink-secondary outline-none focus-visible:ring-4 focus-visible:ring-brand/20">
+                <CloseIcon />
+              </button>
+            </div>
+            <nav className="flex flex-col gap-2 pt-4">
             {mobileMenuItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
                 onClick={() => setMobileMenuOpen(false)}
                 className={cn(
-                  "flex items-center gap-3 rounded-xl border px-3.5 py-3 text-sm font-medium transition-all duration-200",
+                  "flex items-center gap-3 rounded-xl border px-3.5 py-3 text-sm font-medium outline-none transition-all duration-200 focus-visible:ring-4 focus-visible:ring-brand/20",
                   item.active
                     ? "border-brand/20 bg-brand-tint text-brand-dark shadow-sm"
                     : "border-transparent bg-card text-ink-secondary hover:border-border hover:text-ink",
@@ -326,8 +336,9 @@ export default function PageHeader() {
                 <span>{uiText.logout}</span>
               </button>
             )}
-          </nav>
-        </div>
+            </nav>
+          </div>
+        </>
       )}
     </header>
   );
