@@ -125,6 +125,14 @@ export function IconSearch(props: IconProps) {
   );
 }
 
+export function IconChevronDown(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="m6 9 6 6 6-6" />
+    </Icon>
+  );
+}
+
 export function IconCheck(props: IconProps) {
   return (
     <Icon {...props}>

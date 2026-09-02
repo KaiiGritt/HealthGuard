@@ -176,11 +176,12 @@ export default function AssessmentPage() {
   }
 
   return (
-    <>
+    <div className="premium-page min-h-screen">
       <PageHeader />
       <PageMain narrow>
         <div className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
-          <Card className="overflow-hidden rounded-3xl border border-border-soft bg-gradient-to-br from-card via-card/90 to-surface shadow-[0_24px_70px_rgba(15,23,42,0.08)]">
+          <Card className="relative overflow-hidden rounded-3xl border border-[#DDE7DB] bg-[linear-gradient(135deg,#FFFFFF_0%,#FBFCF9_58%,#F1F5EE_100%)] shadow-[0_24px_70px_rgba(15,23,42,0.09)]">
+            <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" aria-hidden="true" />
             {submitting ? (
               <div className="py-8 sm:py-12" aria-live="polite">
                 <p className="font-mono text-xs font-semibold uppercase tracking-[0.1em] text-brand">HealthGuard check</p>
@@ -208,11 +209,14 @@ export default function AssessmentPage() {
                   How are you feeling?
                 </PageTitle>
 
-                <div className="mt-8 rounded-2xl border border-brand/10 bg-gradient-to-r from-brand/5 via-transparent to-transparent p-4">
-                  <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-ink-faint">Assessment note</p>
-                  <p className="mt-2 text-base leading-relaxed text-ink-secondary">
+                <div className="mt-8 flex gap-3 rounded-2xl border border-[#D9E5D8] bg-brand-tint/55 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand text-sm font-semibold text-brand-foreground shadow-sm" aria-hidden="true">i</span>
+                  <div>
+                    <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-brand-dark">Assessment note</p>
+                    <p className="mt-2 text-base leading-relaxed text-ink-secondary">
                     For urgent breathing problems, do not wait for the result. Go to the nearest clinic or hospital immediately.
-                  </p>
+                    </p>
+                  </div>
                 </div>
 
                 <label htmlFor="symptoms" className="mt-10 block text-base font-semibold text-ink lg:text-lg">
@@ -224,7 +228,7 @@ export default function AssessmentPage() {
                   onChange={(e) => setText(e.target.value)}
                   rows={4}
                   placeholder='e.g. "May lagnat ako at hirap huminga" / "I have fever and cough"'
-                  className={`mt-3 min-h-36 ${inputClass}`}
+                  className={`mt-3 min-h-36 resize-y bg-white/80 shadow-[0_6px_18px_rgba(24,38,25,0.035)] ${inputClass}`}
                 />
 
                 <div className="mt-8">
@@ -236,7 +240,7 @@ export default function AssessmentPage() {
                     value={duration}
                     onChange={(e) => setDuration(e.target.value)}
                     placeholder="e.g. 2 days, 1 week, 3 hours"
-                    className={`mt-2 ${inputClass}`}
+                    className={`mt-2 bg-white/80 shadow-[0_6px_18px_rgba(24,38,25,0.035)] ${inputClass}`}
                   />
                 </div>
 
@@ -248,6 +252,7 @@ export default function AssessmentPage() {
                       label={s.en}
                       subLabel={s.tl}
                       selected={selected.includes(s.value)}
+                      urgent={s.value === "difficulty breathing"}
                       onToggle={() => toggle(s.value)}
                     />
                   ))}
@@ -266,7 +271,7 @@ export default function AssessmentPage() {
                   </div>
                 )}
 
-                <button type="button" onClick={handleSubmit} disabled={!canSubmit || submitting} className={`mt-10 ${submitButtonClass}`}>
+                <button type="button" onClick={handleSubmit} disabled={!canSubmit || submitting} className={`mt-10 bg-gradient-to-r from-brand to-brand-dark shadow-[0_14px_28px_rgba(31,74,54,0.2)] ${submitButtonClass}`}>
                   {submitting ? "Checking…" : "Check my symptoms"}
                 </button>
 
@@ -278,20 +283,21 @@ export default function AssessmentPage() {
           </Card>
 
           <aside className="space-y-6">
-            <div className="overflow-hidden rounded-3xl border border-border-soft bg-gradient-to-br from-brand via-brand-dark to-brand-darker p-6 text-brand-foreground shadow-[0_22px_60px_rgba(26,93,82,0.25)]">
-              <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-brand-muted">Irosin emergency</p>
-              <h2 className="mt-3 font-display text-2xl font-semibold leading-tight">Need urgent help?</h2>
-              <div className="mt-5 space-y-3 text-sm leading-relaxed text-brand-foreground/90">
-                <div className="rounded-2xl border border-white/20 bg-white/5 p-3">
-                  <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-brand-muted">Emergency</p>
-                  <p className="mt-1 text-xl font-semibold">911</p>
+            <div className="relative overflow-hidden rounded-3xl border border-[#F0B5AA] bg-[radial-gradient(circle_at_top_right,_rgba(255,214,205,0.2),_transparent_34%),linear-gradient(135deg,#8E2F24_0%,#6F211C_52%,#4B1715_100%)] p-6 text-[#FFF7F3] shadow-[0_22px_60px_rgba(120,35,28,0.28)]">
+              <div className="absolute -right-16 -top-20 h-48 w-48 rounded-full border border-white/10 bg-white/5" aria-hidden="true" />
+              <p className="relative font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[#FFD2C8]">Irosin emergency</p>
+              <h2 className="relative mt-3 font-display text-2xl font-semibold leading-tight text-white">Need urgent help?</h2>
+              <div className="relative mt-5 space-y-3 text-sm leading-relaxed text-[#FFF1EC]">
+                <div className="rounded-2xl border border-white/25 bg-white/10 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">
+                  <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-[#FFD2C8]">Emergency</p>
+                  <p className="mt-1 text-2xl font-semibold tracking-wide text-white">911</p>
                 </div>
-                <div className="rounded-2xl border border-white/20 bg-white/5 p-3">
-                  <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-brand-muted">Ambulance / rescue</p>
-                  <p className="mt-1 text-xl font-semibold">117</p>
+                <div className="rounded-2xl border border-white/25 bg-white/10 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">
+                  <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-[#FFD2C8]">Ambulance / rescue</p>
+                  <p className="mt-1 text-2xl font-semibold tracking-wide text-white">117</p>
                 </div>
               </div>
-              <p className="mt-4 text-sm leading-relaxed text-brand-foreground/80">
+              <p className="relative mt-4 text-sm leading-relaxed text-[#FFE4DD]">
                 For Irosin residents, these are the available emergency response lines to use for immediate triage and transfer support.
               </p>
             </div>
@@ -316,6 +322,6 @@ export default function AssessmentPage() {
           </aside>
         </div>
       </PageMain>
-    </>
+    </div>
   );
 }

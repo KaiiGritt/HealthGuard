@@ -37,8 +37,10 @@ export default async function ResultPage({
   return (
     <>
       <PageHeader />
+      <div className="premium-page min-h-screen">
       <PageMain narrow className="max-w-5xl">
-        <div className="mb-6 border-b border-border pb-5">
+        <div className="relative mb-6 border-b border-[#D8E2D3] pb-6">
+          <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" />
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-brand">HealthGuard clinical summary</p>
@@ -113,12 +115,12 @@ export default async function ResultPage({
             )}
 
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <PrimaryLink href="/assessment" className="min-h-12 flex-1 rounded-xl shadow-[0_12px_28px_rgba(47,107,79,0.15)]">
+              <PrimaryLink href="/assessment" className="min-h-12 flex-1 rounded-xl bg-gradient-to-r from-brand to-brand-dark font-semibold shadow-[0_12px_28px_rgba(47,107,79,0.15)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_32px_rgba(31,74,54,0.22)]">
                 New assessment
               </PrimaryLink>
               <Link
                 href="/history"
-                className="flex min-h-12 flex-1 items-center justify-center rounded-xl border border-[#dfe7dc] bg-white font-medium text-ink-secondary transition hover:border-brand/50 hover:bg-brand-tint"
+                className="flex min-h-12 flex-1 items-center justify-center rounded-xl border border-[#dfe7dc] bg-white font-semibold text-ink-secondary shadow-[0_6px_16px_rgba(24,38,25,0.04)] transition-all duration-200 hover:-translate-y-0.5 hover:border-brand/45 hover:bg-brand-tint hover:text-brand-dark hover:shadow-[0_14px_26px_rgba(47,107,79,0.1)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15"
               >
                 View history
               </Link>
@@ -128,20 +130,21 @@ export default async function ResultPage({
           </Card>
 
           <aside className="space-y-6">
-            <div className="overflow-hidden rounded-[28px] border border-[#dfe7dc] bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.16),_transparent_28%),linear-gradient(135deg,#183D2D_0%,#1F4A36_42%,#2E6A52_100%)] p-6 text-brand-foreground shadow-[0_22px_60px_rgba(26,93,82,0.24)]">
-              <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-brand-muted">Irosin emergency</p>
-              <h2 className="mt-3 font-display text-2xl font-semibold leading-tight">Call if symptoms worsen</h2>
-              <div className="mt-5 space-y-3">
-                <div className="rounded-2xl border border-white/20 bg-white/5 p-3">
-                  <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-brand-muted">Emergency hotline</p>
-                  <p className="mt-1 text-xl font-semibold">911</p>
+            <div className="relative overflow-hidden rounded-[28px] border border-[#F0B5AA] bg-[radial-gradient(circle_at_top_right,_rgba(255,214,205,0.2),_transparent_34%),linear-gradient(135deg,#8E2F24_0%,#6F211C_52%,#4B1715_100%)] p-6 text-[#FFF7F3] shadow-[0_22px_60px_rgba(120,35,28,0.28)]">
+              <div className="absolute -right-16 -top-20 h-48 w-48 rounded-full border border-white/10 bg-white/5" aria-hidden="true" />
+              <p className="relative font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[#FFD2C8]">Irosin emergency</p>
+              <h2 className="relative mt-3 font-display text-2xl font-semibold leading-tight text-white">Call if symptoms worsen</h2>
+              <div className="relative mt-5 space-y-3">
+                <div className="rounded-2xl border border-white/25 bg-white/10 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">
+                  <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-[#FFD2C8]">Emergency hotline</p>
+                  <p className="mt-1 text-2xl font-semibold tracking-wide text-white">911</p>
                 </div>
-                <div className="rounded-2xl border border-white/20 bg-white/5 p-3">
-                  <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-brand-muted">Ambulance / rescue</p>
-                  <p className="mt-1 text-xl font-semibold">117</p>
+                <div className="rounded-2xl border border-white/25 bg-white/10 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">
+                  <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-[#FFD2C8]">Ambulance / rescue</p>
+                  <p className="mt-1 text-2xl font-semibold tracking-wide text-white">117</p>
                 </div>
               </div>
-              <p className="mt-4 text-sm leading-relaxed text-brand-foreground/80">
+              <p className="relative mt-4 text-sm leading-relaxed text-[#FFE4DD]">
                 For Irosin residents, these available response channels are the fastest route for urgent transfer and emergency assistance.
               </p>
             </div>
@@ -166,6 +169,7 @@ export default async function ResultPage({
           </aside>
         </div>
       </PageMain>
+      </div>
     </>
   );
 }

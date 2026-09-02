@@ -109,6 +109,17 @@ def migrate_email_verification_schema() -> None:
             if column not in cols:
                 conn.execute(text(f"ALTER TABLE email_verifications ADD COLUMN {column} {ddl}"))
 
+def migrate_assessment_handled_schema() -> None:
+    """Add the persisted MHO handled timestamp to existing assessment databases."""
+    from sqlalchemy import inspect, text
+
+    if "assessments" not in inspect(engine).get_table_names():
+        return
+    columns = {column["name"] for column in inspect(engine).get_columns("assessments")}
+    if "handled_at" not in columns:
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE assessments ADD COLUMN handled_at DATETIME"))
+
 
 
 def migrate_lexicon_review_schema() -> None:

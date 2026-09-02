@@ -14,8 +14,10 @@ type AuthLayoutProps = {
 
 export default function AuthLayout({ children, title, subtitle, footer, step }: AuthLayoutProps) {
   return (
-    <div className="auth-pro-shell flex min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(47,107,79,0.08),_transparent_25%),linear-gradient(180deg,#f8faf6_0%,#f1f5ee_100%)]">
-      <Sidebar user={null} />
+    <div className="auth-pro-shell premium-page flex min-h-screen">
+      <div className="lg:hidden">
+        <Sidebar user={null} />
+      </div>
       {/* Brand panel — left on desktop */}
       <aside className="auth-pro-brand relative hidden w-[44%] shrink-0 flex-col justify-between overflow-hidden lg:flex xl:w-[42%]">
         <div className="auth-pro-brand-grid pointer-events-none absolute inset-0" aria-hidden />
@@ -63,23 +65,22 @@ export default function AuthLayout({ children, title, subtitle, footer, step }: 
       </aside>
 
       {/* Form panel — right on desktop, full width on mobile */}
-      <main className="auth-pro-form flex flex-1 flex-col bg-[linear-gradient(180deg,#ffffff_0%,#f6f9f3_100%)]">
-        <div className="flex items-center justify-between border-b border-border px-5 py-4 lg:hidden">
+      <main className="auth-pro-form flex flex-1 flex-col bg-white/25">
+        <div className="relative flex items-center justify-between overflow-hidden border-b border-[#D8E2D3] bg-white/70 px-5 py-4 shadow-[0_8px_20px_rgba(24,38,25,0.04)] backdrop-blur-md lg:hidden">
+          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" aria-hidden="true" />
           <Link href="/" className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-md bg-brand font-mono text-lg font-semibold text-brand-foreground">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand to-brand-dark font-mono text-lg font-semibold text-brand-foreground shadow-[0_6px_14px_rgba(47,107,79,0.2)]">
               H
             </span>
-            <span className="font-display text-lg font-semibold text-ink">
+            <span className="font-display text-lg font-semibold tracking-tight text-ink">
               HealthGuard
             </span>
-          </Link>
-          <Link href="/assessment" className="text-sm font-medium text-brand hover:underline">
-            Assessment
           </Link>
         </div>
 
         <div className="flex flex-1 flex-col items-center justify-center px-5 py-10 sm:px-8 lg:px-12 xl:px-16">
-          <div className="w-full max-w-[420px] rounded-[28px] border border-[#dfe8dc] bg-white/80 p-4 shadow-[0_22px_50px_rgba(21,36,28,0.06)] backdrop-blur-sm sm:p-6">
+          <div className="relative w-full max-w-[420px] overflow-hidden rounded-[28px] border border-[#dfe8dc] bg-white/85 p-4 shadow-[0_24px_56px_rgba(21,36,28,0.09)] backdrop-blur-sm sm:p-6">
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" aria-hidden="true" />
             {step ? (
               <p className="font-mono text-xs font-medium uppercase tracking-[0.12em] text-brand">{step}</p>
             ) : null}

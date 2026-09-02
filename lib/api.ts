@@ -66,6 +66,8 @@ export interface DashboardAssessmentItem {
   note: string;
   created_at: string;
   phone_number?: string | null;
+  handled?: boolean;
+  handled_at?: string | null;
 }
 
 export interface TriageBreakdownItem {
@@ -328,6 +330,12 @@ export function markLexiconReviewed(lexiconId: number): Promise<AdminModuleLexic
 
 export function getMhoLexicon(): Promise<AdminModuleLexiconEntry[]> {
   return request<AdminModuleLexiconEntry[]>("/assessment/mho/lexicon");
+}
+
+export function markAssessmentHandled(assessmentId: number): Promise<DashboardAssessmentItem> {
+  return request<DashboardAssessmentItem>(`/assessment/${assessmentId}/handled`, {
+    method: "PATCH",
+  });
 }
 // --- Auth ---
 

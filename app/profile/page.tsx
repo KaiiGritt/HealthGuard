@@ -11,6 +11,7 @@ import {
   labelClass,
   labelHintClass,
   PageMain,
+  PremiumSelect,
   PrimaryLink,
   selectClass,
   submitButtonClass,
@@ -96,12 +97,7 @@ export default function ProfilePage() {
   const [changingPassword, setChangingPassword] = useState(false);
   const [auditLog, setAuditLog] = useState<ProfileAuditEntry[]>([]);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
-  const [currentLanguage, setCurrentLanguage] = useState<"en" | "fil" | "both">(language);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  useEffect(() => {
-    setCurrentLanguage(language);
-  }, [language]);
 
   useEffect(() => {
     async function loadUser() {
@@ -116,7 +112,6 @@ export default function ProfilePage() {
         const storedPhoto = typeof window !== "undefined" ? window.localStorage.getItem(photoStorageKey) : null;
         const preferredLanguage = "en" as const;
         setUser(current);
-        setCurrentLanguage(preferredLanguage);
         setLanguage(preferredLanguage);
         setPhotoUrl(storedPhoto ?? null);
         setForm({
@@ -158,7 +153,6 @@ export default function ProfilePage() {
       });
       setUser(updated);
       const nextLanguage = "en" as const;
-      setCurrentLanguage(nextLanguage);
       setLanguage(nextLanguage);
       setForm((prev) => ({ ...prev, language_preference: nextLanguage }));
 
@@ -227,23 +221,23 @@ export default function ProfilePage() {
   }
 
   const labels = {
-    heading: currentLanguage === "fil" ? "Personal details" : currentLanguage === "both" ? "Personal details / Mga detalye" : "Personal details",
-    description: currentLanguage === "fil" ? "Update the information attached to your assessments." : currentLanguage === "both" ? "Update the information attached to your assessments. / I-update ang impormasyon sa iyong pagsusuri." : "Update the information attached to your assessments.",
-    fullName: currentLanguage === "fil" ? "Buong pangalan" : currentLanguage === "both" ? "Full name / Buong pangalan" : "Full name",
-    age: currentLanguage === "fil" ? "Edad" : currentLanguage === "both" ? "Age / Edad" : "Age",
-    sex: currentLanguage === "fil" ? "Kasarian" : currentLanguage === "both" ? "Sex / Kasarian" : "Sex",
-    barangay: currentLanguage === "fil" ? "Barangay" : currentLanguage === "both" ? "Barangay / Barangay" : "Barangay",
-    phone: currentLanguage === "fil" ? "Numero ng telepono" : currentLanguage === "both" ? "Phone number / Numero ng telepono" : "Phone number",
-    interface: currentLanguage === "fil" ? "Wika" : currentLanguage === "both" ? "Interface language / Wika" : "Interface language",
-    save: currentLanguage === "fil" ? "I-save ang profile" : currentLanguage === "both" ? "Save profile / I-save" : "Save profile",
-    saveState: currentLanguage === "fil" ? "Sine-save…" : currentLanguage === "both" ? "Saving… / Sine-save…" : "Saving…",
-    changePassword: currentLanguage === "fil" ? "Palitan ang password" : currentLanguage === "both" ? "Change password / Palitan ang password" : "Change password",
-    passwordHint: currentLanguage === "fil" ? "I-update ang iyong password nang ligtas." : currentLanguage === "both" ? "Update your sign-in password securely. / I-update ang iyong password nang ligtas." : "Update your sign-in password securely.",
+    heading: language === "fil" ? "Personal details" : language === "both" ? "Personal details / Mga detalye" : "Personal details",
+    description: language === "fil" ? "Update the information attached to your assessments." : language === "both" ? "Update the information attached to your assessments. / I-update ang impormasyon sa iyong pagsusuri." : "Update the information attached to your assessments.",
+    fullName: language === "fil" ? "Buong pangalan" : language === "both" ? "Full name / Buong pangalan" : "Full name",
+    age: language === "fil" ? "Edad" : language === "both" ? "Age / Edad" : "Age",
+    sex: language === "fil" ? "Kasarian" : language === "both" ? "Sex / Kasarian" : "Sex",
+    barangay: language === "fil" ? "Barangay" : language === "both" ? "Barangay / Barangay" : "Barangay",
+    phone: language === "fil" ? "Numero ng telepono" : language === "both" ? "Phone number / Numero ng telepono" : "Phone number",
+    interface: language === "fil" ? "Wika" : language === "both" ? "Interface language / Wika" : "Interface language",
+    save: language === "fil" ? "I-save ang profile" : language === "both" ? "Save profile / I-save" : "Save profile",
+    saveState: language === "fil" ? "Sine-save…" : language === "both" ? "Saving… / Sine-save…" : "Saving…",
+    changePassword: language === "fil" ? "Palitan ang password" : language === "both" ? "Change password / Palitan ang password" : "Change password",
+    passwordHint: language === "fil" ? "I-update ang iyong password nang ligtas." : language === "both" ? "Update your sign-in password securely. / I-update ang iyong password nang ligtas." : "Update your sign-in password securely.",
   } as const;
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-surface-alt">
+      <div className="premium-page min-h-screen">
         <PageHeader />
         <PageMain>
           <style jsx>{`
@@ -308,7 +302,7 @@ export default function ProfilePage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-surface-alt">
+      <div className="premium-page min-h-screen">
         <PageHeader />
         <PageMain>
           <div className="rounded-2xl border border-border-soft bg-card p-10">
@@ -342,16 +336,17 @@ export default function ProfilePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-surface-alt">
+    <div className="premium-page min-h-screen">
       <PageHeader />
       <PageMain>
         {/* Record card */}
-        <section className="motion-safe:animate-[recordReveal_0.6s_ease-out] relative overflow-hidden rounded-2xl bg-brand text-brand-foreground">
-          <div className="grid gap-8 p-8 sm:p-10 md:grid-cols-[auto_1fr_auto] md:items-center md:gap-10">
+        <section className="motion-safe:animate-[recordReveal_0.6s_ease-out] relative overflow-hidden rounded-[30px] border border-[#D1D9CF] bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.28),_transparent_30%),linear-gradient(135deg,#183D2D_0%,#1F4A36_42%,#2E6A52_100%)] text-brand-foreground shadow-[0_28px_60px_rgba(23,63,45,0.18)]">
+          <div className="absolute inset-x-0 top-0 h-1.5 bg-[#F4D58D]" />
+          <div className="grid gap-8 p-6 sm:p-9 md:grid-cols-[auto_1fr_auto] md:items-center md:gap-10 lg:p-10">
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="group relative flex h-16 w-16 flex-none items-center justify-center overflow-hidden rounded-xl bg-brand-foreground/15 font-display text-2xl font-semibold ring-1 ring-inset ring-brand-foreground/25 transition hover:scale-[1.02]"
+              className="group relative flex h-16 w-16 flex-none items-center justify-center overflow-hidden rounded-2xl border border-white/20 bg-white/10 font-display text-2xl font-semibold shadow-[0_10px_24px_rgba(8,35,22,0.14)] ring-1 ring-inset ring-white/10 transition hover:scale-[1.02]"
               aria-label="Upload profile photo"
             >
               {photoUrl ? (
@@ -366,7 +361,7 @@ export default function ProfilePage() {
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoSelect} />
 
             <div className="min-w-0">
-              <p className="text-sm text-brand-foreground/70">Health worker record</p>
+              <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[#D8EFE0]">Health worker record</p>
               <h1 className="mt-1 truncate font-display text-3xl font-semibold sm:text-4xl">
                 {user.full_name}
               </h1>
@@ -376,7 +371,7 @@ export default function ProfilePage() {
               </p>
             </div>
 
-            <dl className="grid grid-cols-3 gap-x-6 gap-y-4 border-t border-brand-foreground/20 pt-6 text-sm md:grid-cols-1 md:border-t-0 md:border-l md:pl-8 md:pt-0">
+            <dl className="grid grid-cols-3 gap-x-5 gap-y-4 border-t border-white/20 pt-6 text-sm md:grid-cols-1 md:border-t-0 md:border-l md:pl-8 md:pt-0">
               <div>
                 <dt className="text-brand-foreground/60">Role</dt>
                 <dd className="mt-0.5 font-medium">{user.role}</dd>
@@ -409,7 +404,8 @@ export default function ProfilePage() {
         <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_340px]">
           <div className="space-y-6">
             {/* Profile form */}
-            <div className="rounded-2xl border border-border-soft bg-card p-8">
+            <div className="relative rounded-[24px] border border-[#DDE7DB] bg-[linear-gradient(180deg,#FFFFFF_0%,#F7FAF4_100%)] p-5 shadow-[0_18px_40px_rgba(15,23,42,0.05)] sm:p-7 lg:p-8">
+              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" />
               <h2 className="font-display text-lg font-semibold text-ink">{labels.heading}</h2>
               <p className="mt-1 text-sm text-ink-secondary">
                 {labels.description}
@@ -418,7 +414,7 @@ export default function ProfilePage() {
               <form onSubmit={handleSubmit} className={`mt-6 ${formStackClass}`}>
                 <div>
                   <label className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
-                    {labels.fullName} <span className={labelHintClass}>{currentLanguage === "en" ? "/ Buong pangalan" : currentLanguage === "fil" ? "/ Buong pangalan" : "/ Buong pangalan"}</span>
+                    {labels.fullName} <span className={labelHintClass}>{language === "en" ? "/ Buong pangalan" : language === "fil" ? "/ Buong pangalan" : "/ Buong pangalan"}</span>
                   </label>
                   <input
                     value={form.full_name}
@@ -430,7 +426,7 @@ export default function ProfilePage() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
                     <label className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
-                      {labels.age} <span className={labelHintClass}>{currentLanguage === "en" ? "/ Edad" : currentLanguage === "fil" ? "/ Edad" : "/ Edad"}</span>
+                      {labels.age} <span className={labelHintClass}>{language === "en" ? "/ Edad" : language === "fil" ? "/ Edad" : "/ Edad"}</span>
                     </label>
                     <input
                       type="number"
@@ -444,47 +440,28 @@ export default function ProfilePage() {
                   </div>
                   <div>
                     <label className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
-                      {labels.sex} <span className={labelHintClass}>{currentLanguage === "en" ? "/ Kasarian" : currentLanguage === "fil" ? "/ Kasarian" : "/ Kasarian"}</span>
+                      {labels.sex} <span className={labelHintClass}>{language === "en" ? "/ Kasarian" : language === "fil" ? "/ Kasarian" : "/ Kasarian"}</span>
                     </label>
-                    <div className="relative">
-                      <select
-                        value={form.sex}
-                        onChange={(event) => setForm((prev) => ({ ...prev, sex: event.target.value }))}
-                        className={selectClass}
-                      >
-                        <option value="">Select</option>
-                        <option value="female">Female</option>
-                        <option value="male">Male</option>
-                      </select>
-                      <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-ink-faint">
-                        <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" className="h-4 w-4">
-                          <path d="M5.5 7.5L10 12l4.5-4.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      </span>
-                    </div>
+                    <PremiumSelect
+                      value={form.sex}
+                      onChange={(value) => setForm((prev) => ({ ...prev, sex: value }))}
+                      ariaLabel={labels.sex}
+                      className="w-full"
+                      options={[{ value: "", label: "Select" }, { value: "female", label: "Female" }, { value: "male", label: "Male" }]}
+                    />
                   </div>
                 </div>
                 <div>
                   <label className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
                     {labels.barangay} <span className={labelHintClass}>/ Barangay</span>
                   </label>
-                  <div className="relative">
-                    <select
-                      value={form.barangay}
-                      onChange={(event) => setForm((prev) => ({ ...prev, barangay: event.target.value }))}
-                      className={selectClass}
-                    >
-                      <option value="">Select barangay</option>
-                      {irosinBarangays.map((barangay) => (
-                        <option key={barangay} value={barangay}>{barangay}</option>
-                      ))}
-                    </select>
-                    <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-ink-faint">
-                      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" className="h-4 w-4">
-                        <path d="M5.5 7.5L10 12l4.5-4.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </span>
-                  </div>
+                  <PremiumSelect
+                    value={form.barangay}
+                    onChange={(value) => setForm((prev) => ({ ...prev, barangay: value }))}
+                    ariaLabel={labels.barangay}
+                    className="w-full"
+                    options={[{ value: "", label: "Select barangay" }, ...irosinBarangays.map((barangay) => ({ value: barangay, label: barangay }))]}
+                  />
                   <p className="mt-1.5 text-xs text-ink-faint">Routes urgent (red) cases to the nearest health station.</p>
                 </div>
 
@@ -505,15 +482,13 @@ export default function ProfilePage() {
                   <label className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
                     {labels.interface} <span className={labelHintClass}>/ Wika</span>
                   </label>
-                  <select
+                  <PremiumSelect
                     value={form.language_preference}
-                    onChange={(event) => setForm((prev) => ({ ...prev, language_preference: event.target.value }))}
-                    className={selectClass}
-                  >
-                    <option value="en">{LANGUAGE_LABELS.en}</option>
-                    <option value="fil">{LANGUAGE_LABELS.fil}</option>
-                    <option value="both">{LANGUAGE_LABELS.both}</option>
-                  </select>
+                    onChange={(value) => setForm((prev) => ({ ...prev, language_preference: value }))}
+                    ariaLabel={labels.interface}
+                    className="w-full"
+                    options={[{ value: "en", label: LANGUAGE_LABELS.en }, { value: "fil", label: LANGUAGE_LABELS.fil }, { value: "both", label: LANGUAGE_LABELS.both }]}
+                  />
                 </div>
 
                 {message && <SuccessAlert>{message}</SuccessAlert>}
@@ -525,7 +500,8 @@ export default function ProfilePage() {
             </div>
 
             {/* Password */}
-            <div className="rounded-2xl border border-border-soft bg-card p-8">
+            <div className="relative overflow-hidden rounded-[24px] border border-[#DDE7DB] bg-[linear-gradient(180deg,#FFFFFF_0%,#F7FAF4_100%)] p-5 shadow-[0_18px_40px_rgba(15,23,42,0.05)] sm:p-7 lg:p-8">
+              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" />
               <h2 className="font-display text-lg font-semibold text-ink">{labels.changePassword}</h2>
               <p className="mt-1 text-sm text-ink-secondary">{labels.passwordHint}</p>
               <form onSubmit={handlePasswordChange} className="mt-6 space-y-4">
@@ -552,7 +528,8 @@ export default function ProfilePage() {
 
           <aside className="space-y-6">
             {/* Quick actions */}
-            <div className="rounded-2xl border border-border-soft bg-card p-6">
+            <div className="relative overflow-hidden rounded-[24px] border border-[#DDE7DB] bg-[linear-gradient(180deg,#FFFFFF_0%,#F7FAF4_100%)] p-5 shadow-[0_18px_40px_rgba(15,23,42,0.05)]">
+              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" />
               <h2 className="font-display text-lg font-semibold text-ink">Quick actions</h2>
               <div className="mt-4 space-y-2">
                 <Link
@@ -583,7 +560,8 @@ export default function ProfilePage() {
             </div>
 
             {/* Activity log */}
-            <div className="rounded-2xl border border-border-soft bg-card p-6">
+            <div className="relative overflow-hidden rounded-[24px] border border-[#DDE7DB] bg-[linear-gradient(180deg,#FFFFFF_0%,#F7FAF4_100%)] p-5 shadow-[0_18px_40px_rgba(15,23,42,0.05)]">
+              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" />
               <h2 className="font-display text-lg font-semibold text-ink">Recent activity</h2>
               <ul className="mt-4 space-y-3">
                 {auditLog.length === 0 ? (
@@ -610,7 +588,8 @@ export default function ProfilePage() {
             </div>
 
             {/* Session summary */}
-            <div className="rounded-2xl border border-border-soft bg-card p-6">
+            <div className="relative overflow-hidden rounded-[24px] border border-[#DDE7DB] bg-[linear-gradient(180deg,#FFFFFF_0%,#F7FAF4_100%)] p-5 shadow-[0_18px_40px_rgba(15,23,42,0.05)]">
+              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" />
               <h2 className="font-display text-lg font-semibold text-ink">Session</h2>
               <div className="mt-4 rounded-lg border border-brand/30 bg-brand-tint p-4">
                 <p className="text-sm font-medium text-ink">Current device</p>
@@ -620,7 +599,8 @@ export default function ProfilePage() {
             </div>
 
             {/* Why this matters */}
-            <div className="rounded-2xl border border-border-soft bg-card p-6">
+            <div className="relative overflow-hidden rounded-[24px] border border-[#DDE7DB] bg-[linear-gradient(180deg,#FFFFFF_0%,#F7FAF4_100%)] p-5 shadow-[0_18px_40px_rgba(15,23,42,0.05)]">
+              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" />
               <h2 className="font-display text-lg font-semibold text-ink">Why this matters</h2>
               <ul className="mt-4 space-y-4">
                 {reasons.map((reason) => (

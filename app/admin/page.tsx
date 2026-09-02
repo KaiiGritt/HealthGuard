@@ -9,6 +9,7 @@ import {
   ListRow,
   PageMain,
   Panel,
+  PremiumSelect,
   PrimaryButton,
   StatCard,
   TagBadge,
@@ -17,6 +18,7 @@ import {
 } from "@/app/components/ui/primitives";
 import { createLexiconEntry, getAdminModules, getAdminSummary, getMe, updateUserRole, updateUserStatus, type User } from "@/lib/api";
 import { openReportForPrinting } from "@/lib/report";
+import { IconClipboard } from "@/app/components/ui/icons";
 
 const adminNav = [
   { id: "overview", label: "Overview" },
@@ -242,9 +244,9 @@ export default function AdminPage() {
       <>
         <PageMain wide>
           <div className="space-y-6" aria-busy="true" aria-label="Loading admin dashboard">
-            <div className="h-32 animate-pulse rounded-md bg-brand/15" />
-            <div className="grid gap-4 md:grid-cols-4"><div className="h-28 animate-pulse rounded-md bg-border/50" /><div className="h-28 animate-pulse rounded-md bg-border/50" /><div className="h-28 animate-pulse rounded-md bg-border/50" /><div className="h-28 animate-pulse rounded-md bg-border/50" /></div>
-            <div className="grid gap-6 lg:grid-cols-2"><div className="h-80 animate-pulse rounded-md bg-border/40" /><div className="h-80 animate-pulse rounded-md bg-border/40" /></div>
+            <div className="premium-skeleton h-32 rounded-[24px]" />
+            <div className="grid gap-4 md:grid-cols-4"><div className="premium-skeleton h-28 rounded-[22px]" /><div className="premium-skeleton h-28 rounded-[22px]" /><div className="premium-skeleton h-28 rounded-[22px]" /><div className="premium-skeleton h-28 rounded-[22px]" /></div>
+            <div className="grid gap-6 lg:grid-cols-2"><div className="premium-skeleton h-80 rounded-[24px]" /><div className="premium-skeleton h-80 rounded-[24px]" /></div>
           </div>
         </PageMain>
       </>
@@ -273,7 +275,7 @@ export default function AdminPage() {
 
   return (
     <>
-      <div className="min-h-screen bg-surface">
+      <div className="premium-page min-h-screen">
         <PageHeader />
         <div>
           <PageMain wide>
@@ -283,15 +285,17 @@ export default function AdminPage() {
             title="Administration center"
             subtitle="Oversee accounts, govern the bilingual symptom lexicon, tune rule logic, and protect platform integrity for the municipal health system."
             actions={
-              <PrimaryButton type="button" onClick={generateReport} disabled={!modules} className="rounded-xl bg-[#E9F4EF] px-5 text-sm text-[#183D2D] hover:bg-white">
-                Generate report
+              <PrimaryButton type="button" onClick={generateReport} disabled={!modules} className="dashboard-report-button rounded-xl px-5 text-sm font-semibold">
+                <IconClipboard size={17} />
+                <span>Generate report</span>
               </PrimaryButton>
             }
           />
         </div>
 
         <div className="mt-6 grid gap-6 md:grid-cols-[220px_minmax(0,1fr)] md:items-start">
-          <aside className="rounded-[24px] border border-[#D7E0D2] bg-[linear-gradient(180deg,#FBF9F2_0%,#F2F6EE_100%)] p-4 shadow-[0_18px_40px_rgba(15,23,42,0.04)] md:sticky md:top-24 md:p-5">
+          <aside className="relative overflow-hidden rounded-[24px] border border-[#D7E0D2] bg-[linear-gradient(180deg,#FBF9F2_0%,#F2F6EE_100%)] p-4 shadow-[0_18px_40px_rgba(15,23,42,0.05)] md:sticky md:top-24 md:p-5">
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" />
             <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-ink-muted">Admin</p>
             <nav className="mt-4 space-y-2">
               {adminNav.map((item, index) => (
@@ -299,7 +303,7 @@ export default function AdminPage() {
                   key={item.id}
                   type="button"
                   onClick={() => goToSection(item.id)}
-                  className={`flex w-full items-center justify-between rounded-sm border px-3 py-2.5 text-left text-sm font-medium transition ${
+                    className={`flex w-full items-center justify-between rounded-xl border px-3 py-3 text-left text-sm font-semibold transition ${
                     activeSection === item.id
                       ? "border-brand/30 bg-brand/10 text-brand-dark"
                       : "border-transparent bg-transparent text-ink-secondary hover:border-border hover:bg-surface"
@@ -320,63 +324,52 @@ export default function AdminPage() {
             </section>
 
             <section id="admin-users" className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-              <Panel title="User account management" badge={<TagBadge tone="neutral">Admins and staff</TagBadge>}>
-                <div className="mb-4 grid gap-3 sm:grid-cols-2">
-                  <select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)} className="min-h-11 rounded-sm border border-border bg-surface px-3 text-sm text-ink">
-                    <option value="all">All roles</option>
-                    <option value="resident">Resident</option>
-                    <option value="mho">MHO</option>
-                    <option value="admin">Admin</option>
-                  </select>
-                  <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="min-h-11 rounded-sm border border-border bg-surface px-3 text-sm text-ink">
-                    <option value="all">All statuses</option>
-                    <option value="active">Active</option>
-                    <option value="inactive">Deactivated</option>
-                  </select>
+              <Panel
+                title="User account management"
+                subtitle="Review access, roles, and account status across the health system."
+                badge={<TagBadge tone="neutral">{modules?.users.length ?? 0} accounts</TagBadge>}
+              >
+                <div className="mb-5 grid gap-3 rounded-2xl border border-[#E4EBDD] bg-[#F7F9F5] p-3 sm:grid-cols-2">
+                  <PremiumSelect value={roleFilter} onChange={setRoleFilter} ariaLabel="Filter users by role" options={[{ value: "all", label: "All roles" }, { value: "resident", label: "Resident" }, { value: "mho", label: "MHO" }, { value: "admin", label: "Admin" }]} />
+                  <PremiumSelect value={statusFilter} onChange={setStatusFilter} ariaLabel="Filter users by account status" options={[{ value: "all", label: "All statuses" }, { value: "active", label: "Active" }, { value: "inactive", label: "Deactivated" }]} />
                 </div>
 
                 <div className="space-y-3">
                   {filteredUsers.length > 0 ? (
                     filteredUsers.map((entry) => (
-                      <ListRow key={entry.id} className="flex items-center justify-between gap-4">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center justify-between gap-3">
-                            <div>
-                              <p className="font-medium text-ink">{entry.full_name}</p>
-                              <p className="text-sm text-ink-muted">{entry.email}</p>
-                            </div>
-                            <TagBadge tone={entry.is_active ? "brand" : "neutral"}>
-                              {entry.is_active ? "Active" : "Deactivated"}
-                            </TagBadge>
+                      <ListRow key={entry.id} className="flex flex-col gap-4 border-[#E0E8DC] bg-[linear-gradient(135deg,#F8FAF6_0%,#F1F5EE_100%)] p-4 shadow-[0_8px_20px_rgba(24,38,25,0.035)] transition hover:border-brand/25 hover:shadow-[0_12px_24px_rgba(24,38,25,0.07)] sm:flex-row sm:items-center sm:justify-between sm:p-5">
+                        <div className="flex min-w-0 flex-1 items-start gap-3">
+                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-brand/15 bg-white font-display text-lg font-semibold text-brand shadow-sm" aria-hidden="true">
+                            {entry.full_name.charAt(0).toUpperCase()}
                           </div>
-                          <p className="mt-2 text-sm text-ink-muted">
-                            {entry.role} • {entry.barangay ?? "No barangay recorded"}
-                          </p>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="truncate font-semibold text-ink">{entry.full_name}</p>
+                              <TagBadge tone={entry.is_active ? "brand" : "neutral"}>
+                                {entry.is_active ? "Active" : "Deactivated"}
+                              </TagBadge>
+                            </div>
+                            <p className="mt-1 truncate text-sm text-ink-muted">{entry.email}</p>
+                            <p className="mt-2 text-xs font-medium uppercase tracking-[0.08em] text-ink-faint">
+                              {entry.role} <span className="px-1 text-[#B6C2B2]">•</span> {entry.barangay ?? "No barangay recorded"}
+                            </p>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <select
-                            value={entry.role}
-                            onChange={(event) => void handleRoleChange(entry.id, event.target.value)}
-                            className="rounded-sm border border-border bg-white px-2 py-2 text-xs text-ink"
-                            disabled={pendingAction === entry.id}
-                          >
-                            <option value="resident">Resident</option>
-                            <option value="mho">MHO</option>
-                            <option value="admin">Admin</option>
-                          </select>
+                        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+                          <PremiumSelect value={entry.role} onChange={(value) => void handleRoleChange(entry.id, value)} ariaLabel={`Change role for ${entry.full_name}`} disabled={pendingAction === entry.id} className="w-full sm:w-28" options={[{ value: "resident", label: "Resident" }, { value: "mho", label: "MHO" }, { value: "admin", label: "Admin" }]} />
                           {entry.is_active && confirmingDeactivate === entry.id ? (
-                            <div className="flex items-center gap-2">
-                              <button type="button" onClick={() => void handleToggleUserStatus(entry.id, false)} disabled={pendingAction === entry.id} className="rounded-sm border border-red-200 bg-red-tint px-3 py-2 font-medium text-emergency-red">
+                            <div className="flex w-full items-center gap-2 sm:w-auto">
+                              <button type="button" onClick={() => void handleToggleUserStatus(entry.id, false)} disabled={pendingAction === entry.id} className="min-h-10 flex-1 rounded-xl border border-red-200 bg-red-tint px-3 py-2 text-sm font-semibold text-emergency-red transition hover:bg-red-100 sm:flex-none">
                                 {pendingAction === entry.id ? "Saving..." : "Confirm deactivate"}
                               </button>
-                              <button type="button" onClick={() => setConfirmingDeactivate(null)} className="rounded-sm border border-border bg-white px-3 py-2 font-medium text-ink-secondary">Cancel</button>
+                              <button type="button" onClick={() => setConfirmingDeactivate(null)} className="min-h-10 rounded-xl border border-border bg-white px-3 py-2 text-sm font-medium text-ink-secondary transition hover:border-brand/30 hover:text-brand-dark">Cancel</button>
                             </div>
                           ) : (
                             <button
                               type="button"
                               onClick={() => void handleToggleUserStatus(entry.id, !entry.is_active)}
                               disabled={pendingAction === entry.id}
-                              className={`rounded-sm border px-3 py-2 font-medium ${
+                              className={`min-h-10 w-full rounded-xl border px-3 py-2 text-sm font-semibold transition sm:w-auto ${
                                 entry.is_active ? "border-border bg-white text-ink-secondary" : "border-brand/30 bg-brand/10 text-brand-dark"
                               }`}
                             >
@@ -432,14 +425,7 @@ export default function AdminPage() {
                     placeholder="Medical term"
                     className="rounded-sm border border-border bg-white px-3 py-2 text-sm text-ink"
                   />
-                  <select
-                    value={newLexicon.language}
-                    onChange={(event) => setNewLexicon((prev) => ({ ...prev, language: event.target.value }))}
-                    className="rounded-sm border border-border bg-white px-3 py-2 text-sm text-ink"
-                  >
-                    <option value="en">English</option>
-                    <option value="tl">Tagalog</option>
-                  </select>
+                  <PremiumSelect value={newLexicon.language} onChange={(value) => setNewLexicon((prev) => ({ ...prev, language: value }))} ariaLabel="Lexicon language" className="w-full" options={[{ value: "en", label: "English" }, { value: "tl", label: "Tagalog" }]} />
                   <input
                     type="number"
                     min={0}

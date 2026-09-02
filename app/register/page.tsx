@@ -6,14 +6,14 @@ import { useState } from "react";
 import { register, verifyEmail } from "@/lib/api";
 import { irosinBarangays } from "@/app/constants/irosinBarangays";
 import AuthLayout from "../components/AuthLayout";
-import { IconEye, IconEyeOff } from "@/app/components/ui/icons";
+import { IconEye, IconEyeOff, IconShield } from "@/app/components/ui/icons";
 import {
   AuthProField,
   ErrorAlert,
+  PremiumSelect,
   authFormStackClass,
   authInputClass,
   authLabelClass,
-  authSelectClass,
   authSubmitClass,
   cn,
 } from "@/app/components/ui/primitives";
@@ -180,7 +180,17 @@ export default function RegisterPage() {
         </>
       }
     >
-      <form onSubmit={handleSubmit} className={cn(authFormStackClass, "rounded-2xl border border-brand/10 bg-gradient-to-b from-white to-surface/80 p-4 shadow-[0_18px_40px_rgba(24,38,25,0.06)] sm:p-5")}>
+      <div className="mb-5 flex items-center gap-3 rounded-2xl border border-brand/15 bg-brand-tint/65 px-3.5 py-3 text-left">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand text-brand-foreground shadow-[0_6px_14px_rgba(47,107,79,0.18)]">
+          <IconShield size={17} />
+        </span>
+        <div className="min-w-0">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-brand-dark">Private health profile</p>
+          <p className="mt-0.5 text-xs text-ink-muted">Your details help guide safer assessments.</p>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} className={cn(authFormStackClass, "rounded-2xl border border-brand/15 bg-gradient-to-b from-white via-white to-surface/80 p-4 shadow-[0_18px_40px_rgba(24,38,25,0.07)] ring-1 ring-white sm:p-5")}>
         <AuthProField
           id="full_name"
           label="Full name"
@@ -233,7 +243,7 @@ export default function RegisterPage() {
           </div>
         )}
 
-        <fieldset className="rounded-2xl border border-border bg-white/60 px-4 pb-4 pt-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+          <fieldset className="rounded-2xl border border-brand/15 bg-brand-tint/35 px-4 pb-4 pt-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
           <legend className="px-1 text-xs font-medium uppercase tracking-wider text-ink-faint">Profile details</legend>
 
           <div className="mt-3">
@@ -271,16 +281,7 @@ export default function RegisterPage() {
                 Sex
               </label>
               <div className="relative mt-1.5">
-                <select id="sex" value={form.sex} onChange={set("sex")} className={authSelectClass}>
-                  <option value="">—</option>
-                  <option value="female">Female</option>
-                  <option value="male">Male</option>
-                </select>
-                <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-ink-faint">
-                  <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" className="h-4 w-4">
-                    <path d="M5.5 7.5L10 12l4.5-4.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </span>
+                <PremiumSelect value={form.sex} onChange={(value) => setForm((current) => ({ ...current, sex: value }))} ariaLabel="Sex" options={[{ value: "", label: "—" }, { value: "female", label: "Female" }, { value: "male", label: "Male" }]} />
               </div>
             </div>
           </div>
@@ -290,19 +291,7 @@ export default function RegisterPage() {
               Barangay
             </label>
             <div className="relative mt-1.5">
-              <select id="barangay" required value={form.barangay} onChange={set("barangay")} className={authSelectClass}>
-                <option value="">Select barangay</option>
-                {irosinBarangays.map((barangay) => (
-                  <option key={barangay} value={barangay}>
-                    {barangay}
-                  </option>
-                ))}
-              </select>
-              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-ink-faint">
-                <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" className="h-4 w-4">
-                  <path d="M5.5 7.5L10 12l4.5-4.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </span>
+              <PremiumSelect value={form.barangay} onChange={(value) => setForm((current) => ({ ...current, barangay: value }))} ariaLabel="Barangay" className="w-full" options={[{ value: "", label: "Select barangay" }, ...irosinBarangays.map((barangay) => ({ value: barangay, label: barangay }))]} />
             </div>
             <p className="mt-1.5 text-xs text-ink-faint">Used to route urgent cases to the nearest health station.</p>
           </div>

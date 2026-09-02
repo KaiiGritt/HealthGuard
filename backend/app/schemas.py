@@ -97,6 +97,8 @@ class DashboardAssessmentItem(BaseModel):
     note: str
     created_at: datetime
     phone_number: str | None = None
+    handled: bool = False
+    handled_at: datetime | None = None
 
 
 class TriageBreakdownItem(BaseModel):

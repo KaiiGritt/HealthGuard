@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
-import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from "react";
+import { useEffect, useRef, useState, type ButtonHTMLAttributes, type CSSProperties, type ReactNode } from "react";
+import { IconChevronDown } from "@/app/components/ui/icons";
 
 /* Shared class strings — one source of truth for form and layout styling */
 
@@ -25,6 +28,74 @@ export const contentPadClass = "px-5 sm:px-7 lg:px-10 xl:px-14 2xl:px-20";
 
 export function cn(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(" ");
+}
+
+export function PremiumSelect({
+  value,
+  onChange,
+  options,
+  ariaLabel,
+  className,
+  disabled = false,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: Array<{ value: string; label: string }>;
+  ariaLabel: string;
+  className?: string;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const activeOption = options.find((option) => option.value === value) ?? options[0];
+
+  useEffect(() => {
+    function closeOnOutsideClick(event: MouseEvent) {
+      if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", closeOnOutsideClick);
+    return () => document.removeEventListener("mousedown", closeOnOutsideClick);
+  }, []);
+
+  return (
+    <div ref={containerRef} className={cn("relative", className)}>
+      <button
+        type="button"
+        aria-label={ariaLabel}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        disabled={disabled}
+        onClick={() => setOpen((current) => !current)}
+        className="premium-select flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-border bg-card px-3.5 py-2.5 text-left text-sm text-ink shadow-[0_4px_12px_rgba(24,38,25,0.04)] outline-none transition hover:border-brand/60 hover:bg-white focus:border-brand focus:ring-4 focus:ring-brand/10 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        <span className="truncate">{activeOption?.label ?? "Select"}</span>
+        <IconChevronDown size={17} className={cn("shrink-0 text-brand transition-transform duration-200", open && "rotate-180")} aria-hidden="true" />
+      </button>
+      {open ? (
+        <div role="listbox" aria-label={ariaLabel} className="absolute inset-x-0 top-full z-50 mt-2 max-h-64 w-full overflow-auto rounded-2xl border border-[#D8E2D3] bg-white p-1.5 shadow-[0_22px_44px_rgba(24,38,25,0.18)] ring-1 ring-black/5">
+          {options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              role="option"
+              aria-selected={option.value === value}
+              onClick={() => {
+                onChange(option.value);
+                setOpen(false);
+              }}
+              className={cn(
+                "flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition hover:bg-brand-tint hover:text-brand-dark",
+                option.value === value ? "bg-brand/10 font-semibold text-brand-dark" : "text-ink-secondary",
+              )}
+            >
+              <span>{option.label}</span>
+              {option.value === value ? <span className="text-brand" aria-hidden="true">✓</span> : null}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 export function PageMain({
@@ -106,24 +177,28 @@ export function PageTitle({ children, subtitle }: { children: ReactNode; subtitl
   );
 }
 
-export function HeroBanner({ eyebrow, title, subtitle, actions }: {
+export function HeroBanner({ eyebrow, title, subtitle, meta, actions }: {
   eyebrow: string;
   title: ReactNode;
   subtitle?: ReactNode;
+  meta?: ReactNode;
   actions?: ReactNode;
 }) {
   return (
-    <section className="rounded-md border border-brand-dark bg-brand p-7 text-brand-foreground sm:p-9 xl:p-10 2xl:flex 2xl:items-end 2xl:justify-between 2xl:gap-12">
+    <section className="relative overflow-hidden rounded-[28px] border border-white/15 bg-brand p-7 text-brand-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] sm:p-9 xl:p-10 2xl:flex 2xl:items-end 2xl:justify-between 2xl:gap-12">
+      <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full border border-white/10 bg-white/5" aria-hidden="true" />
+      <div className="pointer-events-none absolute -left-16 bottom-0 h-48 w-48 rounded-full bg-[#C7B37A]/8 blur-2xl" aria-hidden="true" />
       <div className="min-w-0 flex-1">
-        <Eyebrow>{eyebrow}</Eyebrow>
-        <h1 className="mt-4 font-display text-3xl font-semibold leading-tight sm:text-4xl xl:text-[2.75rem]">{title}</h1>
+        <p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-[#d8efe0] xl:text-sm">{eyebrow}</p>
+        <h1 className="relative mt-4 font-display text-3xl font-semibold leading-tight text-white sm:text-4xl xl:text-[2.75rem]">{title}</h1>
         {subtitle ? (
-          <p className="mt-3 max-w-3xl text-base leading-relaxed text-brand-muted sm:text-lg xl:max-w-4xl xl:text-xl">
+          <p className="relative mt-3 max-w-3xl text-base leading-relaxed text-[#e4f1e8] sm:text-lg xl:max-w-4xl xl:text-xl">
             {subtitle}
           </p>
         ) : null}
+        {meta ? <div className="relative mt-5 flex flex-wrap items-center gap-2">{meta}</div> : null}
       </div>
-      {actions ? <div className="mt-6 flex flex-wrap gap-4 2xl:mt-0 2xl:shrink-0">{actions}</div> : null}
+      {actions ? <div className="relative mt-6 flex flex-wrap gap-3 2xl:mt-0 2xl:shrink-0">{actions}</div> : null}
     </section>
   );
 }
@@ -204,14 +279,14 @@ export function TagBadge({ children, tone = "brand" }: { children: ReactNode; to
 export function Toast({ message, tone = "success", onDismiss }: { message: string; tone?: "success" | "error"; onDismiss: () => void }) {
   const palette =
     tone === "error"
-      ? "border-red-200/80 bg-red-50/95 text-red-900 shadow-[0_20px_50px_rgba(155,28,28,0.22)]"
-      : "border-brand/20 bg-white/90 text-slate-900 shadow-[0_22px_60px_rgba(12,34,49,0.16)]";
+      ? "border-red-200/80 bg-red-50 text-red-900 shadow-[0_18px_40px_rgba(155,28,28,0.18)]"
+      : "border-brand/20 bg-white text-ink shadow-[0_18px_40px_rgba(12,34,49,0.14)]";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/20 p-4 backdrop-blur-[2px]" role="status" aria-live="polite">
-      <div className={`w-full max-w-md rounded-2xl border p-5 shadow-xl ring-1 ring-black/5 ${palette}`}>
+    <div className="fixed inset-x-4 bottom-4 z-50 flex justify-end sm:inset-x-auto sm:right-6 sm:bottom-6" role="status" aria-live="polite">
+      <div className={`w-full max-w-md animate-[premium-toast-in_0.25s_ease-out] rounded-2xl border p-4 ring-1 ring-black/5 sm:p-5 ${palette}`}>
         <div className="flex items-start gap-4">
-          <div className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${tone === "error" ? "bg-red-100 text-red-600" : "bg-brand-tint text-brand"}`} aria-hidden="true">
+          <div className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-semibold ${tone === "error" ? "bg-red-100 text-red-600" : "bg-brand-tint text-brand"}`} aria-hidden="true">
             {tone === "error" ? "!" : "✓"}
           </div>
           <div className="min-w-0 flex-1">
@@ -223,11 +298,14 @@ export function Toast({ message, tone = "success", onDismiss }: { message: strin
           <button
             type="button"
             onClick={onDismiss}
-            className="shrink-0 rounded-full px-2 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-current/70 transition hover:bg-black/5 hover:text-current"
+            className="shrink-0 rounded-lg px-2 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-current/70 transition hover:bg-black/5 hover:text-current"
             aria-label="Dismiss notification"
           >
             Close
           </button>
+        </div>
+        <div className={`mt-4 h-1 overflow-hidden rounded-full ${tone === "error" ? "bg-red-200" : "bg-brand-tint"}`} aria-hidden="true">
+          <div className={`h-full w-full origin-left animate-[toast-progress_4s_linear_forwards] ${tone === "error" ? "bg-emergency-red" : "bg-brand"}`} />
         </div>
       </div>
     </div>
@@ -284,7 +362,7 @@ export function StatCard({
   };
 
   return (
-    <div className="group relative overflow-hidden rounded-[22px] border border-[#DDE7DB] bg-[linear-gradient(180deg,#FFFFFF_0%,#F7FAF4_100%)] p-6 shadow-[0_18px_38px_rgba(15,23,42,0.04)] transition duration-200 hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-[0_22px_48px_rgba(31,74,54,0.08)] xl:p-7 2xl:p-8">
+    <div className="group relative overflow-hidden rounded-[22px] border border-[#DDE7DB] bg-[linear-gradient(180deg,#FFFFFF_0%,#F7FAF4_100%)] p-5 shadow-[0_18px_38px_rgba(15,23,42,0.04)] transition duration-200 hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-[0_22px_48px_rgba(31,74,54,0.08)] sm:p-6 xl:p-7 2xl:p-8">
       <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" />
       <div className="flex items-start justify-between gap-4">
         <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted xl:text-xs">{label}</p>
@@ -294,8 +372,8 @@ export function StatCard({
           </span>
         ) : null}
       </div>
-      <p className="mt-5 font-mono text-4xl font-semibold tabular-nums text-ink xl:text-5xl 2xl:text-[3.25rem]">{value}</p>
-      {hint ? <p className="mt-3 text-base leading-relaxed text-ink-muted xl:text-lg">{hint}</p> : null}
+      <p className="mt-4 font-mono text-3xl font-semibold tabular-nums text-ink sm:mt-5 sm:text-4xl xl:text-5xl 2xl:text-[3.25rem]">{value}</p>
+      {hint ? <p className="mt-2 text-sm leading-relaxed text-ink-muted sm:mt-3 sm:text-base xl:text-lg">{hint}</p> : null}
     </div>
   );
 }
@@ -308,8 +386,9 @@ export function Panel({ title, subtitle, badge, children, className }: {
   className?: string;
 }) {
   return (
-    <div className={cn("overflow-hidden rounded-[24px] border border-[#DDE7DB] bg-[linear-gradient(180deg,#FFFFFF_0%,#F9FBF7_100%)] p-6 shadow-[0_18px_40px_rgba(15,23,42,0.04)] xl:p-7 2xl:p-8", className)}>
-      <div className="flex items-center justify-between gap-4">
+    <div className={cn("relative rounded-[24px] border border-[#DDE7DB] bg-[linear-gradient(180deg,#FFFFFF_0%,#F7FAF4_100%)] p-5 shadow-[0_18px_40px_rgba(15,23,42,0.05)] transition duration-200 hover:border-brand/20 hover:shadow-[0_24px_50px_rgba(31,74,54,0.08)] sm:p-6 xl:p-7 2xl:p-8", className)}>
+      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" />
+      <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="font-display text-xl font-semibold text-ink sm:text-2xl xl:text-[1.65rem]">{title}</h2>
           {subtitle ? <p className="mt-1.5 text-base leading-relaxed text-ink-muted xl:text-lg">{subtitle}</p> : null}
@@ -331,7 +410,7 @@ export function ListRow({
   style?: CSSProperties;
 }) {
   return (
-    <div className={cn("rounded-md border border-border bg-surface p-5 xl:p-6", className)} style={style}>
+    <div className={cn("rounded-xl border border-[#E0E8DC] bg-[linear-gradient(135deg,#F8FAF6_0%,#F1F5EE_100%)] p-4 shadow-[0_8px_20px_rgba(24,38,25,0.035)] transition duration-200 hover:border-brand/25 hover:shadow-[0_12px_24px_rgba(24,38,25,0.07)] sm:p-5 xl:p-6", className)} style={style}>
       {children}
     </div>
   );
@@ -477,7 +556,7 @@ export const authInputClass =
   "h-12 w-full rounded-xl border border-border bg-white/90 px-3.75 text-[0.9375rem] text-ink shadow-[0_1px_2px_rgba(15,23,42,0.02),inset_0_1px_0_rgba(255,255,255,0.8)] outline-none transition placeholder:text-ink-faint hover:border-brand/50 focus:border-brand focus:bg-white focus:ring-4 focus:ring-brand/10";
 
 export const authSelectClass =
-  "h-12 w-full cursor-pointer appearance-none rounded-xl border border-border bg-white/90 px-3.75 pr-10 text-[0.9375rem] text-ink shadow-[0_1px_2px_rgba(15,23,42,0.02),inset_0_1px_0_rgba(255,255,255,0.8)] outline-none transition hover:border-brand/50 hover:bg-white focus:border-brand focus:ring-4 focus:ring-brand/10";
+  "premium-select h-12 w-full cursor-pointer appearance-none rounded-xl border border-border bg-white/90 px-3.75 pr-10 text-[0.9375rem] text-ink shadow-[0_1px_2px_rgba(15,23,42,0.02),inset_0_1px_0_rgba(255,255,255,0.8)] outline-none transition hover:border-brand/50 hover:bg-white focus:border-brand focus:ring-4 focus:ring-brand/10";
 
 export const authFormStackClass = "space-y-4";
 

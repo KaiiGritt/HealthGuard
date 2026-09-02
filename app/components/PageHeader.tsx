@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState, Suspense, type ReactNode } from "react";
 import { cn } from "@/app/components/ui/primitives";
 import { useInterfaceLanguage } from "@/app/components/LanguageProvider";
 import { getMe, logout, type User } from "@/lib/api";
+import { IconLogout } from "@/app/components/ui/icons";
+import ResponsiveSidebar from "./ResponsiveSidebar";
 
 function IconWrapper({ children }: { children: ReactNode }) {
   return <span className="flex h-5 w-5 items-center justify-center">{children}</span>;
@@ -13,7 +15,7 @@ function IconWrapper({ children }: { children: ReactNode }) {
 
 function MenuIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-[18px] w-[18px]">
       <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
     </svg>
   );
@@ -21,13 +23,13 @@ function MenuIcon() {
 
 function CloseIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-[18px] w-[18px]">
       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
     </svg>
   );
 }
 
-function MobileMenuIcon({ type }: { type: "home" | "history" | "dashboard" | "profile" | "login" | "signup" | "logout" }) {
+function MobileMenuIcon({ type }: { type: "home" | "assessment" | "history" | "dashboard" | "profile" | "login" | "signup" | "logout" }) {
   const commonProps = {
     viewBox: "0 0 24 24",
     fill: "none",
@@ -37,6 +39,12 @@ function MobileMenuIcon({ type }: { type: "home" | "history" | "dashboard" | "pr
   } as const;
 
   switch (type) {
+    case "assessment":
+      return (
+        <svg {...commonProps}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 4h6l4 4v12H5V4h4Zm3 0v5h5M8 13h8M8 17h5" />
+        </svg>
+      );
     case "home":
       return (
         <svg {...commonProps}>
@@ -85,14 +93,19 @@ function MobileMenuIcon({ type }: { type: "home" | "history" | "dashboard" | "pr
   }
 }
 
-export default function PageHeader() {
+function PageHeaderInner({ dashboardAlertCount = 0 }: { dashboardAlertCount?: number } = {}) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const dashboardSection = searchParams.get("section") ?? "overview";
   const { language } = useInterfaceLanguage();
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isCompactNav, setIsCompactNav] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const drawerRef = useRef<HTMLDivElement>(null);
+  const wasOpen = useRef(false);
 
   const currentPath = pathname ?? "/";
   const isHistoryRoute = pathname === "/history";
@@ -101,6 +114,7 @@ export default function PageHeader() {
   const isRegisterRoute = pathname === "/register";
 
   const uiText = {
+    assessment: language === "fil" ? "Pagsusuri" : language === "both" ? "Assessment / Pagsusuri" : "Assessment",
     history: language === "fil" ? "Kasaysayan" : language === "both" ? "History / Kasaysayan" : "History",
     dashboard: language === "fil" ? "Dashboard" : language === "both" ? "Dashboard / Dashboard" : "Dashboard",
     profile: language === "fil" ? "Profile" : language === "both" ? "Profile / Profile" : "Profile",
@@ -145,6 +159,26 @@ export default function PageHeader() {
     return () => window.cancelAnimationFrame(frame);
   }, [pathname]);
 
+  useEffect(() => {
+    if (!mobileMenuOpen) {
+      if (wasOpen.current) menuButtonRef.current?.focus();
+      wasOpen.current = false;
+      return;
+    }
+    wasOpen.current = true;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    drawerRef.current?.querySelector<HTMLElement>("a, button")?.focus();
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileMenuOpen(false);
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [mobileMenuOpen]);
+
   async function handleLogout() {
     await logout();
     setUser(null);
@@ -155,7 +189,17 @@ export default function PageHeader() {
   function linkClass(href: string) {
     const active = pathname === href;
     return cn(
-      "flex items-center gap-2 rounded-full px-3.5 py-2.5 text-sm font-medium outline-none transition-all duration-200 focus-visible:ring-4 focus-visible:ring-brand/20 sm:gap-2.5 sm:px-4 lg:gap-2.5 lg:px-4.5 lg:py-2.5 lg:text-base",
+      "flex items-center gap-2 whitespace-nowrap rounded-full px-2.5 py-2 text-sm font-medium outline-none transition-all duration-200 focus-visible:ring-4 focus-visible:ring-brand/20 sm:gap-2 sm:px-3 lg:gap-2.5 lg:px-4.5 lg:py-2.5 lg:text-base",
+      active
+        ? "bg-brand-tint text-brand-dark shadow-sm ring-1 ring-brand/15"
+        : "text-ink-secondary hover:bg-card hover:text-ink hover:shadow-sm hover:ring-1 hover:ring-border/80",
+    );
+  }
+
+  function mhoLinkClass(section: string) {
+    const active = pathname === "/dashboard" && dashboardSection === section;
+    return cn(
+      "flex items-center gap-2 whitespace-nowrap rounded-full px-2.5 py-2 text-sm font-medium outline-none transition-all duration-200 focus-visible:ring-4 focus-visible:ring-brand/20 sm:gap-2 sm:px-3 lg:gap-2.5 lg:px-4.5 lg:py-2.5 lg:text-base",
       active
         ? "bg-brand-tint text-brand-dark shadow-sm ring-1 ring-brand/15"
         : "text-ink-secondary hover:bg-card hover:text-ink hover:shadow-sm hover:ring-1 hover:ring-border/80",
@@ -175,7 +219,7 @@ export default function PageHeader() {
           { href: "/", label: "Home", active: isHomeRoute, icon: "home" as const },
           ...(user.role === "mho" ? [{ href: "/dashboard", label: uiText.dashboard, active: pathname === "/dashboard", icon: "dashboard" as const }] : []),
           ...(user.role === "admin" ? [{ href: "/admin", label: "Admin", active: pathname === "/admin", icon: "dashboard" as const }] : []),
-          ...(user.role === "resident" ? [{ href: "/history", label: uiText.history, active: isHistoryRoute, icon: "history" as const }] : []),
+          ...(user.role === "resident" ? [{ href: "/assessment", label: "Assessment", active: pathname === "/assessment", icon: "assessment" as const }, { href: "/history", label: uiText.history, active: isHistoryRoute, icon: "history" as const }] : []),
           { href: "/profile", label: uiText.profile, active: isProfileRoute, icon: "profile" as const },
         ]
       : [
@@ -185,7 +229,13 @@ export default function PageHeader() {
         ];
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-header/90 backdrop-blur-xl">
+    <>
+      <Suspense fallback={null}>
+        <ResponsiveSidebar user={user} dashboardAlertCount={dashboardAlertCount} />
+      </Suspense>
+      <div className="hidden md:block">
+      <header className="sticky top-0 z-40 overflow-hidden border-b border-[#D8E2D3] bg-header/90 shadow-[0_8px_24px_rgba(24,38,25,0.05)] backdrop-blur-xl">
+      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" aria-hidden="true" />
       <div className="relative mx-auto grid w-full max-w-[1800px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 px-5 py-4 sm:px-8 sm:py-5 lg:px-12 lg:py-5 2xl:px-16">
         <Link href="/" className="justify-self-start flex items-center gap-2.5 lg:gap-3">
           <span
@@ -201,8 +251,17 @@ export default function PageHeader() {
 
         {!isCompactNav ? (
           <div className="col-start-3 justify-self-end flex items-center gap-3 lg:gap-4">
-            <nav className="hidden items-center gap-1 rounded-full border border-border bg-surface p-1.5 md:flex lg:gap-1.5">
+            <nav className="hidden flex-nowrap items-center gap-1 rounded-full border border-border bg-surface p-1.5 md:flex lg:gap-1.5">
               {pathname !== "/" && user?.role === "resident" && (
+                <>
+                <Link href="/assessment" className={linkClass("/assessment")}>
+                  <IconWrapper>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 lg:h-5 lg:w-5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 4h6l4 4v12H5V4h4Zm3 0v5h5M8 13h8M8 17h5" />
+                    </svg>
+                  </IconWrapper>
+                  {uiText.assessment}
+                </Link>
                 <Link href="/history" className={linkClass("/history")}>
                   <IconWrapper>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 lg:h-5 lg:w-5">
@@ -211,17 +270,21 @@ export default function PageHeader() {
                   </IconWrapper>
                   {uiText.history}
                 </Link>
+                </>
               )}
 
               {user?.role === "mho" && (
-                <Link href="/dashboard" className={linkClass("/dashboard")}>
-                  <IconWrapper>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 lg:h-5 lg:w-5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 3v18h18M7 15V9m5 6V5m5 10v-4" />
-                    </svg>
-                  </IconWrapper>
-                  Dashboard
-                </Link>
+                <>
+                  <Link href="/dashboard" className={mhoLinkClass("overview")}>Overview</Link>
+                  <Link href="/dashboard?section=records" className={mhoLinkClass("records")}>
+                    Records
+                    {dashboardAlertCount > 0 ? (
+                      <span className="rounded-full bg-triage-red px-1.5 py-0.5 font-mono text-[10px] font-bold text-white">{dashboardAlertCount}</span>
+                    ) : null}
+                  </Link>
+                  <Link href="/dashboard?section=analytics" className={mhoLinkClass("analytics")}>Analytics</Link>
+                  <Link href="/dashboard?section=reports" className={mhoLinkClass("reports")}>Reports</Link>
+                </>
               )}
 
               {user?.role === "admin" && (
@@ -250,8 +313,9 @@ export default function PageHeader() {
                   <button
                     type="button"
                     onClick={handleLogout}
-                    className="rounded-full border border-border bg-card px-3 py-2 text-sm font-medium text-ink-secondary transition-colors hover:border-brand/40 hover:text-ink lg:px-4 lg:py-2.5 lg:text-base"
+                    className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-[#D8E2D3] bg-[linear-gradient(180deg,#FFFFFF_0%,#F7FAF4_100%)] px-3 py-2 text-sm font-semibold text-ink-secondary shadow-[0_5px_14px_rgba(24,38,25,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[#E6B2A8] hover:bg-[#FFF6F3] hover:text-emergency-red hover:shadow-[0_10px_20px_rgba(192,67,43,0.1)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15 lg:px-4 lg:py-2.5 lg:text-base"
                   >
+                    <IconLogout size={16} />
                     {uiText.logout}
                   </button>
                 </>
@@ -282,8 +346,11 @@ export default function PageHeader() {
             <button
               type="button"
               aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+              ref={menuButtonRef}
               onClick={() => setMobileMenuOpen((value) => !value)}
-              className="flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-surface text-ink-secondary shadow-sm outline-none transition hover:border-brand/30 hover:text-ink focus-visible:ring-4 focus-visible:ring-brand/20"
+              aria-expanded={mobileMenuOpen}
+              aria-controls="mobile-navigation"
+              className="fixed right-4 top-4 z-50 flex h-11 w-11 items-center justify-center rounded-xl border border-[#D8E2D3] bg-white/90 text-ink-secondary shadow-[0_8px_18px_rgba(24,38,25,0.1)] outline-none transition hover:border-brand/30 hover:bg-white hover:text-ink focus-visible:ring-4 focus-visible:ring-brand/20 lg:hidden"
             >
               {mobileMenuOpen ? <CloseIcon /> : <MenuIcon />}
             </button>
@@ -293,9 +360,14 @@ export default function PageHeader() {
 
       {isCompactNav && mobileMenuOpen && (
         <>
-          <button type="button" aria-label="Close navigation" onClick={() => setMobileMenuOpen(false)} className="fixed inset-0 z-40 bg-ink/25 backdrop-blur-[2px] md:hidden" />
+              <button type="button" aria-label="Close navigation" onClick={() => setMobileMenuOpen(false)} className="premium-overlay fixed inset-0 z-40 bg-ink/25 backdrop-blur-[2px] md:hidden" />
           <div
-            className="fixed inset-y-0 left-0 z-50 flex w-[240px] isolate flex-col overflow-y-auto border-r border-border shadow-[0_18px_48px_rgba(20,31,25,0.2)] md:hidden"
+            id="mobile-navigation"
+            ref={drawerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Mobile navigation"
+            className="fixed inset-y-0 left-0 z-50 flex w-[min(300px,85vw)] flex-col overflow-y-auto border-r border-border bg-header shadow-[0_18px_48px_rgba(20,31,25,0.16)] md:hidden"
             style={{ backgroundColor: "#f4f7ef", opacity: 1 }}
           >
             <div className="border-b border-border px-[18px] py-[18px]">
@@ -314,7 +386,7 @@ export default function PageHeader() {
                 className={cn(
                   "flex items-center gap-3 rounded-xl border border-transparent px-3.5 py-3 text-sm font-medium outline-none transition-all duration-200 focus-visible:ring-4 focus-visible:ring-brand/20",
                   item.active
-                    ? "border-brand/10 bg-[#f7faef] font-semibold text-ink shadow-[inset_3px_0_0_var(--color-brand)]"
+                    ? "border-brand/10 bg-brand-tint font-semibold text-brand-dark shadow-[inset_3px_0_0_var(--color-brand)]"
                     : "text-ink-secondary hover:bg-white/70 hover:text-ink",
                 )}
               >
@@ -332,7 +404,7 @@ export default function PageHeader() {
                   setMobileMenuOpen(false);
                   void handleLogout();
                 }}
-                className="mt-1 flex items-center gap-3 rounded-xl border border-transparent px-3.5 py-3 text-left text-sm font-medium text-ink-secondary transition-all duration-200 hover:bg-white/70 hover:text-ink"
+                className="premium-logout mt-1 flex items-center gap-3 rounded-xl border border-[#D8E2D3] bg-white/65 px-3.5 py-3 text-left text-sm font-semibold text-ink-secondary shadow-sm transition-all duration-200 hover:border-[#E6B2A8] hover:bg-[#FFF6F3] hover:text-emergency-red hover:shadow-[0_10px_20px_rgba(192,67,43,0.1)]"
               >
                 <span className="flex h-8 w-8 items-center justify-center text-ink-faint">
                   <MobileMenuIcon type="logout" />
@@ -344,6 +416,16 @@ export default function PageHeader() {
           </div>
         </>
       )}
-    </header>
+      </header>
+      </div>
+    </>
+  );
+}
+
+export default function PageHeader(props: { dashboardAlertCount?: number } = {}) {
+  return (
+    <Suspense fallback={null}>
+      <PageHeaderInner {...props} />
+    </Suspense>
   );
 }

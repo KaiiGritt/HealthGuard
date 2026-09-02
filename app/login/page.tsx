@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import AuthLayout from "../components/AuthLayout";
 import { IconEye, IconEyeOff } from "@/app/components/ui/icons";
+import { IconShield } from "@/app/components/ui/icons";
 import {
   AuthProField,
   ErrorAlert,
@@ -58,7 +59,17 @@ function LoginForm() {
         </>
       }
     >
-      <form onSubmit={handleSubmit} className={cn(authFormStackClass, "rounded-2xl border border-brand/10 bg-gradient-to-b from-white to-surface/80 p-4 shadow-[0_18px_40px_rgba(24,38,25,0.06)] sm:p-5")}>
+      <div className="mb-5 flex items-center gap-3 rounded-2xl border border-brand/15 bg-brand-tint/65 px-3.5 py-3 text-left">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand text-brand-foreground shadow-[0_6px_14px_rgba(47,107,79,0.18)]">
+          <IconShield size={17} />
+        </span>
+        <div className="min-w-0">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-brand-dark">Secure health workspace</p>
+          <p className="mt-0.5 text-xs text-ink-muted">Your account keeps assessments private.</p>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} className={cn(authFormStackClass, "rounded-2xl border border-brand/15 bg-gradient-to-b from-white via-white to-surface/80 p-4 shadow-[0_18px_40px_rgba(24,38,25,0.07)] ring-1 ring-white sm:p-5")}>
         <AuthProField
           id="email"
           label="Email address"
@@ -99,7 +110,7 @@ function LoginForm() {
 
         {error && <ErrorAlert>{error}</ErrorAlert>}
 
-        <button type="submit" disabled={submitting} className={cn(authSubmitClass, "mt-1")}>
+        <button type="submit" disabled={submitting} className={cn(authSubmitClass, "mt-1 shadow-[0_14px_28px_rgba(31,74,54,0.2)]")}>
           {submitting ? "Signing in…" : "Sign in"}
         </button>
       </form>

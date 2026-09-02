@@ -1,3 +1,5 @@
+import { IconPill, IconShield } from "@/app/components/ui/icons";
+
 interface MedicationInfo {
   drugName: string;
   dosage: string;
@@ -61,12 +63,12 @@ const buildGuidance = (riskLevel: string, detectedSymptoms: string[] = []): Medi
 
 function SectionBlock({ title, items }: { title: string; items: string[] }) {
   return (
-    <div className="rounded-md border border-border bg-card p-4 lg:p-5">
-      <h4 className="text-base font-semibold text-ink lg:text-lg">{title}</h4>
-      <ul className="mt-2 space-y-2 text-base text-ink-muted lg:text-lg">
+    <div className="rounded-2xl border border-[#E3E7DC] bg-[#FBFCF9] p-4 shadow-[0_6px_16px_rgba(24,38,25,0.035)] lg:p-5">
+      <h4 className="font-mono text-xs font-semibold uppercase tracking-[0.1em] text-ink-secondary lg:text-sm">{title}</h4>
+      <ul className="mt-3 space-y-2.5 text-sm leading-relaxed text-ink-secondary lg:text-base">
         {items.map((item) => (
           <li key={item} className="flex gap-2">
-            <span className="mt-0.5 text-brand">•</span>
+            <span className="mt-0.5 text-brand" aria-hidden="true">•</span>
             <span>{item}</span>
           </li>
         ))}
@@ -77,10 +79,15 @@ function SectionBlock({ title, items }: { title: string; items: string[] }) {
 
 function MedicationCard({ item }: { item: MedicationInfo }) {
   return (
-    <article className="rounded-md border border-border bg-card p-4 lg:p-5">
-      <p className="text-base font-semibold text-brand lg:text-xl">{item.drugName}</p>
-      <p className="mt-2 text-base text-ink-secondary lg:text-lg">{item.dosage}</p>
-      <p className="mt-3 text-base text-ink-muted lg:text-lg">{item.note}</p>
+    <article className="rounded-2xl border border-[#DDE7DB] bg-white p-4 shadow-[0_12px_28px_rgba(24,38,25,0.06)] lg:p-5">
+      <div className="flex items-start gap-3 rounded-2xl border border-brand/15 bg-brand-tint/55 p-4">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand text-brand-foreground shadow-sm"><IconPill size={18} /></span>
+        <div>
+          <p className="font-display text-lg font-semibold text-brand-dark lg:text-xl">{item.drugName}</p>
+          <p className="mt-1 text-sm leading-relaxed text-ink-secondary lg:text-base">{item.dosage}</p>
+        </div>
+      </div>
+      <p className="mt-4 rounded-xl border-l-2 border-brand/50 bg-surface-alt px-4 py-3 text-sm leading-relaxed text-ink-secondary lg:text-base">{item.note}</p>
       <div className="mt-4 grid gap-3 md:grid-cols-2">
         <SectionBlock title="Contraindications" items={item.contraindications} />
         <SectionBlock title="Side effects" items={item.sideEffects} />
@@ -104,14 +111,16 @@ export default function MedicationGuidanceCard({
   }
 
   return (
-    <section className="mt-6 rounded-md border border-triage-yellow/40 bg-yellow-tint p-5">
+    <section className="relative mt-6 overflow-hidden rounded-[24px] border border-[#E4C77C] bg-[linear-gradient(135deg,#FFFDF2_0%,#FFF8DC_58%,#FFF4C8_100%)] p-5 shadow-[0_16px_36px_rgba(151,105,22,0.1)] sm:p-6">
+      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#B87A18] via-[#E6B84F] to-[#F3D98D]" aria-hidden="true" />
       <div className="flex items-start gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-full border border-triage-yellow/30 bg-card text-brand">
-          <span className="font-mono text-sm lg:text-base">Rx</span>
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#DDB65B] bg-white/70 text-[#966719] shadow-sm">
+          <IconShield size={19} />
         </div>
         <div>
-          <h3 className="font-display text-xl text-ink lg:text-2xl">Pre-medication guidance</h3>
-          <p className="mt-1 text-base text-ink-muted lg:text-lg">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.13em] text-[#966719]">Use with care</p>
+          <h3 className="mt-1 font-display text-xl font-semibold text-ink lg:text-2xl">Pre-medication guidance</h3>
+          <p className="mt-1 text-sm leading-relaxed text-ink-secondary lg:text-base">
             Simple safety information for common over-the-counter medicines often used in the Philippines.
           </p>
         </div>
@@ -121,7 +130,7 @@ export default function MedicationGuidanceCard({
         <MedicationCard item={computedGuidance} />
       </div>
 
-      <p className="mt-4 text-sm leading-relaxed text-ink-faint lg:text-base">
+      <p className="mt-4 text-xs leading-relaxed text-ink-muted lg:text-sm">
         For medical advice, always check with a pharmacist, doctor, or qualified health worker before taking any medicine.
         This guide is not a substitute for a proper diagnosis.
       </p>

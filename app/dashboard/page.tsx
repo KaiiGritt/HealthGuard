@@ -12,15 +12,17 @@ import {
   HeroBanner,
   ListRow,
   PageMain,
-  Panel,
+  PremiumSelect,
   PrimaryButton,
   StatCard,
   TagBadge,
   Toast,
   TriageBadge,
 } from "@/app/components/ui/primitives";
-import { getDashboardSummary, getMe, getMhoLexicon, markLexiconReviewed, type AdminModuleLexiconEntry, type User } from "@/lib/api";
+import { getDashboardSummary, getMe, getMhoLexicon, markAssessmentHandled, markLexiconReviewed, type AdminModuleLexiconEntry, type User } from "@/lib/api";
+import { irosinBarangays } from "@/app/constants/irosinBarangays";
 import { openReportForPrinting } from "@/lib/report";
+import { IconClipboard } from "@/app/components/ui/icons";
 
 const SECTIONS = [
   { id: "overview", label: "Overview" },
@@ -82,11 +84,12 @@ function WidgetCard({
   return (
     <div
       className={cn(
-        "flex flex-col rounded-[24px] border border-[#e1e7dc] bg-white/95 shadow-[0_18px_40px_rgba(17,39,28,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_48px_rgba(17,39,28,0.08)]",
+        "relative flex flex-col overflow-hidden rounded-[24px] border bg-[linear-gradient(180deg,#FFFFFF_0%,#F7FAF4_100%)] shadow-[0_18px_40px_rgba(17,39,28,0.05)] backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-brand/20 hover:shadow-[0_24px_50px_rgba(31,74,54,0.08)]",
         urgent ? "border-red-200/80" : "border-[#e3e9df]",
       )}
     >
-      <div className="flex items-start justify-between gap-3 border-b border-border/70 px-5 py-4">
+      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" />
+      <div className="flex items-start justify-between gap-3 border-b border-border/70 px-5 py-5">
         <div className="flex items-start gap-3">
           <span
             className={cn(
@@ -103,7 +106,7 @@ function WidgetCard({
         </div>
         {action}
       </div>
-      <div className="flex-1 p-5">{children}</div>
+      <div className="flex-1 p-5 sm:p-6">{children}</div>
       {updated && (
         <div className="border-t border-border/60 px-5 py-2.5">
           <p className="font-mono text-[10px] uppercase tracking-wide text-ink-faint">Updated {updated}</p>
@@ -197,35 +200,80 @@ function SearchIcon() {
 function TrendSparkline({ data }: { data: DashboardState["weekly_trend"] }) {
   if (!data || data.length === 0) return null;
   const max = Math.max(...data.map((d) => d.count), 1);
-  const w = 160;
-  const h = 44;
-  const step = data.length > 1 ? w / (data.length - 1) : 0;
+  const w = 280;
+  const h = 72;
+  const padX = 8;
+  const padY = 10;
+  const chartW = w - padX * 2;
+  const chartH = h - padY * 2;
+  const step = data.length > 1 ? chartW / (data.length - 1) : 0;
   const points = data.map((d, i) => {
-    const x = i * step;
-    const y = h - (d.count / max) * (h - 6) - 3;
-    return { x, y };
+    const x = padX + i * step;
+    const y = padY + chartH - (d.count / max) * chartH;
+    return { x, y, ...d };
   });
-  const path = points.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+  const linePath = points.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+  const areaPath = `${linePath} L${points[points.length - 1].x.toFixed(1)},${(padY + chartH).toFixed(1)} L${points[0].x.toFixed(1)},${(padY + chartH).toFixed(1)} Z`;
   const last = data[data.length - 1];
   const prev = data.length > 1 ? data[data.length - 2] : null;
   const delta = prev ? last.count - prev.count : 0;
+  const weekTotal = data.reduce((sum, d) => sum + d.count, 0);
 
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-      <svg viewBox={`0 0 ${w} ${h}`} className="h-11 w-40 shrink-0 text-brand" preserveAspectRatio="none" aria-hidden="true">
-        <path d={path} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-        <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r={3} fill="currentColor" />
-      </svg>
-      <div>
-        <div className="flex items-baseline gap-2">
-          <p className="font-mono text-2xl font-semibold text-ink">{last.count}</p>
-          <p className="text-xs text-ink-muted">cases · {last.label}</p>
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-faint">Latest day</p>
+          <div className="mt-1 flex items-baseline gap-2">
+            <p className="font-mono text-3xl font-semibold tabular-nums text-ink">{last.count}</p>
+            <p className="text-sm text-ink-muted">cases · {last.label}</p>
+          </div>
+          {prev && (
+            <p className={`mt-1 text-xs font-medium ${delta > 0 ? "text-emergency-red" : delta < 0 ? "text-brand-dark" : "text-ink-muted"}`}>
+              {delta === 0 ? "No change vs. previous day" : `${delta > 0 ? "+" : ""}${delta} vs. previous day`}
+            </p>
+          )}
         </div>
-        {prev && (
-          <p className={`mt-0.5 text-xs font-medium ${delta > 0 ? "text-emergency-red" : delta < 0 ? "text-brand-dark" : "text-ink-muted"}`}>
-            {delta === 0 ? "No change" : `${delta > 0 ? "+" : ""}${delta} vs. previous week`}
-          </p>
-        )}
+        <div className="rounded-2xl border border-brand/15 bg-brand-tint/70 px-4 py-3 text-right">
+          <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-brand-dark/70">7-day total</p>
+          <p className="font-mono text-xl font-semibold text-brand-dark">{weekTotal}</p>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-[#E0E8DC] bg-[linear-gradient(180deg,#FAFCF8_0%,#F2F6EE_100%)] p-4">
+        <svg viewBox={`0 0 ${w} ${h}`} className="h-20 w-full text-brand" preserveAspectRatio="none" aria-hidden="true">
+          <defs>
+            <linearGradient id="trend-area-fill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="currentColor" stopOpacity="0.22" />
+              <stop offset="100%" stopColor="currentColor" stopOpacity="0.02" />
+            </linearGradient>
+          </defs>
+          {[0.25, 0.5, 0.75].map((ratio) => (
+            <line
+              key={ratio}
+              x1={padX}
+              x2={w - padX}
+              y1={padY + chartH * (1 - ratio)}
+              y2={padY + chartH * (1 - ratio)}
+              stroke="currentColor"
+              strokeOpacity={0.08}
+              strokeWidth={1}
+            />
+          ))}
+          <path d={areaPath} fill="url(#trend-area-fill)" />
+          <path d={linePath} fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+          {points.map((p) => (
+            <circle key={p.date} cx={p.x} cy={p.y} r={p === points[points.length - 1] ? 4 : 2.5} fill={p === points[points.length - 1] ? "currentColor" : "#ffffff"} stroke="currentColor" strokeWidth={1.5} />
+          ))}
+        </svg>
+        <div className="mt-3 grid grid-cols-7 gap-1">
+          {data.map((d) => (
+            <div key={d.date} className="text-center">
+              <p className="font-mono text-[10px] font-semibold text-ink">{d.count}</p>
+              <p className="text-[9px] uppercase tracking-[0.06em] text-ink-faint">{d.label}</p>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -275,81 +323,299 @@ function RiskBreakdownBar({
   );
 }
 
-function BarangayRanking({ data }: { data: DashboardState["barangay_stats"] }) {
-  const sorted = [...data].sort((a, b) => b.urgent - a.urgent || b.total - a.total);
-  const max = Math.max(...sorted.map((item) => item.total), 1);
+type BarangayData = DashboardState["barangay_stats"][number];
 
-  const getSeverity = (urgent: number, total: number) => {
-    if (urgent > 0 && total > 0) {
-      return { label: "High risk", tone: "text-emergency-red border-red-200 bg-red-50", bar: "bg-triage-red" };
-    }
-    if (total > 0) {
-      return { label: "Monitor", tone: "text-amber-700 border-yellow-200 bg-yellow-50", bar: "bg-triage-yellow" };
-    }
-    return { label: "Stable", tone: "text-emerald-700 border-emerald-200 bg-emerald-50", bar: "bg-triage-green" };
+function abbreviateBarangay(name: string) {
+  if (name.length <= 10) return name;
+  return name.replace("San ", "S. ").replace("Santo ", "St. ");
+}
+
+function getHeatCellStyle(urgent: number, followUp: number, total: number, maxUrgent: number) {
+  if (urgent > 0) {
+    const intensity = 0.42 + (urgent / maxUrgent) * 0.58;
+    return {
+      style: { backgroundColor: `rgba(192, 67, 43, ${intensity})` },
+      label: "High risk",
+      tone: "text-white",
+      ring: "ring-red-300/50",
+    };
+  }
+  if (followUp > 0) {
+    return {
+      style: { backgroundColor: "rgba(217, 138, 43, 0.62)" },
+      label: "Monitor",
+      tone: "text-ink",
+      ring: "ring-amber-300/50",
+    };
+  }
+  if (total > 0) {
+    return {
+      style: { backgroundColor: "rgba(62, 142, 65, 0.38)" },
+      label: "Stable",
+      tone: "text-ink",
+      ring: "ring-emerald-300/40",
+    };
+  }
+  return {
+    style: { backgroundColor: "rgba(232, 237, 228, 0.85)" },
+    label: "No activity",
+    tone: "text-ink-faint",
+    ring: "ring-border/70",
   };
+}
+
+function BarangayHeatMap({ data }: { data: BarangayData[] }) {
+  const [selected, setSelected] = useState<string | null>(null);
+  const statsByName = useMemo(() => {
+    const map = new Map<string, BarangayData>();
+    for (const item of data) map.set(item.barangay, item);
+    return map;
+  }, [data]);
+
+  const maxUrgent = Math.max(...data.map((item) => item.urgent), 1);
+  const activeCount = irosinBarangays.filter((name) => (statsByName.get(name)?.total ?? 0) > 0).length;
+  const criticalCount = data.filter((item) => item.urgent > 0).length;
+  const hotspots = [...data].filter((item) => item.urgent > 0 || item.total > 0).sort((a, b) => b.urgent - a.urgent || b.total - a.total).slice(0, 4);
+  const walkIn = statsByName.get("Unassigned / walk-in");
+  const focused = selected ? statsByName.get(selected) ?? null : hotspots[0] ?? null;
 
   return (
-    <div className="space-y-3">
-      {sorted.map((item, index) => {
-        const percentage = (item.total / max) * 100;
-        const severity = getSeverity(item.urgent, item.total);
+    <div className="space-y-5">
+      <div className="grid gap-3 sm:grid-cols-3">
+        {[
+          { label: "Barangays active", value: String(activeCount), hint: `of ${irosinBarangays.length} in Irosin` },
+          { label: "High-risk zones", value: String(criticalCount), hint: "Urgent cases recorded" },
+          { label: "Walk-in cases", value: String(walkIn?.total ?? 0), hint: "Unassigned location" },
+        ].map((item) => (
+          <div key={item.label} className="rounded-2xl border border-[#E0E8DC] bg-[linear-gradient(135deg,#FFFFFF_0%,#F4F8F1_100%)] px-4 py-3 shadow-[0_8px_20px_rgba(24,38,25,0.04)]">
+            <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint">{item.label}</p>
+            <p className="mt-1 font-mono text-2xl font-semibold text-ink">{item.value}</p>
+            <p className="mt-0.5 text-xs text-ink-muted">{item.hint}</p>
+          </div>
+        ))}
+      </div>
 
+      <div className="grid gap-5 xl:grid-cols-[1.35fr_0.65fr]">
+        <div className="rounded-[22px] border border-[#DDE7DB] bg-[linear-gradient(180deg,#FAFCF8_0%,#EEF4EA_100%)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-brand-dark">Irosin municipality</p>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { color: "bg-triage-red", label: "Urgent" },
+                { color: "bg-triage-yellow", label: "Monitor" },
+                { color: "bg-triage-green", label: "Stable" },
+                { color: "bg-slate-200", label: "None" },
+              ].map((item) => (
+                <span key={item.label} className="inline-flex items-center gap-1.5 rounded-full border border-white/80 bg-white/80 px-2 py-1 text-[10px] font-medium text-ink-muted">
+                  <span className={`h-2 w-2 rounded-full ${item.color}`} />
+                  {item.label}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+            {irosinBarangays.map((name) => {
+              const stat = statsByName.get(name) ?? { barangay: name, total: 0, urgent: 0, follow_up: 0 };
+              const heat = getHeatCellStyle(stat.urgent, stat.follow_up, stat.total, maxUrgent);
+              const isSelected = selected === name;
+              return (
+                <button
+                  key={name}
+                  type="button"
+                  onClick={() => setSelected(name)}
+                  title={`${name}: ${stat.total} total, ${stat.urgent} urgent, ${stat.follow_up} follow-up`}
+                  className={cn(
+                    "group relative min-h-[68px] rounded-xl border px-2 py-2 text-left shadow-[0_6px_16px_rgba(24,38,25,0.06)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_22px_rgba(24,38,25,0.1)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/20",
+                    heat.ring,
+                    isSelected && "ring-2 ring-brand-dark/40",
+                    stat.urgent > 0 && "animate-[pulse_3s_ease-in-out_infinite]",
+                  )}
+                  style={heat.style}
+                >
+                  <p className={cn("truncate text-[11px] font-semibold leading-tight", heat.tone)}>{abbreviateBarangay(name)}</p>
+                  <p className={cn("mt-1 font-mono text-sm font-bold tabular-nums", heat.tone)}>{stat.total > 0 ? stat.total : "—"}</p>
+                  {stat.urgent > 0 && (
+                    <span className="absolute right-1.5 top-1.5 flex h-2 w-2">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white/70" />
+                      <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div className="rounded-[22px] border border-[#E0E8DC] bg-white p-4 shadow-[0_10px_24px_rgba(24,38,25,0.05)]">
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-faint">Selected barangay</p>
+            {focused ? (
+              <div className="mt-3 space-y-3">
+                <div>
+                  <p className="font-display text-lg font-semibold text-ink">{focused.barangay}</p>
+                  <p className="text-xs text-ink-muted">{getHeatCellStyle(focused.urgent, focused.follow_up, focused.total, maxUrgent).label}</p>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="rounded-xl bg-slate-50 px-2 py-2 text-center">
+                    <p className="font-mono text-lg font-semibold text-ink">{focused.total}</p>
+                    <p className="text-[10px] uppercase tracking-[0.08em] text-ink-faint">Total</p>
+                  </div>
+                  <div className="rounded-xl bg-red-50 px-2 py-2 text-center">
+                    <p className="font-mono text-lg font-semibold text-emergency-red">{focused.urgent}</p>
+                    <p className="text-[10px] uppercase tracking-[0.08em] text-emergency-red/80">Urgent</p>
+                  </div>
+                  <div className="rounded-xl bg-amber-50 px-2 py-2 text-center">
+                    <p className="font-mono text-lg font-semibold text-amber-700">{focused.follow_up}</p>
+                    <p className="text-[10px] uppercase tracking-[0.08em] text-amber-700/80">Follow-up</p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="mt-3 text-sm text-ink-muted">Tap a barangay tile to inspect local activity.</p>
+            )}
+          </div>
+
+          <div className="rounded-[22px] border border-[#E0E8DC] bg-[linear-gradient(180deg,#FFF8F6_0%,#FFFFFF_100%)] p-4">
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-emergency-red">Priority hotspots</p>
+            <div className="mt-3 space-y-2">
+              {hotspots.length > 0 ? hotspots.map((item, index) => (
+                <button
+                  key={item.barangay}
+                  type="button"
+                  onClick={() => setSelected(item.barangay)}
+                  className="flex w-full items-center justify-between gap-3 rounded-xl border border-red-100 bg-white/80 px-3 py-2.5 text-left transition hover:border-red-200 hover:bg-white"
+                >
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-red-50 font-mono text-xs font-bold text-emergency-red">{index + 1}</span>
+                    <span className="truncate text-sm font-medium text-ink">{item.barangay}</span>
+                  </div>
+                  <span className="shrink-0 font-mono text-xs font-semibold text-emergency-red">{item.urgent} urgent</span>
+                </button>
+              )) : (
+                <p className="text-sm text-ink-muted">No urgent barangay clusters right now.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BarangayCoverageBars({ data, maxCases }: { data: BarangayData[]; maxCases: number }) {
+  if (data.length === 0) {
+    return <p className="rounded-md border border-dashed border-border bg-surface p-5 text-sm text-ink-muted">No barangay data available.</p>;
+  }
+
+  return (
+    <div className="space-y-4">
+      {data.map((item) => {
+        const otherCases = Math.max(item.total - item.urgent - item.follow_up, 0);
+        const width = `${Math.max((item.total / maxCases) * 100, 6)}%`;
         return (
-          <div
-            key={item.barangay}
-            className="rounded-[20px] border border-[#e4e9df] bg-[linear-gradient(180deg,#ffffff_0%,#f9faf5_100%)] p-3 shadow-[0_12px_28px_rgba(15,23,42,0.04)]"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand/10 font-mono text-xs font-bold text-brand-dark">
-                  {index + 1}
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate font-medium text-ink">{item.barangay}</p>
-                  <p className="text-[11px] uppercase tracking-[0.08em] text-ink-faint">
-                    {item.total} total • {item.follow_up} follow-up
-                  </p>
-                </div>
-              </div>
-
-              <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] ${severity.tone}`}>
-                {severity.label}
-              </span>
+          <div key={item.barangay} className="rounded-2xl border border-[#E4EBDD] bg-[linear-gradient(135deg,#FFFFFF_0%,#F7FAF4_100%)] p-4 shadow-[0_8px_20px_rgba(24,38,25,0.04)] transition duration-200 hover:border-brand/20 hover:shadow-[0_12px_28px_rgba(24,38,25,0.07)]">
+            <div className="flex items-center justify-between gap-4 text-sm">
+              <span className="font-medium text-ink">{item.barangay}</span>
+              <span className="shrink-0 font-mono text-xs text-ink-muted">{item.total} total</span>
             </div>
-
-            <div className="mt-3">
-              <div className="mb-1.5 flex items-center justify-between text-[11px] uppercase tracking-[0.08em] text-ink-faint">
-                <span>Coverage</span>
-                <span>{Math.round(percentage)}%</span>
-              </div>
-              <div className="relative h-3 overflow-hidden rounded-full bg-slate-100">
-                <div className="absolute inset-0 bg-gradient-to-r from-brand/10 via-brand/5 to-transparent" />
-                <div
-                  className={`relative h-full rounded-full ${severity.bar} transition-all duration-500`}
-                  style={{ width: `${Math.max(percentage, 8)}%` }}
-                />
-              </div>
+            <div
+              className="mt-3 flex h-6 overflow-hidden rounded-full border border-white/80 bg-slate-100 shadow-inner transition-all duration-500"
+              style={{ width }}
+              aria-label={`${item.barangay}: ${item.total} total cases, ${item.urgent} urgent, ${item.follow_up} follow-up`}
+            >
+              {item.urgent > 0 ? <span className="h-full bg-triage-red" style={{ width: `${(item.urgent / item.total) * 100}%` }} /> : null}
+              {item.follow_up > 0 ? <span className="h-full bg-triage-yellow" style={{ width: `${(item.follow_up / item.total) * 100}%` }} /> : null}
+              {otherCases > 0 ? <span className="h-full bg-triage-green" style={{ width: `${(otherCases / item.total) * 100}%` }} /> : null}
             </div>
-
-            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-xl bg-slate-50 px-2 py-2">
-                <div className="font-mono text-base font-semibold text-ink">{item.total}</div>
-                <div className="text-[10px] uppercase tracking-[0.08em] text-ink-faint">Total</div>
-              </div>
-              <div className="rounded-xl bg-red-50 px-2 py-2">
-                <div className="font-mono text-base font-semibold text-emergency-red">{item.urgent}</div>
-                <div className="text-[10px] uppercase tracking-[0.08em] text-emergency-red/80">Urgent</div>
-              </div>
-              <div className="rounded-xl bg-amber-50 px-2 py-2">
-                <div className="font-mono text-base font-semibold text-amber-700">{item.follow_up}</div>
-                <div className="text-[10px] uppercase tracking-[0.08em] text-amber-700/80">Follow-up</div>
-              </div>
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-muted">
+              <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-triage-red" />{item.urgent} urgent</span>
+              <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-triage-yellow" />{item.follow_up} follow-up</span>
+              <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-triage-green" />{otherCases} routine</span>
             </div>
           </div>
         );
       })}
     </div>
+  );
+}
+
+function statCardAccent(label: string): "brand" | "urgent" | "watch" | "neutral" {
+  if (label.toLowerCase().includes("urgent")) return "urgent";
+  if (label.toLowerCase().includes("week")) return "watch";
+  if (label.toLowerCase().includes("today")) return "brand";
+  return "neutral";
+}
+
+function statCardIcon(label: string): keyof typeof widgetIcons {
+  if (label.toLowerCase().includes("urgent")) return "alert";
+  if (label.toLowerCase().includes("week")) return "trend";
+  if (label.toLowerCase().includes("today")) return "list";
+  return "pie";
+}
+
+const SECTION_HINTS: Record<SectionId, string> = {
+  overview: "Priority queue & live signals",
+  records: "Search and review cases",
+  analytics: "Trends & symptom patterns",
+  reports: "Coverage & operational insights",
+};
+
+function SectionNav({
+  activeSection,
+  onSelect,
+  urgentCount,
+  pendingLexicon,
+}: {
+  activeSection: SectionId;
+  onSelect: (id: SectionId) => void;
+  urgentCount: number;
+  pendingLexicon: number;
+}) {
+  return (
+    <aside className="mho-section-nav relative overflow-hidden rounded-[24px] border border-[#D7E0D2] p-4 shadow-[0_18px_40px_rgba(15,23,42,0.05)] md:sticky md:top-24 md:p-5">
+      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" />
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-ink-muted">Workspace</p>
+        <span className="mho-status-pill mho-status-pill--live hidden sm:inline-flex">Live</span>
+      </div>
+      <nav className="mt-4 space-y-2" role="tablist" aria-label="Dashboard sections">
+        {SECTIONS.map((section, index) => {
+          const isActive = activeSection === section.id;
+          const badge = section.id === "records" ? urgentCount : section.id === "overview" ? pendingLexicon : 0;
+          return (
+            <button
+              key={section.id}
+              type="button"
+              role="tab"
+              id={`tab-${section.id}`}
+              aria-selected={isActive}
+              aria-controls={`panel-${section.id}`}
+              onClick={() => onSelect(section.id)}
+              className={cn(
+                "flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-3 text-left text-sm font-semibold transition duration-200",
+                isActive
+                  ? "border-brand/30 bg-brand/10 text-brand-dark shadow-[inset_3px_0_0_var(--color-brand)]"
+                  : "border-transparent text-ink-secondary hover:border-border hover:bg-white/70 hover:text-ink",
+              )}
+            >
+              <span className="min-w-0">
+                <span className="block">{section.label}</span>
+                <span className="mt-0.5 block text-[11px] font-normal text-ink-muted">{SECTION_HINTS[section.id]}</span>
+              </span>
+              <span className="flex shrink-0 items-center gap-2">
+                {badge > 0 ? (
+                  <span className={cn("rounded-full px-2 py-0.5 font-mono text-[10px] font-bold", section.id === "records" ? "bg-triage-red text-white" : "bg-brand/15 text-brand-dark")}>
+                    {badge}
+                  </span>
+                ) : null}
+                <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-faint">0{index + 1}</span>
+              </span>
+            </button>
+          );
+        })}
+      </nav>
+    </aside>
   );
 }
 
@@ -365,14 +631,14 @@ function FilterChips({
       <button
         type="button"
         onClick={onUrgentOnly}
-        className="rounded-sm border border-red-200 bg-red-tint px-3 py-2 text-sm font-medium text-emergency-red transition hover:bg-red-100"
+        className="rounded-xl border border-red-200/80 bg-[linear-gradient(180deg,#FFF8F6_0%,#FDECEA_100%)] px-3.5 py-2 text-sm font-semibold text-emergency-red shadow-[0_6px_16px_rgba(192,67,43,0.08)] transition hover:-translate-y-0.5 hover:border-red-300"
       >
         Urgent only
       </button>
       <button
         type="button"
         onClick={onClear}
-        className="rounded-sm border border-border bg-white px-3 py-2 text-sm font-medium text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark"
+        className="rounded-xl border border-[#DDE7DB] bg-white px-3.5 py-2 text-sm font-semibold text-ink-secondary shadow-[0_6px_16px_rgba(24,38,25,0.04)] transition hover:-translate-y-0.5 hover:border-brand/35 hover:text-brand-dark"
       >
         Clear filters
       </button>
@@ -403,27 +669,9 @@ function FilterToolbar({
 }) {
   return (
     <div className="mb-4 space-y-3">
-      <div className="grid gap-3 sm:grid-cols-3">
-        <select
-          value={riskFilter}
-          onChange={(event) => setRiskFilter(event.target.value)}
-          className="min-h-11 rounded-sm border border-border bg-surface px-3 text-sm text-ink"
-        >
-          <option value="all">All risk levels</option>
-          <option value="GREEN">Green</option>
-          <option value="YELLOW">Yellow</option>
-          <option value="RED">Red</option>
-        </select>
-        <select
-          value={barangayFilter}
-          onChange={(event) => setBarangayFilter(event.target.value)}
-          className="min-h-11 rounded-sm border border-border bg-surface px-3 text-sm text-ink"
-        >
-          <option value="all">All barangays</option>
-          {barangayOptions.map((barangay) => (
-            <option key={barangay} value={barangay}>{barangay}</option>
-          ))}
-        </select>
+      <div className="grid gap-3 rounded-[22px] border border-[#E4EBDD] bg-[linear-gradient(180deg,#FAFCF8_0%,#F2F6EE_100%)] p-4 sm:grid-cols-3">
+        <PremiumSelect value={riskFilter} onChange={setRiskFilter} ariaLabel="Filter assessments by risk level" options={[{ value: "all", label: "All risk levels" }, { value: "GREEN", label: "Green" }, { value: "YELLOW", label: "Yellow" }, { value: "RED", label: "Red" }]} />
+        <PremiumSelect value={barangayFilter} onChange={setBarangayFilter} ariaLabel="Filter assessments by barangay" options={[{ value: "all", label: "All barangays" }, ...barangayOptions.map((barangay) => ({ value: barangay, label: barangay }))]} />
         <div className="relative">
           <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint">
             <SearchIcon />
@@ -432,7 +680,7 @@ function FilterToolbar({
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
             placeholder="Search resident or note"
-            className="min-h-11 w-full rounded-sm border border-border bg-surface px-3 pl-9 text-sm text-ink outline-none transition focus:border-brand"
+            className="min-h-11 w-full rounded-xl border border-[#D8E2D3] bg-white px-3 pl-9 text-sm text-ink shadow-[0_4px_12px_rgba(24,38,25,0.04)] outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10"
           />
         </div>
       </div>
@@ -453,18 +701,18 @@ function DashboardPageContent() {
   const [stats, setStats] = useState<DashboardState | null>(null);
   const [lexiconEntries, setLexiconEntries] = useState<AdminModuleLexiconEntry[]>([]);
   const [reviewingLexicon, setReviewingLexicon] = useState<number | null>(null);
+  const [handlingCase, setHandlingCase] = useState<number | null>(null);
   const [riskFilter, setRiskFilter] = useState("all");
   const [barangayFilter, setBarangayFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeSection, setActiveSectionState] = useState<SectionId>(
-    (searchParams.get("section") as SectionId) || "overview",
-  );
+  const requestedSection = searchParams.get("section") as SectionId | null;
+  const activeSection: SectionId = requestedSection && SECTIONS.some((section) => section.id === requestedSection)
+    ? requestedSection
+    : "overview";
   const [selectedAssessmentId, setSelectedAssessmentId] = useState<number | null>(null);
   const [toast, setToast] = useState<{ message: string; tone: "success" | "error" } | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-
   function setActiveSection(id: SectionId) {
-    setActiveSectionState(id);
     const params = new URLSearchParams(searchParams.toString());
     if (id === "overview") {
       params.delete("section");
@@ -561,9 +809,38 @@ function DashboardPageContent() {
     }
   }
 
+  async function markCaseHandled(id: number) {
+    setHandlingCase(id);
+    try {
+      const updated = await markAssessmentHandled(id);
+      setStats((prev) => {
+        if (!prev) return prev;
+        const wasActiveRed = prev.recent_assessments.some(
+          (item) => item.id === id && (item.risk_level || "").toUpperCase() === "RED" && !item.handled,
+        );
+        const recent_assessments = prev.recent_assessments.map((item) => (item.id === id ? updated : item));
+        const summary_cards = prev.summary_cards.map((card) =>
+          card.label === "Urgent alerts" && wasActiveRed
+            ? { ...card, value: String(Math.max(0, Number(card.value) - 1)) }
+            : card,
+        );
+        return { ...prev, recent_assessments, summary_cards };
+      });
+      setToast({ message: "Case marked as handled.", tone: "success" });
+    } catch {
+      setToast({ message: "Could not mark case as handled.", tone: "error" });
+    } finally {
+      setHandlingCase(null);
+    }
+  }
+
   const redCases = useMemo(
     () => (stats?.recent_assessments ?? []).filter((item) => (item.risk_level || "").toUpperCase() === "RED"),
     [stats],
+  );
+  const activeRedCases = useMemo(
+    () => redCases.filter((item) => !item.handled),
+    [redCases],
   );
   const barangayOptions = useMemo(
     () => Array.from(new Set((stats?.recent_assessments ?? []).map((item) => item.barangay).filter(Boolean))) as string[],
@@ -623,7 +900,14 @@ function DashboardPageContent() {
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {stats?.summary_cards.map((card) => (
-          <StatCard key={card.label} label={card.label} value={card.value} hint={card.hint} />
+          <StatCard
+            key={card.label}
+            label={card.label}
+            value={card.value}
+            hint={card.hint}
+            accent={statCardAccent(card.label)}
+            icon={<WidgetIcon path={widgetIcons[statCardIcon(card.label)]} />}
+          />
         ))}
       </section>
 
@@ -632,24 +916,24 @@ function DashboardPageContent() {
           reference's "widest card leads" pattern, but content priority is
           flipped to match what actually matters here. */}
       <section className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
-        <div className="flex flex-col rounded-xl border-0 bg-red-tint shadow-sm transition-shadow hover:shadow-md">
-          <div className="flex items-start justify-between gap-3 border-b border-red-200 px-5 py-4">
+        <div className="relative flex flex-col overflow-hidden rounded-[24px] border border-[#F0D5CF] bg-[linear-gradient(180deg,#FFF8F6_0%,#FDECEA_100%)] shadow-[0_18px_40px_rgba(192,67,43,0.08)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_24px_48px_rgba(192,67,43,0.12)]">
+          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#8E2F24] via-[#C0432B] to-[#E7A08F]" aria-hidden="true" />
+          <div className="flex items-start justify-between gap-3 border-b border-red-200/80 px-5 py-5">
             <div className="flex items-start gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-triage-red/10 text-emergency-red">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-red-200/80 bg-white text-emergency-red shadow-sm">
                 <WidgetIcon path={widgetIcons.alert} />
               </span>
               <div>
-                <h3 className="font-display text-lg font-semibold text-emergency-red lg:text-xl">{redCases.length > 0 ? "Urgent Cases Requiring Attention" : "Needs attention"}</h3>
+                <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-emergency-red">Priority queue</p>
+                <h3 className="mt-1 font-display text-lg font-semibold text-ink lg:text-xl">{activeRedCases.length > 0 ? "Urgent cases" : "Needs attention"}</h3>
                 <p className="mt-0.5 text-xs text-ink-muted">Red-level cases that require follow-up now</p>
               </div>
             </div>
-            <span className="font-mono text-3xl font-bold text-emergency-red">
-              {redCases.length}
-            </span>
+            <span className="flex min-w-10 items-center justify-center rounded-xl border border-red-200/80 bg-white px-2.5 py-1.5 font-mono text-2xl font-bold text-emergency-red shadow-sm">{activeRedCases.length}</span>
           </div>
           <div className="flex-1 space-y-3 p-5">
-            {redCases.length > 0 ? (
-              redCases.slice(0, 3).map((item, idx) => (
+            {activeRedCases.length > 0 ? (
+              activeRedCases.slice(0, 3).map((item, idx) => (
                 <ListRow
                   key={item.id}
                   className="relative flex flex-col gap-3 overflow-hidden border-l-4 border-l-triage-red pl-4 shadow-sm lg:flex-row lg:items-center lg:justify-between"
@@ -693,6 +977,14 @@ function DashboardPageContent() {
                     <p className="mt-3 text-xs text-ink-muted">
                       Recorded {new Date(item.created_at).toLocaleString()}
                     </p>
+                    <button
+                      type="button"
+                      onClick={() => markCaseHandled(item.id)}
+                      disabled={handlingCase === item.id}
+                      className="mt-3 inline-flex min-h-9 items-center rounded-xl border border-brand/25 bg-white px-3 py-2 text-xs font-semibold text-brand-dark transition hover:-translate-y-0.5 hover:border-brand/45 hover:bg-brand-tint hover:shadow-[0_8px_18px_rgba(47,107,79,0.1)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {handlingCase === item.id ? "Saving..." : "Mark as handled"}
+                    </button>
                   </div>
                 </ListRow>
               ))
@@ -751,8 +1043,8 @@ function DashboardPageContent() {
           )}
         </WidgetCard>
 
-        <WidgetCard icon="map" title="Barangay heat map" subtitle="Urgency snapshot by location" updated={updatedLabel}>
-          <BarangayRanking data={barangayStats} />
+        <WidgetCard icon="map" title="Barangay heat map" subtitle="Live urgency grid across Irosin" updated={updatedLabel}>
+          <BarangayHeatMap data={barangayStats} />
         </WidgetCard>
       </section>
 
@@ -907,42 +1199,11 @@ function DashboardPageContent() {
         )}
       </WidgetCard>
 
-      <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <WidgetCard icon="map" title="Barangay coverage" subtitle="Geographic view" updated={updatedLabel}>
-          <div className="space-y-5">
-            {barangayStats.length > 0 ? barangayStats.map((item) => {
-              const otherCases = Math.max(item.total - item.urgent - item.follow_up, 0);
-              const width = `${Math.max((item.total / maxBarangayCases) * 100, 4)}%`;
-              return (
-                <div key={item.barangay}>
-                  <div className="flex items-center justify-between gap-4 text-sm">
-                    <span className="font-medium text-ink">{item.barangay}</span>
-                    <span className="shrink-0 font-mono text-xs text-ink-muted">{item.total} total</span>
-                  </div>
-                  <div
-                    className="mt-2 h-5 overflow-hidden rounded-sm bg-surface transition-all duration-500"
-                    style={{ width }}
-                    aria-label={`${item.barangay}: ${item.total} total cases, ${item.urgent} urgent, ${item.follow_up} follow-up`}
-                  >
-                    {item.urgent > 0 ? <span className="inline-block h-full bg-triage-red" style={{ width: `${(item.urgent / item.total) * 100}%` }} /> : null}
-                    {item.follow_up > 0 ? <span className="inline-block h-full bg-triage-yellow" style={{ width: `${(item.follow_up / item.total) * 100}%` }} /> : null}
-                    {otherCases > 0 ? <span className="inline-block h-full bg-triage-green" style={{ width: `${(otherCases / item.total) * 100}%` }} /> : null}
-                  </div>
-                  <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-muted">
-                    <span>{item.urgent} urgent</span>
-                    <span>{item.follow_up} follow-up</span>
-                    <span>{otherCases} routine</span>
-                  </div>
-                </div>
-              );
-            }) : <p className="rounded-md border border-dashed border-border bg-surface p-5 text-sm text-ink-muted">No barangay data available.</p>}
-          </div>
-        </WidgetCard>
-
-        <WidgetCard 
-          icon="bulb" 
-          title="Operational insights" 
-          subtitle="Top 2 live insights"
+      <section className="grid gap-6">
+        <WidgetCard
+          icon="bulb"
+          title="Operational insights"
+          subtitle="Live recommendations for your shift"
           updated={updatedLabel}
           action={
             <Link
@@ -957,9 +1218,9 @@ function DashboardPageContent() {
             </Link>
           }
         >
-          <div className="space-y-3">
-            {stats?.insights.slice(0, 2).map((insight) => (
-              <ListRow key={insight.title} className="space-y-2">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {stats?.insights.slice(0, 3).map((insight) => (
+              <ListRow key={insight.title} className="h-full space-y-2 border-[#E0E8DC] bg-white/80">
                 <div className="flex items-center justify-between gap-3">
                   <p className="font-medium text-ink">{insight.title}</p>
                   <TagBadge tone={insight.tone === "urgent" ? "staff" : insight.tone === "watch" ? "neutral" : "brand"}>
@@ -976,108 +1237,115 @@ function DashboardPageContent() {
   );
 
   const renderAssessmentRecords = () => (
-    <Panel title="Assessment records" badge={<TagBadge tone="neutral">Live list</TagBadge>}>
-      <FilterToolbar
-        riskFilter={riskFilter}
-        setRiskFilter={setRiskFilter}
-        barangayFilter={barangayFilter}
-        setBarangayFilter={setBarangayFilter}
-        barangayOptions={barangayOptions}
-        searchTerm={searchTerm}
-        setSearchTerm={setSearchTerm}
-        onUrgentOnly={applyUrgentOnly}
-        onClear={clearFilters}
-      />
-      <div className="space-y-3">
-        {filteredAssessments.length > 0 ? (
-          filteredAssessments.slice(0, 8).map((item) => (
-            <ListRow key={item.id} className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="font-medium text-ink">{item.resident_name}</p>
-                  <TriageBadge level={item.risk_level} />
-                  <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-muted">{item.barangay ?? "Unknown"}</span>
+    <div className="space-y-6">
+      <WidgetCard
+        icon="list"
+        title="Assessment records"
+        subtitle={`${filteredAssessments.length} case${filteredAssessments.length === 1 ? "" : "s"} match your filters`}
+        action={<TagBadge tone="neutral">Live list</TagBadge>}
+      >
+        <FilterToolbar
+          riskFilter={riskFilter}
+          setRiskFilter={setRiskFilter}
+          barangayFilter={barangayFilter}
+          setBarangayFilter={setBarangayFilter}
+          barangayOptions={barangayOptions}
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          onUrgentOnly={applyUrgentOnly}
+          onClear={clearFilters}
+        />
+        <div className="space-y-3">
+          {filteredAssessments.length > 0 ? (
+            filteredAssessments.slice(0, 12).map((item) => (
+              <ListRow
+                key={item.id}
+                className={cn(
+                  "mho-assessment-card flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between",
+                  (item.risk_level || "").toUpperCase() === "RED" && !item.handled && "border-l-4 border-l-triage-red",
+                )}
+              >
+                <div className="flex min-w-0 flex-1 items-start gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-brand/15 bg-white font-display text-lg font-semibold text-brand-dark shadow-sm">
+                    {item.resident_name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-semibold text-ink">{item.resident_name}</p>
+                      <TriageBadge level={item.risk_level} />
+                      {item.handled ? (
+                        <span className="rounded-full border border-brand/20 bg-brand-tint px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-brand-dark">Handled</span>
+                      ) : null}
+                      <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-muted">{item.barangay ?? "Unknown"}</span>
+                    </div>
+                    <p className="mt-2 text-sm leading-relaxed text-ink-secondary">{item.note}</p>
+                    <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint">
+                      #{item.id} · {new Date(item.created_at).toLocaleString()}
+                    </p>
+                  </div>
                 </div>
-                <p className="mt-2 text-sm text-ink-secondary">{item.note}</p>
-                <p className="mt-2 text-xs text-ink-muted">{new Date(item.created_at).toLocaleString()}</p>
-              </div>
-              <Link href={`/result/${item.id}`} className="inline-flex min-h-11 items-center justify-center rounded-sm border border-border px-3 text-sm font-medium text-brand-dark hover:bg-brand-tint">Open</Link>
-            </ListRow>
-          ))
-        ) : (
-          <p className="rounded-md border border-dashed border-border bg-surface p-5 text-sm text-ink-muted">No assessment records match the selected filters.</p>
-        )}
-      </div>
-    </Panel>
+                <Link
+                  href={`/result/${item.id}`}
+                  className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-brand/25 bg-white px-4 text-sm font-semibold text-brand-dark shadow-[0_6px_16px_rgba(24,38,25,0.05)] transition hover:border-brand/45 hover:bg-brand-tint"
+                >
+                  Open record
+                </Link>
+              </ListRow>
+            ))
+          ) : (
+            <p className="rounded-2xl border border-dashed border-border bg-surface p-8 text-center text-sm text-ink-muted">No assessment records match the selected filters.</p>
+          )}
+        </div>
+      </WidgetCard>
+    </div>
   );
 
   const renderAnalytics = () => (
     <div className="space-y-6">
-      <Panel title="Risk distribution" subtitle="Current triage breakdown">
-        <RiskBreakdownBar green={greenBreakdown} yellow={yellowBreakdown} red={redBreakdown} />
-      </Panel>
-      {stats && stats.weekly_trend.length > 0 && (
-        <Panel title="Case volume trend" subtitle="Last 7 days">
-          <TrendSparkline data={stats.weekly_trend} />
-        </Panel>
-      )}
-      <Panel title="Symptom frequency" badge={<TagBadge>Current patterns</TagBadge>}>
+      <section className="grid gap-6 xl:grid-cols-2">
+        <WidgetCard icon="pie" title="Risk distribution" subtitle="Current triage breakdown" updated={updatedLabel}>
+          <RiskBreakdownBar green={greenBreakdown} yellow={yellowBreakdown} red={redBreakdown} />
+        </WidgetCard>
+        {stats && stats.weekly_trend.length > 0 ? (
+          <WidgetCard icon="trend" title="Case volume trend" subtitle="Last 7 days" updated={updatedLabel}>
+            <TrendSparkline data={stats.weekly_trend} />
+          </WidgetCard>
+        ) : null}
+      </section>
+      <WidgetCard icon="list" title="Symptom frequency" subtitle="Most reported patterns" updated={updatedLabel} action={<TagBadge>Current patterns</TagBadge>}>
         <div className="space-y-4">
-          {(stats?.top_symptoms.length ? stats.top_symptoms : [{ symptom: "No data available", count: 0 }]).slice(0, 5).map((item) => (
-            <div key={item.symptom}>
-              <div className="mb-1.5 flex items-center justify-between text-sm text-ink-secondary">
-                <span>{item.symptom}</span>
-                <span className="font-medium text-ink">{item.count}</span>
+          {(stats?.top_symptoms.length ? stats.top_symptoms : [{ symptom: "No data available", count: 0 }]).slice(0, 8).map((item, index) => {
+            const maxCount = Math.max(...(stats?.top_symptoms ?? []).map((s) => s.count), 1);
+            const percentage = maxCount > 0 ? (item.count / maxCount) * 100 : 0;
+            return (
+              <div key={item.symptom} className="rounded-2xl border border-[#E4EBDD] bg-[linear-gradient(135deg,#FFFFFF_0%,#F7FAF4_100%)] p-4 shadow-[0_8px_20px_rgba(24,38,25,0.04)]">
+                <div className="mb-2 flex items-center justify-between gap-3 text-sm">
+                  <span className="flex items-center gap-3 font-medium text-ink">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand/10 font-mono text-xs font-bold text-brand-dark">{index + 1}</span>
+                    {item.symptom}
+                  </span>
+                  <span className="font-mono text-sm font-semibold text-brand-dark">{item.count}</span>
+                </div>
+                <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
+                  <div className="h-full rounded-full bg-brand transition-all duration-500" style={{ width: `${Math.max(percentage, item.count > 0 ? 8 : 0)}%` }} />
+                </div>
               </div>
-              <div className="h-2.5 rounded-full bg-surface">
-                <div
-                  className="h-2.5 rounded-full bg-brand transition-all duration-500"
-                  style={{ width: `${Math.min(Math.max((item.count || 0) * 18, 10), 100)}%` }}
-                />
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
-      </Panel>
+      </WidgetCard>
     </div>
   );
 
   const renderReports = () => (
     <div className="space-y-6">
-      <Panel title="Barangay coverage" badge={<TagBadge tone="neutral">Geographic view</TagBadge>}>
-        <div className="space-y-5">
-          {barangayStats.length > 0 ? barangayStats.map((item) => {
-            const otherCases = Math.max(item.total - item.urgent - item.follow_up, 0);
-            const width = `${Math.max((item.total / maxBarangayCases) * 100, 4)}%`;
-            return (
-              <div key={item.barangay}>
-                <div className="flex items-center justify-between gap-4 text-sm">
-                  <span className="font-medium text-ink">{item.barangay}</span>
-                  <span className="shrink-0 font-mono text-xs text-ink-muted">{item.total} total</span>
-                </div>
-                <div
-                  className="mt-2 h-5 overflow-hidden rounded-sm bg-surface transition-all duration-500"
-                  style={{ width }}
-                  aria-label={`${item.barangay}: ${item.total} total cases, ${item.urgent} urgent, ${item.follow_up} follow-up`}
-                >
-                  {item.urgent > 0 ? <span className="inline-block h-full bg-triage-red" style={{ width: `${(item.urgent / item.total) * 100}%` }} /> : null}
-                  {item.follow_up > 0 ? <span className="inline-block h-full bg-triage-yellow" style={{ width: `${(item.follow_up / item.total) * 100}%` }} /> : null}
-                  {otherCases > 0 ? <span className="inline-block h-full bg-triage-green" style={{ width: `${(otherCases / item.total) * 100}%` }} /> : null}
-                </div>
-                <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-muted">
-                  <span>{item.urgent} urgent</span>
-                  <span>{item.follow_up} follow-up</span>
-                  <span>{otherCases} routine</span>
-                </div>
-              </div>
-            );
-          }) : <p className="rounded-md border border-dashed border-border bg-surface p-5 text-sm text-ink-muted">No barangay data available.</p>}
-        </div>
-      </Panel>
-      <Panel title="Operational insights" badge={<TagBadge>Live</TagBadge>}>
-        <div className="space-y-3">
+      <WidgetCard icon="map" title="Barangay coverage" subtitle="Geographic distribution across Irosin" updated={updatedLabel} action={<TagBadge tone="neutral">Geographic view</TagBadge>}>
+        <BarangayCoverageBars data={barangayStats} maxCases={maxBarangayCases} />
+      </WidgetCard>
+      <WidgetCard icon="bulb" title="Operational insights" subtitle="Recommendations for municipal health operations" updated={updatedLabel} action={<TagBadge>Live</TagBadge>}>
+        <div className="grid gap-3 sm:grid-cols-2">
           {stats?.insights.map((insight) => (
-            <ListRow key={insight.title} className="space-y-2">
+            <ListRow key={insight.title} className="h-full space-y-2 bg-white/80">
               <div className="flex items-center justify-between gap-3">
                 <p className="font-medium text-ink">{insight.title}</p>
                 <TagBadge tone={insight.tone === "urgent" ? "staff" : insight.tone === "watch" ? "neutral" : "brand"}>
@@ -1088,7 +1356,7 @@ function DashboardPageContent() {
             </ListRow>
           ))}
         </div>
-      </Panel>
+      </WidgetCard>
     </div>
   );
 
@@ -1097,19 +1365,19 @@ function DashboardPageContent() {
       <>
         <PageMain wide>
           <div className="space-y-6" aria-busy="true" aria-label="Loading dashboard">
-            <div className="h-32 animate-pulse rounded-md bg-brand/15" />
+            <div className="premium-skeleton h-32 rounded-[24px]" />
             <div className="grid gap-6 xl:grid-cols-[220px_minmax(0,1fr)]">
-              <div className="h-64 animate-pulse rounded-lg bg-border/30" />
+              <div className="premium-skeleton h-64 rounded-[24px]" />
               <div className="space-y-6">
                 <div className="grid gap-4 md:grid-cols-4">
-                  <div className="h-28 animate-pulse rounded-md bg-border/50" />
-                  <div className="h-28 animate-pulse rounded-md bg-border/50" />
-                  <div className="h-28 animate-pulse rounded-md bg-border/50" />
-                  <div className="h-28 animate-pulse rounded-md bg-border/50" />
+                  <div className="premium-skeleton h-28 rounded-[22px]" />
+                  <div className="premium-skeleton h-28 rounded-[22px]" />
+                  <div className="premium-skeleton h-28 rounded-[22px]" />
+                  <div className="premium-skeleton h-28 rounded-[22px]" />
                 </div>
                 <div className="grid gap-6 lg:grid-cols-2">
-                  <div className="h-72 animate-pulse rounded-md bg-border/40" />
-                  <div className="h-72 animate-pulse rounded-md bg-border/40" />
+                  <div className="premium-skeleton h-72 rounded-[24px]" />
+                  <div className="premium-skeleton h-72 rounded-[24px]" />
                 </div>
               </div>
             </div>
@@ -1141,22 +1409,35 @@ function DashboardPageContent() {
 
   return (
     <>
-      <div className="min-h-screen bg-surface">
-        <PageHeader />
+      <div className="premium-page min-h-screen">
+        <PageHeader dashboardAlertCount={activeRedCases.length} />
         <div>
           <PageMain wide>
             <div className="overflow-hidden rounded-[30px] border border-[#d1d9cf] bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.28),_transparent_30%),linear-gradient(135deg,#183D2D_0%,#1F4A36_42%,#2E6A52_100%)] p-px shadow-[0_28px_60px_rgba(23,63,45,0.18)]">
               <HeroBanner
-                eyebrow="For municipal health office"
-                title="Community health overview"
+                eyebrow="Municipal Health Office · Irosin"
+                title={`Welcome back, ${currentUser.full_name.split(" ")[0]}`}
                 subtitle="Track incoming risk signals, prioritize urgent cases, and understand community health trends across barangays."
+                meta={
+                  <>
+                    <span className="mho-status-pill mho-status-pill--live">Live dashboard</span>
+                    {updatedLabel ? <span className="mho-status-pill">Updated {updatedLabel}</span> : null}
+                    {activeRedCases.length > 0 ? (
+                      <span className="mho-status-pill mho-status-pill--urgent">{activeRedCases.length} urgent case{activeRedCases.length === 1 ? "" : "s"}</span>
+                    ) : null}
+                    {pendingLexicon.length > 0 ? (
+                      <span className="mho-status-pill">{pendingLexicon.length} lexicon pending</span>
+                    ) : null}
+                  </>
+                }
                 actions={
                   <>
-                    <PrimaryButton type="button" onClick={() => void refreshSummary()} disabled={refreshing} className="rounded-xl border border-white/20 bg-white/10 px-5 text-sm text-white hover:bg-white/15">
+                    <PrimaryButton type="button" onClick={() => void refreshSummary()} disabled={refreshing} className="rounded-xl border border-white/35 bg-white/12 px-5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(8,35,22,0.12)] hover:bg-white/20">
                       {refreshing ? "Refreshing…" : "Refresh data"}
                     </PrimaryButton>
-                    <PrimaryButton type="button" onClick={generateReport} disabled={!stats} className="rounded-xl bg-[#E9F4EF] px-5 text-sm text-[#183D2D] hover:bg-white">
-                      Generate report
+                    <PrimaryButton type="button" onClick={generateReport} disabled={!stats} className="dashboard-report-button rounded-xl px-5 text-sm font-semibold">
+                      <IconClipboard size={17} />
+                      <span>Generate report</span>
                     </PrimaryButton>
                   </>
                 }
@@ -1164,53 +1445,23 @@ function DashboardPageContent() {
             </div>
 
             <div className="mt-6 grid gap-6 md:grid-cols-[240px_minmax(0,1fr)] md:items-start">
-              <aside className="h-fit rounded-[26px] border border-[#dfe5d8] bg-[linear-gradient(180deg,#fbfaf6_0%,#f2f6ee_100%)] p-3 shadow-[0_18px_42px_rgba(24,38,25,0.07)] backdrop-blur md:sticky md:top-24 md:p-4">
-                <div className="mb-4 flex items-center justify-between rounded-2xl border border-[#dfe8dc] bg-white/60 px-3 py-2.5 shadow-[0_8px_20px_rgba(16,23,20,0.03)]">
-                  <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-muted">Dashboard</p>
-                  <span className="rounded-full border border-[#cfe0d3] bg-[#eef6f0] px-2 py-1 font-mono text-[9px] uppercase tracking-[0.12em] text-brand-dark">Live</span>
+              <SectionNav
+                activeSection={activeSection}
+                onSelect={setActiveSection}
+                urgentCount={activeRedCases.length}
+                pendingLexicon={pendingLexicon.length}
+              />
+              <div>
+                <div
+                  id={`panel-${activeSection}`}
+                  role="tabpanel"
+                  aria-labelledby={`tab-${activeSection}`}
+                >
+                  {activeSection === "overview" && renderOverview()}
+                  {activeSection === "records" && renderAssessmentRecords()}
+                  {activeSection === "analytics" && renderAnalytics()}
+                  {activeSection === "reports" && renderReports()}
                 </div>
-                <nav className="space-y-2" role="tablist" aria-label="Dashboard sections">
-                  {SECTIONS.map((item) => {
-                    const active = activeSection === item.id;
-                    const urgentCount = item.id === "records" ? redCases.length : 0;
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        role="tab"
-                        id={`tab-${item.id}`}
-                        aria-selected={active}
-                        aria-controls={`panel-${item.id}`}
-                        onClick={() => setActiveSection(item.id)}
-                        className={`flex w-full items-center justify-between rounded-[16px] border px-3 py-2.75 text-left text-sm font-medium transition-all duration-200 ${
-                          active
-                            ? "border-[#c8d6c5] bg-[linear-gradient(90deg,#edf6ef_0%,#f9faf6_100%)] text-brand-dark shadow-[0_8px_18px_rgba(31,74,54,0.08)]"
-                            : "border-transparent bg-transparent text-ink-secondary hover:border-[#d8ded1] hover:bg-[#f4f7f0] hover:text-[#1f4a36]"
-                        }`}
-                      >
-                        <span className="flex items-center gap-2">
-                          {item.label}
-                          {urgentCount > 0 && (
-                            <span className="rounded-full bg-triage-red px-1.5 py-0.5 font-mono text-[10px] font-semibold text-white">
-                              {urgentCount}
-                            </span>
-                          )}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </nav>
-              </aside>
-
-              <div
-                id={`panel-${activeSection}`}
-                role="tabpanel"
-                aria-labelledby={`tab-${activeSection}`}
-              >
-                {activeSection === "overview" && renderOverview()}
-                {activeSection === "records" && renderAssessmentRecords()}
-                {activeSection === "analytics" && renderAnalytics()}
-                {activeSection === "reports" && renderReports()}
               </div>
             </div>
 

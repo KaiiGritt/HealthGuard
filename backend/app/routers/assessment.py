@@ -5,7 +5,7 @@ from collections import Counter
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import case, func, select
+from sqlalchemy import and_, case, func, select
 from sqlalchemy.orm import Session
 
 from ..database import get_db
@@ -82,7 +82,7 @@ def _build_barangay_stats(db: Session) -> list[BarangayStatItem]:
         select(
             User.barangay,
             func.count(Assessment.id),
-            func.sum(case((Assessment.risk_level == "RED", 1), else_=0)),
+            func.sum(case((and_(Assessment.risk_level == "RED", Assessment.handled_at.is_(None)), 1), else_=0)),
             func.sum(case((Assessment.risk_level == "YELLOW", 1), else_=0)),
         )
         .join(User, Assessment.user_id == User.id, isouter=True)
@@ -254,7 +254,15 @@ def dashboard_summary(
     week_count = db.scalar(
         select(func.count(Assessment.id)).where(func.date(Assessment.created_at) >= week_start)
     ) or 0
-    urgent_alerts = db.scalar(select(func.count(Assessment.id)).where(Assessment.risk_level == "RED")) or 0
+    urgent_alerts = (
+        db.scalar(
+            select(func.count(Assessment.id)).where(
+                Assessment.risk_level == "RED",
+                Assessment.handled_at.is_(None),
+            )
+        )
+        or 0
+    )
     follow_up_needed = db.scalar(select(func.count(Assessment.id)).where(Assessment.risk_level == "YELLOW")) or 0
     residents_assisted = (
         db.scalar(select(func.count(func.distinct(Assessment.user_id))).where(Assessment.user_id.is_not(None))) or 0
@@ -273,6 +281,7 @@ def dashboard_summary(
                 User.full_name,
                 User.barangay,
                 User.phone_number,
+                Assessment.handled_at,
             )
             .join(User, Assessment.user_id == User.id, isouter=True)
             .order_by(Assessment.created_at.desc())
@@ -299,6 +308,8 @@ def dashboard_summary(
                 note=note,
                 created_at=row[3],
                 phone_number=row[7],
+                handled=row[8] is not None,
+                handled_at=row[8],
             )
         )
 
@@ -770,6 +781,54 @@ def history(
             )
         )
     return response
+
+
+@router.patch("/{assessment_id}/handled", response_model=DashboardAssessmentItem)
+def mark_assessment_handled(
+    assessment_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("mho")),
+) -> DashboardAssessmentItem:
+    assessment = db.get(Assessment, assessment_id)
+    if assessment is None:
+        raise HTTPException(status_code=404, detail="Assessment not found.")
+
+    if assessment.handled_at is None:
+        assessment.handled_at = _utc_now()
+        db.commit()
+        db.refresh(assessment)
+
+    row = db.execute(
+        select(
+            Assessment.id,
+            Assessment.input_text,
+            Assessment.risk_level,
+            Assessment.created_at,
+            Assessment.user_id,
+            User.full_name,
+            User.barangay,
+            User.phone_number,
+            Assessment.handled_at,
+        )
+        .join(User, Assessment.user_id == User.id, isouter=True)
+        .where(Assessment.id == assessment_id)
+    ).one()
+
+    note = (row[1] or "No details provided").strip() or "No details provided"
+    if len(note) > 72:
+        note = note[:69] + "..."
+    resident_name = "Anonymous submission" if row[4] is None else (row[5] or f"Resident #{row[4]}")
+    return DashboardAssessmentItem(
+        id=row[0],
+        resident_name=resident_name,
+        barangay=row[6],
+        risk_level=row[2],
+        note=note,
+        created_at=row[3],
+        phone_number=row[7],
+        handled=row[8] is not None,
+        handled_at=row[8],
+    )
 
 
 @router.get("/{assessment_id}", response_model=AssessmentOut)

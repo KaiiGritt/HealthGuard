@@ -16,6 +16,7 @@ from .database import (
     SessionLocal,
     engine,
     migrate_email_verification_schema,
+        migrate_assessment_handled_schema,
     migrate_lexicon_review_schema,
     migrate_lexicon_rule_base_schema,
     migrate_user_preferences_schema,
@@ -45,6 +46,7 @@ async def lifespan(app: FastAPI):
     _ensure_nltk()
     Base.metadata.create_all(bind=engine)
     migrate_email_verification_schema()
+        migrate_assessment_handled_schema()
     migrate_lexicon_review_schema()
     migrate_user_preferences_schema()
     migrate_lexicon_rule_base_schema()

@@ -59,6 +59,26 @@ uvicorn app.main:app --reload --port 8000
 - API docs: http://localhost:8000/docs
 - On startup the app creates tables, downloads NLTK `punkt`, and seeds the lexicon (idempotent).
 
+### Local demo accounts
+
+To create disposable accounts for checking the admin, MHO, and resident views, run this
+from `backend/`. The script only runs against the local SQLite database and is idempotent:
+
+```bash
+DATABASE_URL=sqlite:///./healthguard.db python scripts/seed_demo_users.py
+```
+
+In PowerShell, set it for the current terminal first:
+
+```powershell
+$env:DATABASE_URL = "sqlite:///./healthguard.db"
+python scripts/seed_demo_users.py
+uvicorn app.main:app --reload --port 8000
+```
+
+It prints the credentials for `admin`, `mho`, and `resident` accounts. These accounts are
+not created automatically and the script refuses non-SQLite databases.
+
 ## Test the engine without a database
 
 ```bash
