@@ -20,6 +20,7 @@ from .database import (
     migrate_lexicon_review_schema,
     migrate_lexicon_rule_base_schema,
     migrate_user_preferences_schema,
+    migrate_user_role_schema,
 )
 from .nlp import scispacy_adapter
 from .routers import assessment, auth
