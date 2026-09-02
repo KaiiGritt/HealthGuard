@@ -477,7 +477,7 @@ export const authInputClass =
   "h-12 w-full rounded-xl border border-border bg-white/90 px-3.75 text-[0.9375rem] text-ink shadow-[0_1px_2px_rgba(15,23,42,0.02),inset_0_1px_0_rgba(255,255,255,0.8)] outline-none transition placeholder:text-ink-faint hover:border-brand/50 focus:border-brand focus:bg-white focus:ring-4 focus:ring-brand/10";
 
 export const authSelectClass =
-  "h-12 w-full cursor-pointer appearance-none rounded-xl border border-border bg-white/90 px-3.75 pr-10 text-[0.9375rem] text-ink shadow-[0_1px_2px_rgba(15,23,42,0.02),inset_0_1px_0_rgba(255,255,255,0.8)] outline-none transition hover:border-brand/50 hover:bg-white focus:border-brand focus:ring-4 focus:ring-brand/10";
+  "premium-select h-12 w-full cursor-pointer appearance-none rounded-2xl border border-brand/10 bg-[linear-gradient(180deg,#FFFFFF_0%,#F8FBF5_100%)] px-3.75 pr-11 text-[0.9375rem] font-medium text-ink shadow-[0_12px_30px_rgba(17,24,39,0.05),inset_0_1px_0_rgba(255,255,255,0.9)] ring-1 ring-inset ring-border/60 outline-none transition hover:border-brand/50 hover:shadow-[0_14px_32px_rgba(17,24,39,0.06)] focus:border-brand focus:bg-white focus:ring-4 focus:ring-brand/10";
 
 export const authFormStackClass = "space-y-5";
 

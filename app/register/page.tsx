@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { register, verifyEmail } from "@/lib/api";
 import { irosinBarangays } from "@/app/constants/irosinBarangays";
 import AuthLayout from "../components/AuthLayout";
@@ -17,6 +17,97 @@ import {
   authSubmitClass,
   cn,
 } from "@/app/components/ui/primitives";
+
+function PremiumDropdown({
+  id,
+  value,
+  placeholder,
+  options,
+  onChange,
+}: {
+  id: string;
+  value: string;
+  placeholder: string;
+  options: Array<{ label: string; value: string }>;
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    function handlePointerDown(event: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, []);
+
+  const selected = options.find((option) => option.value === value) ?? { label: placeholder, value: "" };
+
+  return (
+    <div ref={wrapperRef} className="relative">
+      <button
+        id={id}
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+        className={cn(
+          authSelectClass,
+          "flex items-center justify-between px-3.75 text-left",
+          !value && "text-ink-faint",
+        )}
+      >
+        <span className="truncate">{selected.label}</span>
+        <svg
+          viewBox="0 0 20 20"
+          fill="none"
+          aria-hidden="true"
+          className={cn("h-4 w-4 text-ink-faint transition-transform duration-200", open && "rotate-180")}
+        >
+          <path d="M5.5 7.5L10 12l4.5-4.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="absolute left-0 right-0 z-30 mt-2 overflow-hidden rounded-2xl border border-brand/10 bg-[linear-gradient(180deg,#FFFFFF_0%,#F8FBF4_100%)] shadow-[0_22px_50px_rgba(15,23,42,0.12)] ring-1 ring-black/5">
+          <div className="border-b border-border/80 bg-surface/60 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-faint">
+            Choose an option
+          </div>
+          <div className="max-h-64 overflow-y-auto p-2">
+            {options.map((option) => (
+              <button
+                key={option.value || "empty"}
+                type="button"
+                onClick={() => {
+                  onChange(option.value);
+                  setOpen(false);
+                }}
+                className={cn(
+                  "flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition-all duration-200",
+                  value === option.value
+                    ? "bg-brand-tint text-brand-dark shadow-[inset_0_0_0_1px_rgba(47,107,79,0.2)]"
+                    : "text-ink-secondary hover:bg-surface hover:text-ink",
+                )}
+              >
+                <span className="font-medium">{option.label}</span>
+                {value === option.value && (
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand text-brand-foreground">
+                    <svg viewBox="0 0 20 20" fill="none" className="h-3.5 w-3.5" aria-hidden="true">
+                      <path d="M5 10.5 8.2 13.7 15 6.9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -270,17 +361,17 @@ export default function RegisterPage() {
               <label htmlFor="sex" className={authLabelClass}>
                 Sex
               </label>
-              <div className="relative mt-1.5">
-                <select id="sex" value={form.sex} onChange={set("sex")} className={authSelectClass}>
-                  <option value="">—</option>
-                  <option value="female">Female</option>
-                  <option value="male">Male</option>
-                </select>
-                <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-ink-faint">
-                  <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" className="h-4 w-4">
-                    <path d="M5.5 7.5L10 12l4.5-4.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </span>
+              <div className="mt-1.5">
+                <PremiumDropdown
+                  id="sex"
+                  value={form.sex}
+                  placeholder="—"
+                  options={[
+                    { label: "Female", value: "female" },
+                    { label: "Male", value: "male" },
+                  ]}
+                  onChange={(value) => setForm((current) => ({ ...current, sex: value }))}
+                />
               </div>
             </div>
           </div>
@@ -289,20 +380,14 @@ export default function RegisterPage() {
             <label htmlFor="barangay" className={authLabelClass}>
               Barangay
             </label>
-            <div className="relative mt-1.5">
-              <select id="barangay" required value={form.barangay} onChange={set("barangay")} className={authSelectClass}>
-                <option value="">Select barangay</option>
-                {irosinBarangays.map((barangay) => (
-                  <option key={barangay} value={barangay}>
-                    {barangay}
-                  </option>
-                ))}
-              </select>
-              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-ink-faint">
-                <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" className="h-4 w-4">
-                  <path d="M5.5 7.5L10 12l4.5-4.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </span>
+            <div className="mt-1.5">
+              <PremiumDropdown
+                id="barangay"
+                value={form.barangay}
+                placeholder="Select barangay"
+                options={irosinBarangays.map((barangay) => ({ label: barangay, value: barangay }))}
+                onChange={(value) => setForm((current) => ({ ...current, barangay: value }))}
+              />
             </div>
             <p className="mt-1.5 text-xs text-ink-faint">Used to route urgent cases to the nearest health station.</p>
           </div>
