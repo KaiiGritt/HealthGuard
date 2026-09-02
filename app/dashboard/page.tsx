@@ -1115,8 +1115,8 @@ function DashboardPageContent() {
           />
         </div>
 
-        <div className="mt-6 grid gap-6 xl:grid-cols-[240px_minmax(0,1fr)]">
-          <aside className="h-fit rounded-[26px] border border-[#D7E0D2] bg-[linear-gradient(180deg,#FBF9F2_0%,#F2F6EE_100%)] p-3 shadow-[0_18px_42px_rgba(24,38,25,0.07)] backdrop-blur xl:sticky xl:top-24 xl:p-4">
+        <div className="mt-6 grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)] lg:items-start">
+          <aside className="h-fit rounded-[26px] border border-[#D7E0D2] bg-[linear-gradient(180deg,#FBF9F2_0%,#F2F6EE_100%)] p-3 shadow-[0_18px_42px_rgba(24,38,25,0.07)] backdrop-blur lg:sticky lg:top-24 lg:p-4">
             <div className="mb-4 flex items-center justify-between rounded-2xl border border-[#DDE7DB] bg-white/70 px-3 py-2.5 shadow-sm">
               <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-muted">Dashboard</p>
               <span className="rounded-full border border-[#CFE0D3] bg-[#EEF6F0] px-2 py-1 font-mono text-[9px] uppercase tracking-[0.12em] text-brand-dark">Live</span>

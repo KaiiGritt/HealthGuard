@@ -290,8 +290,8 @@ export default function AdminPage() {
           />
         </div>
 
-        <div className="mt-6 grid gap-6 xl:grid-cols-[220px_minmax(0,1fr)]">
-          <aside className="rounded-[24px] border border-[#D7E0D2] bg-[linear-gradient(180deg,#FBF9F2_0%,#F2F6EE_100%)] p-4 shadow-[0_18px_40px_rgba(15,23,42,0.04)] xl:p-5">
+        <div className="mt-6 grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start">
+          <aside className="rounded-[24px] border border-[#D7E0D2] bg-[linear-gradient(180deg,#FBF9F2_0%,#F2F6EE_100%)] p-4 shadow-[0_18px_40px_rgba(15,23,42,0.04)] lg:sticky lg:top-24 lg:p-5">
             <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-ink-muted">Admin</p>
             <nav className="mt-4 space-y-2">
               {adminNav.map((item, index) => (
