@@ -117,8 +117,9 @@ def migrate_assessment_handled_schema() -> None:
         return
     columns = {column["name"] for column in inspect(engine).get_columns("assessments")}
     if "handled_at" not in columns:
+        handled_at_type = "DATETIME" if engine.url.get_backend_name() in {"sqlite", "mysql"} else "TIMESTAMP WITH TIME ZONE"
         with engine.begin() as connection:
-            connection.execute(text("ALTER TABLE assessments ADD COLUMN handled_at DATETIME"))
+            connection.execute(text(f"ALTER TABLE assessments ADD COLUMN handled_at {handled_at_type}"))
 
 
 
