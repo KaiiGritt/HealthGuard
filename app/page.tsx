@@ -140,7 +140,7 @@ export default function Home() {
   return (
     <>
       <PageHeader />
-      <main className="flex-1 bg-surface text-ink">
+      <main className="ml-56 sm:ml-64 flex-1 bg-surface text-ink">
         <section className="border-b border-border">
           <div className="mx-auto grid w-full max-w-[1600px] gap-10 px-5 py-16 sm:px-7 sm:py-20 md:grid-cols-[1.15fr_0.85fr] md:items-center lg:gap-16 lg:px-10 lg:py-28 xl:px-14 xl:py-32 2xl:px-20">
             <div>
