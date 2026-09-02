@@ -2,17 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { cn } from "@/app/components/ui/primitives";
 import type { User } from "@/lib/api";
 
-// Minimal inline icons so this file has no dependency on your icons.tsx
-// contents (which I haven't seen). Swap these for real entries in
-// icons.tsx — e.g. IconUsers, IconLexicon, IconRules, IconReports — if
-// those already exist, to keep one icon source of truth.
 function Icon({ path }: { path: string }) {
   return (
-    <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+    <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
       <path d={path} />
     </svg>
   );
@@ -34,19 +30,18 @@ const ADMIN_ITEMS: NavItem[] = [
   { href: "/admin", label: "Overview", icon: "overview" },
   { href: "/admin/users", label: "Users", icon: "users" },
   { href: "/admin/lexicon", label: "Lexicon", icon: "lexicon" },
-  { href: "/admin/rules", label: "Triage Rules", icon: "rules" },
+  { href: "/admin/rules", label: "Triage rules", icon: "rules" },
   { href: "/admin/settings", label: "Settings", icon: "settings" },
 ];
 
 const MHO_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: "overview" },
-  { href: "/dashboard/records", label: "Assessment Records", icon: "records" },
-  { href: "/dashboard/reports", label: "Analytics & Reports", icon: "reports" },
+  { href: "/dashboard/records", label: "Assessment records", icon: "records" },
+  { href: "/dashboard/reports", label: "Analytics & reports", icon: "reports" },
 ];
 
 export default function Sidebar({ user }: { user: User }) {
   const pathname = usePathname();
-  const [mobileOpen, setMobileOpen] = useState(false);
   const items = user.role === "admin" ? ADMIN_ITEMS : MHO_ITEMS;
   const roleLabel = user.role === "admin" ? "Administrator" : "Municipal Health Officer";
 
@@ -57,38 +52,47 @@ export default function Sidebar({ user }: { user: User }) {
   const content: ReactNode = (
     <>
       <div className="border-b border-border px-5 py-6">
-        <div className="flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-sm bg-brand font-mono text-lg font-semibold text-brand-foreground">H</span>
+        <Link href="/" className="flex items-center gap-3">
+          <span
+            className="flex h-9 w-9 items-center justify-center rounded-lg bg-linear-to-br from-brand to-brand-dark text-base font-medium text-brand-foreground shadow-sm"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            H
+          </span>
+          <span className="text-[1.05rem] font-medium text-ink" style={{ fontFamily: "var(--font-display)" }}>
+            HealthGuard
+          </span>
+        </Link>
+
+        <div className="mt-5 flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-tint text-xs font-medium text-brand-dark">
+            {user.full_name.slice(0, 1).toUpperCase()}
+          </span>
           <div className="min-w-0">
-            <p className="font-display text-lg font-semibold text-ink">HealthGuard</p>
-            <p className="mt-0.5 truncate font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint">{roleLabel}</p>
+            <p className="truncate text-sm font-medium text-ink">{user.full_name}</p>
+            <p className="truncate text-xs text-ink-faint">{roleLabel}</p>
           </div>
-        </div>
-        <div className="mt-5 flex items-center gap-3 rounded-md bg-card px-3 py-3">
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-tint font-mono text-xs font-semibold text-brand-dark">{user.full_name.slice(0, 1).toUpperCase()}</span>
-          <p className="truncate text-sm font-medium text-ink">{user.full_name}</p>
         </div>
       </div>
 
-      <nav className="flex-1 space-y-1 px-3 py-4">
+      <nav className="flex-1 space-y-0.5 px-3 py-4">
         {items.map((item) => {
           const active = isActive(item.href);
           return (
             <Link
               key={item.href}
               href={item.href}
-              onClick={() => setMobileOpen(false)}
               className={cn(
-                "flex min-h-[44px] items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition",
+                "flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
                 active
-                  ? "bg-brand/10 text-brand-dark"
-                  : "text-ink-secondary hover:bg-brand-tint hover:text-brand-dark",
+                  ? "bg-brand-tint font-medium text-brand-dark"
+                  : "text-ink-secondary hover:bg-card hover:text-ink",
               )}
             >
               <span
                 className={cn(
-                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-md",
-                  active ? "bg-brand text-brand-foreground" : "bg-surface text-ink-faint",
+                  "flex h-6 w-6 shrink-0 items-center justify-center",
+                  active ? "text-brand-dark" : "text-ink-faint",
                 )}
               >
                 <Icon path={icons[item.icon]} />
@@ -100,42 +104,16 @@ export default function Sidebar({ user }: { user: User }) {
       </nav>
 
       <div className="border-t border-border px-5 py-4">
-        <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint">Irosin, Sorsogon</p>
-        <p className="mt-1 text-xs leading-relaxed text-ink-muted">Community health workspace</p>
+        <p className="text-xs leading-relaxed text-ink-faint">
+          Irosin, Sorsogon — community health workspace
+        </p>
       </div>
     </>
   );
 
   return (
-    <>
-      {/* Desktop: persistent rail */}
-      <aside className="sticky top-[var(--header-h,72px)] hidden h-[calc(100vh-var(--header-h,72px))] w-64 shrink-0 flex-col border-r border-border bg-surface md:flex">
-        {content}
-      </aside>
-
-      {/* Mobile: compact trigger and elevated drawer */}
-      <div className="border-b border-border bg-header px-4 py-3 md:hidden">
-        <button
-          type="button"
-          onClick={() => setMobileOpen((v) => !v)}
-          className="flex min-h-[48px] w-full items-center justify-between rounded-md border border-brand/20 bg-card px-4 text-sm font-medium text-ink-secondary shadow-[0_4px_14px_rgba(47,107,79,0.08)]"
-          aria-expanded={mobileOpen}
-          aria-label="Toggle dashboard navigation"
-        >
-          <span className="flex items-center gap-3"><span className="flex h-8 w-8 items-center justify-center rounded-sm bg-brand text-brand-foreground"><Icon path={icons.overview} /></span><span className="font-semibold text-ink">{roleLabel}</span></span>
-          <span className="font-mono text-xs uppercase tracking-[0.08em] text-brand-dark">{mobileOpen ? "Close" : "Menu"}</span>
-        </button>
-      </div>
-      {mobileOpen && (
-        <div className="fixed inset-0 z-50 bg-ink/20 backdrop-blur-[2px] md:hidden" onClick={() => setMobileOpen(false)}>
-          <div
-            className="flex h-full w-[82vw] max-w-sm flex-col border-r border-border bg-header shadow-[12px_0_40px_rgba(24,38,25,0.14)]"
-            onClick={(event) => event.stopPropagation()}
-          >
-            {content}
-          </div>
-        </div>
-      )}
-    </>
+    <aside className="fixed left-0 top-0 z-30 flex h-screen w-64 shrink-0 flex-col border-r border-border bg-surface">
+      {content}
+    </aside>
   );
 }

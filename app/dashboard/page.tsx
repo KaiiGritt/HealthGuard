@@ -5,7 +5,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Disclaimer from "../components/Disclaimer";
-import PageHeader from "../components/PageHeader";
 import {
   AccessGate,
   cn,
@@ -1047,7 +1046,6 @@ function DashboardPageContent() {
   if (loading) {
     return (
       <>
-        <PageHeader />
         <PageMain wide>
           <div className="space-y-6" aria-busy="true" aria-label="Loading dashboard">
             <div className="h-32 animate-pulse rounded-md bg-brand/15" />
@@ -1076,7 +1074,6 @@ function DashboardPageContent() {
     const isAdmin = currentUser?.role === "admin";
     return (
       <>
-        <PageHeader />
         <AccessGate
           tag={isAdmin ? "MHO only" : "Staff access"}
           title={isAdmin ? "Community dashboard is for MHO staff" : "Dashboard access required"}
@@ -1095,7 +1092,6 @@ function DashboardPageContent() {
 
   return (
     <>
-      <PageHeader />
       <PageMain wide>
         <div className="overflow-hidden rounded-[28px] border border-[#D8DED1] bg-[linear-gradient(135deg,#183D2D_0%,#1F4A36_42%,#2E6A52_100%)] p-px shadow-[0_28px_56px_rgba(23,63,45,0.18)]">
           <HeroBanner

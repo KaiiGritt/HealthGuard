@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Disclaimer from "../components/Disclaimer";
-import PageHeader from "../components/PageHeader";
 import {
   AccessGate,
   HeroBanner,
@@ -240,7 +239,6 @@ export default function AdminPage() {
   if (loading) {
     return (
       <>
-        <PageHeader />
         <PageMain wide>
           <div className="space-y-6" aria-busy="true" aria-label="Loading admin dashboard">
             <div className="h-32 animate-pulse rounded-md bg-brand/15" />
@@ -256,7 +254,6 @@ export default function AdminPage() {
     const isMho = currentUser?.role === "mho";
     return (
       <>
-        <PageHeader />
         <AccessGate
           tag={isMho ? "Admin only" : "Admin access"}
           title={isMho ? "Admin panel is for administrators" : "Admin access required"}
@@ -275,7 +272,6 @@ export default function AdminPage() {
 
   return (
     <>
-      <PageHeader />
       <PageMain wide>
         <div className="overflow-hidden rounded-[28px] border border-[#D8DED1] bg-[linear-gradient(135deg,#183D2D_0%,#1F4A36_42%,#2E6A52_100%)] p-px shadow-[0_28px_56px_rgba(23,63,45,0.18)]">
           <HeroBanner
