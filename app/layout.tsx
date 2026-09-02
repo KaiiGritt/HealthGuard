@@ -38,7 +38,7 @@ export default function RootLayout({
       lang="en"
       className={`${publicSans.variable} ${newsreader.variable} ${ibmPlexMono.variable} h-full antialiased`}
     >
-      <body className="premium-page flex min-h-full flex-col font-sans text-base leading-relaxed text-ink xl:text-lg">
+      <body className="premium-page flex min-h-full flex-col font-sans text-base leading-relaxed text-ink lg:pl-64 xl:text-lg">
         <LanguageProvider>{children}</LanguageProvider>
       </body>
     </html>

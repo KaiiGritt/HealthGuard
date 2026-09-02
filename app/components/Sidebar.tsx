@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { cn } from "@/app/components/ui/primitives";
 import type { User } from "@/lib/api";
 
@@ -15,6 +15,7 @@ function Icon({ path }: { path: string }) {
 }
 
 const icons = {
+  home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1v-9.5Z",
   overview: "M4 13h6V4H4v9Zm0 7h6v-5H4v5Zm10 0h6V11h-6v9Zm0-16v5h6V4h-6Z",
   users: "M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm8 10v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75",
   lexicon: "M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15Z",
@@ -22,6 +23,8 @@ const icons = {
   settings: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm7.4-3a7.4 7.4 0 0 0-.15-1.5l2.02-1.58-2-3.46-2.38.96a7.5 7.5 0 0 0-1.3-.75L15.2 3h-4l-.39 2.67a7.5 7.5 0 0 0-1.3.75l-2.38-.96-2 3.46L7.15 10.5A7.4 7.4 0 0 0 7 12a7.4 7.4 0 0 0 .15 1.5l-2.02 1.58 2 3.46 2.38-.96c.4.31.84.56 1.3.75L11.2 21h4l.39-2.67c.46-.19.9-.44 1.3-.75l2.38.96 2-3.46-2.02-1.58c.1-.49.15-.99.15-1.5Z",
   records: "M8 2h8l4 4v14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm7 0v5h5M8 13h8M8 17h5",
   reports: "M3 3v18h18M7 15l3-4 3 3 5-7",
+  login: "M11 16l-4-4m0 0 4-4m-4 4h12",
+  signup: "M12 5v14M5 12h14",
 };
 
 type NavItem = { href: string; label: string; icon: keyof typeof icons };
@@ -40,13 +43,30 @@ const MHO_ITEMS: NavItem[] = [
   { href: "/dashboard/reports", label: "Analytics & reports", icon: "reports" },
 ];
 
-export default function Sidebar({ user }: { user: User }) {
+const PUBLIC_ITEMS: NavItem[] = [
+  { href: "/", label: "Home", icon: "home" },
+];
+
+export default function Sidebar({ user }: { user: User | null }) {
   const pathname = usePathname();
-  const items = user.role === "admin" ? ADMIN_ITEMS : MHO_ITEMS;
-  const roleLabel = user.role === "admin" ? "Administrator" : "Municipal Health Officer";
+  const [open, setOpen] = useState(false);
+  const accountItems = user
+    ? user.role === "admin"
+      ? ADMIN_ITEMS
+      : user.role === "mho"
+        ? MHO_ITEMS
+        : [{ href: "/history", label: "History", icon: "records" as const }]
+    : [
+        { href: "/login", label: "Log in", icon: "login" as const },
+        { href: "/register", label: "Sign up", icon: "signup" as const },
+      ];
+  const items = user?.role === "mho" || user?.role === "admin" ? accountItems : [...PUBLIC_ITEMS, ...accountItems];
+  if (user) items.push({ href: "/profile", label: "Profile", icon: "users" });
+  const roleLabel = user?.role === "admin" ? "Administrator" : user?.role === "mho" ? "Municipal Health Officer" : "Resident access";
 
   function isActive(href: string) {
-    return href === pathname || (href !== "/admin" && href !== "/dashboard" && pathname.startsWith(href));
+    if (href === "/") return pathname === "/";
+    return href === pathname || pathname.startsWith(`${href}/`);
   }
 
   const content: ReactNode = (
@@ -64,7 +84,7 @@ export default function Sidebar({ user }: { user: User }) {
           </span>
         </Link>
 
-        <div className="mt-5 flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5">
+        {user ? <div className="mt-5 flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-tint text-xs font-medium text-brand-dark">
             {user.full_name.slice(0, 1).toUpperCase()}
           </span>
@@ -72,7 +92,7 @@ export default function Sidebar({ user }: { user: User }) {
             <p className="truncate text-sm font-medium text-ink">{user.full_name}</p>
             <p className="truncate text-xs text-ink-faint">{roleLabel}</p>
           </div>
-        </div>
+        </div> : <p className="mt-5 text-xs leading-relaxed text-ink-muted">Bilingual health guidance for the Irosin community.</p>}
       </div>
 
       <nav className="flex-1 space-y-0.5 px-3 py-4">
@@ -83,9 +103,9 @@ export default function Sidebar({ user }: { user: User }) {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
+                "flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2.5 text-sm outline-none transition-colors focus-visible:ring-4 focus-visible:ring-brand/20",
                 active
-                  ? "bg-brand-tint font-medium text-brand-dark"
+                  ? "bg-brand-tint font-semibold text-brand-dark shadow-[inset_3px_0_0_var(--color-brand)]"
                   : "text-ink-secondary hover:bg-card hover:text-ink",
               )}
             >
@@ -112,8 +132,14 @@ export default function Sidebar({ user }: { user: User }) {
   );
 
   return (
-    <aside className="fixed left-0 top-0 z-30 hidden h-screen w-64 shrink-0 flex-col border-r border-border bg-surface lg:flex">
-      {content}
-    </aside>
+    <>
+      <button type="button" aria-label={open ? "Close navigation" : "Open navigation"} onClick={() => setOpen((value) => !value)} className="fixed right-4 top-4 z-50 flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-header text-ink-secondary shadow-sm outline-none focus-visible:ring-4 focus-visible:ring-brand/20 lg:hidden">
+        <Icon path={open ? "M6 6l12 12M18 6 6 18" : "M4 6h16M4 12h16M4 18h16"} />
+      </button>
+      {open && <button type="button" aria-label="Close navigation" onClick={() => setOpen(false)} className="fixed inset-0 z-40 bg-ink/25 backdrop-blur-[2px] lg:hidden" />}
+      <aside className={`fixed left-0 top-0 z-50 flex h-screen w-64 shrink-0 flex-col border-r border-border bg-surface shadow-[0_18px_48px_rgba(20,31,25,0.18)] transition-transform lg:shadow-none ${open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}>
+        {content}
+      </aside>
+    </>
   );
 }

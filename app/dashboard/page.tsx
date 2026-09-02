@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Disclaimer from "../components/Disclaimer";
-import PageHeader from "../components/PageHeader";
+import Sidebar from "../components/Sidebar";
 import {
   AccessGate,
   cn,
@@ -859,6 +859,54 @@ function DashboardPageContent() {
         </WidgetCard>
       </section>
 
+      <WidgetCard
+        icon="book"
+        title="Lexicon review queue"
+        subtitle="Keep community language mappings accurate"
+        updated={updatedLabel}
+        action={<TagBadge tone={pendingLexicon.length > 0 ? "staff" : "neutral"}>{pendingLexicon.length} pending</TagBadge>}
+      >
+        {pendingLexicon.length > 0 ? (
+          <div className="space-y-3">
+            {pendingLexicon.slice(0, 4).map((entry) => (
+              <div key={entry.id} className="flex flex-col gap-4 rounded-2xl border border-[#e1e8dc] bg-[linear-gradient(110deg,#fbfdf9_0%,#f3f8f1_100%)] p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-md border border-brand/20 bg-white px-2.5 py-1 text-sm font-semibold text-ink">{entry.local_term}</span>
+                    <span className="text-ink-faint" aria-hidden="true">→</span>
+                    <span className="text-sm font-medium text-brand-dark">{entry.medical_term}</span>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint">
+                    <span>{entry.language}</span>
+                    <span>{entry.category}</span>
+                    <span>Weight {entry.severity_weight}</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void reviewLexiconEntry(entry.id)}
+                  disabled={reviewingLexicon === entry.id}
+                  className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-xl border border-brand/25 bg-white px-3.5 text-xs font-semibold text-brand-dark outline-none transition hover:border-brand/50 hover:bg-brand-tint focus-visible:ring-4 focus-visible:ring-brand/20 disabled:cursor-wait disabled:opacity-60"
+                >
+                  {reviewingLexicon === entry.id ? "Reviewing..." : "Mark reviewed"}
+                </button>
+              </div>
+            ))}
+            {pendingLexicon.length > 4 && (
+              <p className="pt-1 text-center text-xs text-ink-muted">+{pendingLexicon.length - 4} more terms waiting for review</p>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-3 rounded-2xl border border-dashed border-brand/25 bg-brand-tint/60 p-4">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand text-sm font-semibold text-brand-foreground">✓</span>
+            <div>
+              <p className="text-sm font-semibold text-brand-dark">All terms are reviewed</p>
+              <p className="mt-0.5 text-xs text-ink-muted">The symptom language library is currently up to date.</p>
+            </div>
+          </div>
+        )}
+      </WidgetCard>
+
       <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <WidgetCard icon="map" title="Barangay coverage" subtitle="Geographic view" updated={updatedLabel}>
           <div className="space-y-5">
@@ -1094,8 +1142,9 @@ function DashboardPageContent() {
   return (
     <>
       <div className="flex min-h-screen bg-surface">
+        <Sidebar user={currentUser} />
+
         <div className="flex-1">
-          <PageHeader />
           <PageMain wide>
             <div className="overflow-hidden rounded-[30px] border border-[#d1d9cf] bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.28),_transparent_30%),linear-gradient(135deg,#183D2D_0%,#1F4A36_42%,#2E6A52_100%)] p-px shadow-[0_28px_60px_rgba(23,63,45,0.18)]">
               <HeroBanner

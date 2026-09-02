@@ -6,6 +6,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { cn } from "@/app/components/ui/primitives";
 import { useInterfaceLanguage } from "@/app/components/LanguageProvider";
 import { getMe, logout, type User } from "@/lib/api";
+import Sidebar from "./Sidebar";
 
 function IconWrapper({ children }: { children: ReactNode }) {
   return <span className="flex h-5 w-5 items-center justify-center">{children}</span>;
@@ -184,6 +185,8 @@ export default function PageHeader() {
           { href: "/register", label: uiText.signup, active: isRegisterRoute, icon: "signup" as const },
         ];
 
+  return <Sidebar user={user} />;
+
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-header/90 backdrop-blur-xl">
       <div className="relative mx-auto grid w-full max-w-[1800px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 px-5 py-4 sm:px-8 sm:py-5 lg:px-12 lg:py-5 2xl:px-16">
@@ -245,7 +248,7 @@ export default function PageHeader() {
                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 20a7 7 0 0114 0M12 12a4 4 0 100-8 4 4 0 000 8z" />
                       </svg>
                     </IconWrapper>
-                    {user.full_name.split(" ")[0]}
+                    {user?.full_name.split(" ")[0]}
                   </Link>
                   <button
                     type="button"

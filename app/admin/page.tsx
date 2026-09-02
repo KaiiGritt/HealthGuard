@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Disclaimer from "../components/Disclaimer";
-import PageHeader from "../components/PageHeader";
+import Sidebar from "../components/Sidebar";
 import {
   AccessGate,
   HeroBanner,
@@ -15,7 +15,7 @@ import {
   Toast,
   TriageBadge,
 } from "@/app/components/ui/primitives";
-import { createLexiconEntry, getAdminModules, getAdminSummary, getMe, updateUserRole, updateUserStatus } from "@/lib/api";
+import { createLexiconEntry, getAdminModules, getAdminSummary, getMe, updateUserRole, updateUserStatus, type User } from "@/lib/api";
 import { openReportForPrinting } from "@/lib/report";
 
 const adminNav = [
@@ -60,7 +60,7 @@ type AdminPageState = {
 };
 
 export default function AdminPage() {
-  const [currentUser, setCurrentUser] = useState<{ role: UserRole } | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<Awaited<ReturnType<typeof getAdminSummary>> | null>(null);
   const [modules, setModules] = useState<AdminPageState | null>(null);
@@ -273,8 +273,10 @@ export default function AdminPage() {
 
   return (
     <>
-      <PageHeader />
-      <PageMain wide>
+      <div className="flex min-h-screen bg-surface">
+        <Sidebar user={currentUser} />
+        <div className="flex-1">
+          <PageMain wide>
         <div className="overflow-hidden rounded-[28px] border border-[#D8DED1] bg-[linear-gradient(135deg,#183D2D_0%,#1F4A36_42%,#2E6A52_100%)] p-px shadow-[0_28px_56px_rgba(23,63,45,0.18)]">
           <HeroBanner
             eyebrow="For administrators"
@@ -586,7 +588,9 @@ export default function AdminPage() {
         <div className="mt-6">
           <Disclaimer />
         </div>
-      </PageMain>
+          </PageMain>
+        </div>
+      </div>
       {toast && <Toast message={toast.message} tone={toast.tone} onDismiss={() => setToast(null)} />}
     </>
   );
