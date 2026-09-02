@@ -165,6 +165,20 @@ def migrate_user_preferences_schema() -> None:
                 conn.execute(text(f"ALTER TABLE users ADD COLUMN {column} {ddl}"))
 
 
+def migrate_user_role_schema() -> None:
+    """Add the role column required by authentication and authorization."""
+    from sqlalchemy import inspect, text
+
+    insp = inspect(engine)
+    if "users" not in insp.get_table_names():
+        return
+
+    columns = {column["name"] for column in insp.get_columns("users")}
+    if "role" not in columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR(16) NOT NULL DEFAULT 'resident'"))
+
+
 def migrate_lexicon_rule_base_schema() -> None:
     """Add rule_base_id to legacy lexicon_rules tables created before the diagram refactor."""
     from sqlalchemy import inspect, text

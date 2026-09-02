@@ -27,6 +27,7 @@ class User(Base):
     phone_number: Mapped[str | None] = mapped_column(String(32), nullable=True)
     email: Mapped[str] = mapped_column(String(191), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255))
+    role: Mapped[str] = mapped_column(String(16), default="resident", server_default="resident")
     language_preference: Mapped[str | None] = mapped_column(String(16), nullable=True, default="en")
     notification_preferences: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=lambda: {"email": True, "sms": False, "push": True})
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
