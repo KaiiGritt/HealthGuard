@@ -294,27 +294,31 @@ export default function PageHeader() {
       {isCompactNav && mobileMenuOpen && (
         <>
           <button type="button" aria-label="Close navigation" onClick={() => setMobileMenuOpen(false)} className="fixed inset-0 z-40 bg-ink/25 backdrop-blur-[2px] md:hidden" />
-          <div className="fixed inset-y-0 left-0 z-50 flex w-[min(84vw,320px)] flex-col border-r border-border bg-header p-4 shadow-[0_18px_48px_rgba(20,31,25,0.2)] md:hidden">
-            <div className="flex items-center justify-between border-b border-border pb-4">
-              <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Navigation</span>
-              <button type="button" aria-label="Close menu" onClick={() => setMobileMenuOpen(false)} className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-ink-secondary outline-none focus-visible:ring-4 focus-visible:ring-brand/20">
-                <CloseIcon />
-              </button>
+          <div
+            className="fixed inset-y-0 left-0 z-50 flex w-[240px] isolate flex-col overflow-y-auto border-r border-border shadow-[0_18px_48px_rgba(20,31,25,0.2)] md:hidden"
+            style={{ backgroundColor: "#f4f7ef", opacity: 1 }}
+          >
+            <div className="border-b border-border px-[18px] py-[18px]">
+              <Link href="/" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3">
+                <span className="flex h-[34px] w-[34px] items-center justify-center rounded-full bg-brand-dark font-display text-base text-brand-foreground shadow-sm">H</span>
+                <span className="font-display text-[15px] font-semibold text-ink">HealthGuard</span>
+              </Link>
+              <p className="mt-5 max-w-[185px] text-xs leading-relaxed text-ink-muted">Bilingual health guidance for the Irosin community.</p>
             </div>
-            <nav className="flex flex-col gap-2 pt-4">
+            <nav className="flex flex-col gap-1 px-2.5 py-4">
             {mobileMenuItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
                 onClick={() => setMobileMenuOpen(false)}
                 className={cn(
-                  "flex items-center gap-3 rounded-xl border px-3.5 py-3 text-sm font-medium outline-none transition-all duration-200 focus-visible:ring-4 focus-visible:ring-brand/20",
+                  "flex items-center gap-3 rounded-xl border border-transparent px-3.5 py-3 text-sm font-medium outline-none transition-all duration-200 focus-visible:ring-4 focus-visible:ring-brand/20",
                   item.active
-                    ? "border-brand/20 bg-brand-tint text-brand-dark shadow-sm"
-                    : "border-transparent bg-card text-ink-secondary hover:border-border hover:text-ink",
+                    ? "border-brand/10 bg-[#f7faef] font-semibold text-ink shadow-[inset_3px_0_0_var(--color-brand)]"
+                    : "text-ink-secondary hover:bg-white/70 hover:text-ink",
                 )}
               >
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface text-current">
+                <span className="flex h-8 w-8 items-center justify-center text-ink-faint">
                   <MobileMenuIcon type={item.icon} />
                 </span>
                 <span>{item.label}</span>
@@ -328,9 +332,9 @@ export default function PageHeader() {
                   setMobileMenuOpen(false);
                   void handleLogout();
                 }}
-                className="mt-1 flex items-center gap-3 rounded-xl border border-border bg-card px-3.5 py-3 text-left text-sm font-medium text-ink-secondary transition-all duration-200 hover:border-brand/30 hover:text-ink"
+                className="mt-1 flex items-center gap-3 rounded-xl border border-transparent px-3.5 py-3 text-left text-sm font-medium text-ink-secondary transition-all duration-200 hover:bg-white/70 hover:text-ink"
               >
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface text-current">
+                <span className="flex h-8 w-8 items-center justify-center text-ink-faint">
                   <MobileMenuIcon type="logout" />
                 </span>
                 <span>{uiText.logout}</span>
