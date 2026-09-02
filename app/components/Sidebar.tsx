@@ -60,7 +60,7 @@ export default function Sidebar({ user }: { user: User }) {
         <div className="flex items-center gap-3">
           <span className="flex h-10 w-10 items-center justify-center rounded-sm bg-brand font-mono text-lg font-semibold text-brand-foreground">H</span>
           <div className="min-w-0">
-            <p className="font-display text-lg font-semibold text-ink">HealthGuard <span className="text-brand">AI</span></p>
+            <p className="font-display text-lg font-semibold text-ink">HealthGuard</p>
             <p className="mt-0.5 truncate font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint">{roleLabel}</p>
           </div>
         </div>

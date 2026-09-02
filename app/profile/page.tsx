@@ -113,9 +113,8 @@ export default function ProfilePage() {
           return;
         }
         const photoStorageKey = `healthguard-profile-photo-${current.id}`;
-        const storedLanguage = typeof window !== "undefined" ? window.localStorage.getItem("healthguard-language") : null;
         const storedPhoto = typeof window !== "undefined" ? window.localStorage.getItem(photoStorageKey) : null;
-        const preferredLanguage = (current.language_preference ?? storedLanguage ?? "en") as "en" | "fil" | "both";
+        const preferredLanguage = "en" as const;
         setUser(current);
         setCurrentLanguage(preferredLanguage);
         setLanguage(preferredLanguage);
@@ -158,7 +157,7 @@ export default function ProfilePage() {
 
       });
       setUser(updated);
-      const nextLanguage = (updated.language_preference ?? form.language_preference ?? "en") as "en" | "fil" | "both";
+      const nextLanguage = "en" as const;
       setCurrentLanguage(nextLanguage);
       setLanguage(nextLanguage);
       setForm((prev) => ({ ...prev, language_preference: nextLanguage }));

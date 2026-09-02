@@ -35,7 +35,6 @@ export default function PageHeader() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const uiText = {
-    assessment: language === "fil" ? "Pagsusuri" : language === "both" ? "Assessment / Pagsusuri" : "Assessment",
     history: language === "fil" ? "Kasaysayan" : language === "both" ? "History / Kasaysayan" : "History",
     dashboard: language === "fil" ? "Dashboard" : language === "both" ? "Dashboard / Dashboard" : "Dashboard",
     profile: language === "fil" ? "Profile" : language === "both" ? "Profile / Profile" : "Profile",
@@ -109,14 +108,6 @@ export default function PageHeader() {
 
         <div className="col-start-3 justify-self-end flex items-center gap-3 lg:gap-4">
           <nav className="hidden items-center gap-1.5 rounded-full border border-[#D8DED1] bg-white/75 p-1.5 shadow-[0_10px_24px_rgba(24,38,25,0.06)] backdrop-blur-md md:flex lg:gap-2">
-            {pathname !== "/" && user?.role === "resident" && <Link href="/assessment" className={linkClass("/assessment")}>
-              <IconWrapper>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 lg:h-5 lg:w-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 4H7a2 2 0 01-2-2V6a2 2 0 012-2h5l4 4h5a2 2 0 012 2v10a2 2 0 01-2 2z" />
-                </svg>
-              </IconWrapper>
-              {uiText.assessment}
-            </Link>}
             {pathname !== "/" && user?.role === "resident" && <Link href="/history" className={linkClass("/history")}>
               <IconWrapper>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 lg:h-5 lg:w-5">
@@ -206,14 +197,6 @@ export default function PageHeader() {
       {mobileMenuOpen && (
         <div className="border-t border-[#D8DED1] bg-[#FBF9F2] px-4 py-4 md:hidden">
           <div className="flex flex-col gap-2">
-            {user?.role === "resident" && <Link href="/assessment" className={linkClass("/assessment")}>
-              <IconWrapper>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 lg:h-5 lg:w-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 4H7a2 2 0 01-2-2V6a2 2 0 012-2h5l4 4h5a2 2 0 012 2v10a2 2 0 01-2 2z" />
-                </svg>
-              </IconWrapper>
-              {uiText.assessment}
-            </Link>}
             {user?.role === "resident" && <Link href="/history" className={linkClass("/history")}>
               <IconWrapper>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 lg:h-5 lg:w-5">

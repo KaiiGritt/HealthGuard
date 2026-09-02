@@ -26,16 +26,15 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (isValidLanguage(stored)) {
-      setLanguageState(stored);
-    }
+    window.localStorage.setItem(STORAGE_KEY, DEFAULT_LANGUAGE);
+    document.documentElement.lang = "en";
   }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    window.localStorage.setItem(STORAGE_KEY, language);
-    document.documentElement.lang = language === "fil" ? "fil" : "en";
+    const nextLanguage = language === "en" ? "en" : "en";
+    window.localStorage.setItem(STORAGE_KEY, nextLanguage);
+    document.documentElement.lang = "en";
   }, [language]);
 
   const value = useMemo(

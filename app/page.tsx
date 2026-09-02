@@ -145,20 +145,20 @@ export default function Home() {
           <div className="mx-auto grid w-full max-w-[1600px] gap-10 px-5 py-16 sm:px-7 sm:py-20 md:grid-cols-[1.15fr_0.85fr] md:items-center lg:gap-16 lg:px-10 lg:py-28 xl:px-14 xl:py-32 2xl:px-20">
             <div>
               <TagBadge>{strings.tag}</TagBadge>
-              <h1 className="mt-5 max-w-2xl font-display text-4xl leading-[1.08] sm:text-5xl lg:text-6xl xl:text-[4rem] xl:leading-[1.1]">
+              <h1 className="mt-5 max-w-2xl font-display text-3xl leading-[1.08] sm:text-4xl lg:text-6xl xl:text-[4rem] xl:leading-[1.1]">
                 {strings.heading}
               </h1>
-              <p className="mt-6 max-w-md text-xl leading-relaxed text-ink-secondary lg:max-w-lg lg:text-2xl">
+              <p className="mt-6 max-w-md text-lg leading-relaxed text-ink-secondary sm:text-xl lg:max-w-lg lg:text-2xl">
                 {strings.subhead}
               </p>
-              <div className="mt-9 flex flex-wrap items-center gap-4">
+              <div className="mt-9 flex flex-col items-start gap-4 sm:flex-row sm:flex-wrap sm:items-center">
                 <Link
                   href="/login?next=/assessment"
-                  className="inline-flex min-h-16 items-center justify-center rounded-sm bg-brand px-10 text-xl font-medium text-brand-foreground transition hover:bg-brand-dark lg:min-h-[4.5rem] lg:px-12 lg:text-2xl"
+                  className="inline-flex min-h-12 w-full items-center justify-center rounded-sm bg-brand px-6 text-lg font-medium text-brand-foreground transition hover:bg-brand-dark sm:w-auto sm:min-h-16 sm:px-10 sm:text-xl lg:min-h-[4.5rem] lg:px-12 lg:text-2xl"
                 >
                   {strings.cta}
                 </Link>
-                <span className="text-base text-ink-muted lg:text-lg">{strings.helper}</span>
+                <span className="text-sm text-ink-muted sm:text-base lg:text-lg">{strings.helper}</span>
               </div>
             </div>
             <TriageTag />
