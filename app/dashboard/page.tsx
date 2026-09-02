@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Disclaimer from "../components/Disclaimer";
-import Sidebar from "../components/Sidebar";
+import PageHeader from "../components/PageHeader";
 import {
   AccessGate,
   cn,
@@ -1141,10 +1141,9 @@ function DashboardPageContent() {
 
   return (
     <>
-      <div className="flex min-h-screen bg-surface">
-        <Sidebar user={currentUser} />
-
-        <div className="flex-1">
+      <div className="min-h-screen bg-surface">
+        <PageHeader />
+        <div>
           <PageMain wide>
             <div className="overflow-hidden rounded-[30px] border border-[#d1d9cf] bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.28),_transparent_30%),linear-gradient(135deg,#183D2D_0%,#1F4A36_42%,#2E6A52_100%)] p-px shadow-[0_28px_60px_rgba(23,63,45,0.18)]">
               <HeroBanner

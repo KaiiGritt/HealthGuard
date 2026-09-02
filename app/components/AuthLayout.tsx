@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { IconShield } from "@/app/components/ui/icons";
-import Sidebar from "./Sidebar";
+import PageHeader from "./PageHeader";
 
 type AuthLayoutProps = {
   children: ReactNode;
@@ -15,7 +15,7 @@ type AuthLayoutProps = {
 export default function AuthLayout({ children, title, subtitle, footer, step }: AuthLayoutProps) {
   return (
     <div className="auth-pro-shell flex min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(47,107,79,0.08),_transparent_25%),linear-gradient(180deg,#f8faf6_0%,#f1f5ee_100%)]">
-      <Sidebar user={null} />
+      <PageHeader />
       {/* Brand panel — left on desktop */}
       <aside className="auth-pro-brand relative hidden w-[44%] shrink-0 flex-col justify-between overflow-hidden lg:flex xl:w-[42%]">
         <div className="auth-pro-brand-grid pointer-events-none absolute inset-0" aria-hidden />

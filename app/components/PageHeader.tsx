@@ -6,7 +6,6 @@ import { useEffect, useState, type ReactNode } from "react";
 import { cn } from "@/app/components/ui/primitives";
 import { useInterfaceLanguage } from "@/app/components/LanguageProvider";
 import { getMe, logout, type User } from "@/lib/api";
-import Sidebar from "./Sidebar";
 
 function IconWrapper({ children }: { children: ReactNode }) {
   return <span className="flex h-5 w-5 items-center justify-center">{children}</span>;
@@ -176,7 +175,7 @@ export default function PageHeader() {
           { href: "/", label: "Home", active: isHomeRoute, icon: "home" as const },
           ...(user.role === "mho" ? [{ href: "/dashboard", label: uiText.dashboard, active: pathname === "/dashboard", icon: "dashboard" as const }] : []),
           ...(user.role === "admin" ? [{ href: "/admin", label: "Admin", active: pathname === "/admin", icon: "dashboard" as const }] : []),
-          { href: "/history", label: uiText.history, active: isHistoryRoute, icon: "history" as const },
+          ...(user.role === "resident" ? [{ href: "/history", label: uiText.history, active: isHistoryRoute, icon: "history" as const }] : []),
           { href: "/profile", label: uiText.profile, active: isProfileRoute, icon: "profile" as const },
         ]
       : [
@@ -184,8 +183,6 @@ export default function PageHeader() {
           { href: "/login", label: uiText.login, active: isLoginRoute, icon: "login" as const },
           { href: "/register", label: uiText.signup, active: isRegisterRoute, icon: "signup" as const },
         ];
-
-  return <Sidebar user={user} />;
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-header/90 backdrop-blur-xl">
