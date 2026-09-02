@@ -22,13 +22,10 @@ export default function AuthLayout({ children, title, subtitle, footer, step }: 
 
         <div className="relative z-10 p-10 xl:p-14">
           <Link href="/" className="inline-flex items-center gap-3 transition hover:opacity-90">
-            <span
-              className="flex h-11 w-11 items-center justify-center rounded-lg bg-linear-to-br from-brand to-brand-dark text-xl text-brand-foreground shadow-sm ring-1 ring-white/20"
-              style={{ fontFamily: "var(--font-display)" }}
-            >
+            <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-white/10 font-mono text-xl font-semibold text-white ring-1 ring-white/20">
               H
             </span>
-            <span className="text-2xl font-medium text-white" style={{ fontFamily: "var(--font-display)" }}>
+            <span className="font-display text-2xl font-semibold text-white">
               HealthGuard <span className="text-brand-muted"></span>
             </span>
           </Link>
@@ -69,15 +66,15 @@ export default function AuthLayout({ children, title, subtitle, footer, step }: 
       <main className="auth-pro-form flex flex-1 flex-col bg-[linear-gradient(180deg,#ffffff_0%,#f6f9f3_100%)]">
         <div className="flex items-center justify-between border-b border-border px-5 py-4 lg:hidden">
           <Link href="/" className="flex items-center gap-2.5">
-            <span
-              className="flex h-9 w-9 items-center justify-center rounded-lg bg-linear-to-br from-brand to-brand-dark text-lg text-brand-foreground shadow-sm"
-              style={{ fontFamily: "var(--font-display)" }}
-            >
+            <span className="flex h-9 w-9 items-center justify-center rounded-md bg-brand font-mono text-lg font-semibold text-brand-foreground">
               H
             </span>
-            <span className="text-lg font-medium text-ink" style={{ fontFamily: "var(--font-display)" }}>
+            <span className="font-display text-lg font-semibold text-ink">
               HealthGuard
             </span>
+          </Link>
+          <Link href="/assessment" className="text-sm font-medium text-brand hover:underline">
+            Assessment
           </Link>
         </div>
 
