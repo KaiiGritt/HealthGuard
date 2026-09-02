@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, Suspense, type ReactNode } from "react";
 import { cn } from "@/app/components/ui/primitives";
 import { useInterfaceLanguage } from "@/app/components/LanguageProvider";
@@ -96,8 +96,6 @@ function MobileMenuIcon({ type }: { type: "home" | "assessment" | "history" | "d
 function PageHeaderInner({ dashboardAlertCount = 0 }: { dashboardAlertCount?: number } = {}) {
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const dashboardSection = searchParams.get("section") ?? "overview";
   const { language } = useInterfaceLanguage();
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
@@ -196,16 +194,6 @@ function PageHeaderInner({ dashboardAlertCount = 0 }: { dashboardAlertCount?: nu
     );
   }
 
-  function mhoLinkClass(section: string) {
-    const active = pathname === "/dashboard" && dashboardSection === section;
-    return cn(
-      "flex items-center gap-2 whitespace-nowrap rounded-full px-2.5 py-2 text-sm font-medium outline-none transition-all duration-200 focus-visible:ring-4 focus-visible:ring-brand/20 sm:gap-2 sm:px-3 lg:gap-2.5 lg:px-4.5 lg:py-2.5 lg:text-base",
-      active
-        ? "bg-brand-tint text-brand-dark shadow-sm ring-1 ring-brand/15"
-        : "text-ink-secondary hover:bg-card hover:text-ink hover:shadow-sm hover:ring-1 hover:ring-border/80",
-    );
-  }
-
   const isHomeRoute = currentPath === "/";
 
   const mobileMenuItems = !authReady
@@ -274,17 +262,14 @@ function PageHeaderInner({ dashboardAlertCount = 0 }: { dashboardAlertCount?: nu
               )}
 
               {user?.role === "mho" && (
-                <>
-                  <Link href="/dashboard" className={mhoLinkClass("overview")}>Overview</Link>
-                  <Link href="/dashboard?section=records" className={mhoLinkClass("records")}>
-                    Records
-                    {dashboardAlertCount > 0 ? (
-                      <span className="rounded-full bg-triage-red px-1.5 py-0.5 font-mono text-[10px] font-bold text-white">{dashboardAlertCount}</span>
-                    ) : null}
-                  </Link>
-                  <Link href="/dashboard?section=analytics" className={mhoLinkClass("analytics")}>Analytics</Link>
-                  <Link href="/dashboard?section=reports" className={mhoLinkClass("reports")}>Reports</Link>
-                </>
+                <Link href="/dashboard" className={linkClass("/dashboard")}>
+                  <IconWrapper>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 lg:h-5 lg:w-5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 18V8m8 10V4m8 14v-7M3 20h18" />
+                    </svg>
+                  </IconWrapper>
+                  {uiText.dashboard}
+                </Link>
               )}
 
               {user?.role === "admin" && (

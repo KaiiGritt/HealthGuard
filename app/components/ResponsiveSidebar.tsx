@@ -33,7 +33,7 @@ export default function ResponsiveSidebar({ user, dashboardAlertCount = 0 }: { u
   const [loggingOut, setLoggingOut] = useState(false);
   const items: Item[] = user
     ? [
-        ...(user.role === "mho" ? [{ href: "/dashboard?section=overview", label: "Overview", icon: "dashboard" as const }, { href: "/dashboard?section=records", label: "Assessment records", icon: "history" as const, badge: dashboardAlertCount }, { href: "/dashboard?section=analytics", label: "Analytics", icon: "dashboard" as const }, { href: "/dashboard?section=reports", label: "Reports", icon: "dashboard" as const }] : []),
+        ...(user.role === "mho" ? [{ href: "/dashboard", label: "Dashboard", icon: "dashboard" as const }] : []),
         ...(user.role === "admin" ? [{ href: "/admin", label: "Overview", icon: "dashboard" as const }] : []),
         ...(user.role === "resident" ? [{ href: "/assessment", label: "Assessment", icon: "assessment" as const }, { href: "/history", label: "History", icon: "history" as const }] : []),
         { href: "/profile", label: "Profile", icon: "profile" },

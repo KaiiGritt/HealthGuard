@@ -39,9 +39,7 @@ const ADMIN_ITEMS: NavItem[] = [
 ];
 
 const MHO_ITEMS: NavItem[] = [
-  { href: "/dashboard", label: "Overview", icon: "overview" },
-  { href: "/dashboard/records", label: "Assessment records", icon: "records" },
-  { href: "/dashboard/reports", label: "Analytics & reports", icon: "reports" },
+  { href: "/dashboard", label: "Dashboard", icon: "overview" },
 ];
 
 const PUBLIC_ITEMS: NavItem[] = [
