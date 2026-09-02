@@ -15,8 +15,8 @@ type AuthLayoutProps = {
 export default function AuthLayout({ children, title, subtitle, footer, step }: AuthLayoutProps) {
   return (
     <div className="auth-pro-shell premium-page flex min-h-screen">
-      <div className="lg:hidden">
-        <Sidebar user={null} />
+      <div className="xl:hidden">
+        <Sidebar user={null} showOnTablet />
       </div>
       {/* Brand panel — left on desktop */}
       <aside className="auth-pro-brand relative hidden w-[44%] shrink-0 flex-col justify-between overflow-hidden lg:flex xl:w-[42%]">

@@ -46,9 +46,12 @@ const PUBLIC_ITEMS: NavItem[] = [
   { href: "/", label: "Home", icon: "home" },
 ];
 
-export default function Sidebar({ user }: { user: User | null }) {
+export default function Sidebar({ user, showOnTablet = false }: { user: User | null; showOnTablet?: boolean }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const drawerHiddenClass = showOnTablet ? "xl:hidden" : "lg:hidden";
+  const drawerDesktopShadowClass = showOnTablet ? "xl:shadow-none" : "lg:shadow-none";
+  const drawerDesktopPositionClass = showOnTablet ? "xl:translate-x-0" : "lg:translate-x-0";
   const accountItems = user
     ? user.role === "admin"
       ? ADMIN_ITEMS
@@ -133,11 +136,11 @@ export default function Sidebar({ user }: { user: User | null }) {
 
   return (
     <>
-      <button type="button" aria-label={open ? "Close navigation" : "Open navigation"} onClick={() => setOpen((value) => !value)} className="fixed right-4 top-4 z-50 flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-header text-ink-secondary shadow-sm outline-none focus-visible:ring-4 focus-visible:ring-brand/20 lg:hidden">
+      <button type="button" aria-label={open ? "Close navigation" : "Open navigation"} onClick={() => setOpen((value) => !value)} className={`fixed right-4 top-4 z-50 flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-header text-ink-secondary shadow-sm outline-none focus-visible:ring-4 focus-visible:ring-brand/20 ${drawerHiddenClass}`}>
         <Icon path={open ? "M6 6l12 12M18 6 6 18" : "M4 6h16M4 12h16M4 18h16"} />
       </button>
-      {open && <button type="button" aria-label="Close navigation" onClick={() => setOpen(false)} className="premium-overlay fixed inset-0 z-40 bg-ink/25 backdrop-blur-[2px] lg:hidden" />}
-      <aside className={`fixed left-0 top-0 z-50 flex h-screen w-64 shrink-0 flex-col border-r border-[#D7E0D2] bg-[linear-gradient(180deg,#FBF9F2_0%,#F2F6EE_100%)] shadow-[0_18px_48px_rgba(20,31,25,0.18)] transition-transform lg:shadow-none ${open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}>
+      {open && <button type="button" aria-label="Close navigation" onClick={() => setOpen(false)} className={`premium-overlay fixed inset-0 z-40 bg-ink/25 backdrop-blur-[2px] ${drawerHiddenClass}`} />}
+      <aside className={`fixed left-0 top-0 z-50 flex h-screen w-64 shrink-0 flex-col border-r border-[#D7E0D2] bg-[linear-gradient(180deg,#FBF9F2_0%,#F2F6EE_100%)] shadow-[0_18px_48px_rgba(20,31,25,0.18)] transition-transform ${drawerDesktopShadowClass} ${open ? "!translate-x-0" : `-translate-x-full ${drawerDesktopPositionClass}`}`}>
         {content}
       </aside>
     </>
