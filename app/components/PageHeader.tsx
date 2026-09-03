@@ -105,6 +105,7 @@ export default function PageHeader({ dashboardAlertCount = 0 }: { dashboardAlert
   const isRegisterRoute = pathname === "/register";
 
   const uiText = {
+    assessment: language === "fil" ? "Assessment" : language === "both" ? "Assessment / Pagsusuri" : "Assessment",
     history: language === "fil" ? "Kasaysayan" : language === "both" ? "History / Kasaysayan" : "History",
     dashboard: language === "fil" ? "Dashboard" : language === "both" ? "Dashboard / Dashboard" : "Dashboard",
     profile: language === "fil" ? "Profile" : language === "both" ? "Profile / Profile" : "Profile",
@@ -229,15 +230,27 @@ export default function PageHeader({ dashboardAlertCount = 0 }: { dashboardAlert
         {!isCompactNav ? (
           <div className="col-start-3 justify-self-end flex items-center gap-3 lg:gap-4">
             <nav className="hidden items-center gap-1 rounded-full border border-border bg-surface p-1.5 md:flex lg:gap-1.5">
-              {pathname !== "/" && user?.role === "resident" && (
-                <Link href="/history" className={linkClass("/history")}>
-                  <IconWrapper>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 lg:h-5 lg:w-5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </IconWrapper>
-                  {uiText.history}
-                </Link>
+              {user?.role === "resident" && (
+                <>
+                  <Link href="/assessment" className={linkClass("/assessment")}>
+                    <IconWrapper>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 lg:h-5 lg:w-5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 4h6l4 4v12H5V4h4Zm3 0v5h5M8 13h8M8 17h5" />
+                      </svg>
+                    </IconWrapper>
+                    {uiText.assessment}
+                  </Link>
+                  {pathname !== "/" && (
+                    <Link href="/history" className={linkClass("/history")}>
+                      <IconWrapper>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 lg:h-5 lg:w-5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </IconWrapper>
+                      {uiText.history}
+                    </Link>
+                  )}
+                </>
               )}
 
               {user?.role === "mho" && (
