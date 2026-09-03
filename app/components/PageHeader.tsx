@@ -288,8 +288,11 @@ export default function PageHeader({ dashboardAlertCount = 0 }: { dashboardAlert
                   <button
                     type="button"
                     onClick={handleLogout}
-                    className="rounded-full border border-border bg-card px-3 py-2 text-sm font-medium text-ink-secondary transition-colors hover:border-brand/40 hover:text-ink lg:px-4 lg:py-2.5 lg:text-base"
+                    className="group flex items-center gap-2 rounded-xl border border-[#D8E2D3] bg-[linear-gradient(180deg,#FFFFFF_0%,#F7FAF4_100%)] px-2.5 py-2 text-sm font-semibold text-ink-secondary shadow-[0_5px_14px_rgba(24,38,25,0.05)] transition-all duration-200 hover:border-[#E6B2A8] hover:bg-[#FFF6F3] hover:text-emergency-red hover:shadow-[0_10px_20px_rgba(192,67,43,0.1)] lg:gap-2.5 lg:px-3 lg:py-2.5 lg:text-base"
                   >
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-ink-faint shadow-sm transition-colors duration-200 group-hover:text-emergency-red">
+                      <MobileMenuIcon type="logout" />
+                    </span>
                     {uiText.logout}
                   </button>
                 </>

@@ -159,6 +159,7 @@ export interface AdminModuleLexiconEntry {
   severity_weight: number;
   category: string;
   reviewed: boolean;
+  review_status: "pending" | "approved" | "rejected";
   reviewed_by: string | null;
   reviewed_at: string | null;
 }
@@ -333,6 +334,12 @@ export function createLexiconEntry(payload: {
 
 export function markLexiconReviewed(lexiconId: number): Promise<AdminModuleLexiconEntry> {
   return request<AdminModuleLexiconEntry>(`/assessment/admin/lexicon/${lexiconId}/review`, {
+    method: "PATCH",
+  });
+}
+
+export function rejectLexiconEntry(lexiconId: number): Promise<AdminModuleLexiconEntry> {
+  return request<AdminModuleLexiconEntry>(`/assessment/admin/lexicon/${lexiconId}/reject`, {
     method: "PATCH",
   });
 }

@@ -16,7 +16,7 @@ import {
   Toast,
   TriageBadge,
 } from "@/app/components/ui/primitives";
-import { createLexiconEntry, getAdminModules, getAdminSummary, getMe, updateUserRole, updateUserStatus, type User } from "@/lib/api";
+import { createLexiconEntry, getAdminModules, getAdminSummary, getMe, markLexiconReviewed, rejectLexiconEntry, updateUserRole, updateUserStatus, type User } from "@/lib/api";
 import { openReportForPrinting } from "@/lib/report";
 import { IconClipboard } from "@/app/components/ui/icons";
 
@@ -48,6 +48,7 @@ type AdminPageState = {
     severity_weight: number;
     category: string;
     reviewed: boolean;
+    review_status: "pending" | "approved" | "rejected";
     reviewed_by: string | null;
     reviewed_at: string | null;
   }>;
@@ -174,7 +175,7 @@ export default function AdminPage() {
         .includes(query);
     });
   }, [modules, lexiconQuery]);
-  const pendingReviewCount = modules?.lexicon_entries.filter((entry) => !entry.reviewed).length ?? 0;
+  const pendingReviewCount = modules?.lexicon_entries.filter((entry) => entry.review_status === "pending").length ?? 0;
 
   const rulePreviewMatches = useMemo(() => {
     if (!modules) return [];
@@ -235,6 +236,19 @@ export default function AdminPage() {
       setToast({ message: "Lexicon term added.", tone: "success" });
     } catch {
       setToast({ message: "Could not add lexicon term.", tone: "error" });
+    }
+  };
+
+  const handleLexiconReview = async (lexiconId: number, approved: boolean) => {
+    setPendingAction(lexiconId);
+    try {
+      const updated = approved ? await markLexiconReviewed(lexiconId) : await rejectLexiconEntry(lexiconId);
+      setModules((prev) => prev ? { ...prev, lexicon_entries: prev.lexicon_entries.map((entry) => entry.id === updated.id ? updated : entry) } : prev);
+      setToast({ message: approved ? "Lexicon term approved." : "Lexicon term rejected and removed from matching.", tone: "success" });
+    } catch {
+      setToast({ message: "Could not update lexicon review status.", tone: "error" });
+    } finally {
+      setPendingAction(null);
     }
   };
 
@@ -471,7 +485,13 @@ export default function AdminPage() {
                                 <td className="px-4 py-3 text-ink-secondary">{entry.medical_term}</td>
                                 <td className="px-4 py-3 text-ink-secondary">{entry.severity_weight}</td>
                                 <td className="px-4 py-3 text-xs text-ink-muted">
-                                  {entry.reviewed ? <span className="text-brand-dark">Reviewed by {entry.reviewed_by ?? "MHO"}</span> : "Pending review"}
+                                  <div className="space-y-2">
+                                    {entry.review_status === "approved" ? <span className="text-brand-dark">Approved by {entry.reviewed_by ?? "reviewer"}</span> : entry.review_status === "rejected" ? <span className="text-emergency-red">Not approved by {entry.reviewed_by ?? "reviewer"}</span> : <span>Pending review</span>}
+                                    {entry.review_status === "pending" ? <div className="flex flex-wrap gap-2">
+                                      <button type="button" onClick={() => void handleLexiconReview(entry.id, true)} disabled={pendingAction === entry.id} className="rounded-sm bg-brand px-2.5 py-1.5 text-[11px] font-semibold text-white disabled:opacity-60">Approve</button>
+                                      <button type="button" onClick={() => void handleLexiconReview(entry.id, false)} disabled={pendingAction === entry.id} className="rounded-sm border border-[#e6b2a8] bg-[#fff6f3] px-2.5 py-1.5 text-[11px] font-semibold text-emergency-red disabled:opacity-60">Not approved</button>
+                                    </div> : null}
+                                  </div>
                                 </td>
                               </tr>
                             ))}

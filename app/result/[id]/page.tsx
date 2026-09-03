@@ -18,6 +18,46 @@ const MESSAGES: Record<string, string> = {
   RED: "Go to the nearest hospital now. / Pumunta agad sa pinakamalapit na ospital.",
 };
 
+const RULE_TITLES: Record<string, string> = {
+  "moderate-severity-score": "Your symptoms need a consultation",
+  "mild-severity-score": "Your symptoms are currently mild",
+  "difficulty-breathing-override": "Breathing difficulty needs urgent attention",
+  "four-symptom-override": "Several symptoms were reported together",
+  "symptom-count-escalation": "Several symptoms increased the urgency",
+  "symptom-combination-score": "Symptoms were assessed together",
+  "weighted-symptom-score": "Your symptom score was calculated",
+  "unclear-symptoms-floor": "We could not fully understand the symptoms",
+  "repeat-assessment-escalation": "The same symptoms were reported again",
+  "persistent-fever": "Fever has lasted longer than expected",
+  "persistent-cough": "Cough has lasted longer than expected",
+  "persistent-diarrhea": "Diarrhea has lasted longer than expected",
+};
+
+function ruleTitle(name: string) {
+  if (RULE_TITLES[name]) return RULE_TITLES[name];
+  if (name.startsWith("critical:")) return "An emergency warning symptom was detected";
+  return name.replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function ruleDescription(name: string, description: string) {
+  if (name === "moderate-severity-score") {
+    const score = description.match(/severity \((\d+)\)/)?.[1];
+    return `Your combined symptom score is ${score ?? "within the consultation range"}. Scores from 3 to 5 are marked YELLOW, which means you should contact a health worker or visit the RHU.`;
+  }
+  if (name === "mild-severity-score") {
+    return "The recognized symptoms are below the consultation score. Continue monitoring and seek help if they worsen.";
+  }
+  return description;
+}
+
+function formatRecordedAt(value: string) {
+  const normalized = /(?:Z|[+-]\d{2}:?\d{2})$/.test(value) ? value : `${value}Z`;
+  return new Date(normalized).toLocaleString(undefined, {
+    dateStyle: "short",
+    timeStyle: "medium",
+  });
+}
+
 export default async function ResultPage({
   params,
 }: {
@@ -32,7 +72,7 @@ export default async function ResultPage({
     notFound();
   }
 
-  const created = new Date(record.created_at).toLocaleString();
+  const created = formatRecordedAt(record.created_at);
 
   return (
     <>
@@ -89,6 +129,16 @@ export default async function ResultPage({
               )}
             </section>
 
+            <section className="mt-4 rounded-[18px] border border-[#e2e8db] bg-white/80 p-4 sm:p-5">
+              <h3 className="font-mono text-xs font-semibold uppercase tracking-[0.1em] text-ink-faint lg:text-sm">Clinical explanation</h3>
+              <p className="mt-3 text-base leading-7 text-ink-secondary">{record.reason}</p>
+              {record.input_text && (
+                <p className="mt-4 border-t border-border/70 pt-3 text-sm leading-relaxed text-ink-faint">
+                  Reported information: <span className="italic text-ink-muted">“{record.input_text}”</span>
+                </p>
+              )}
+            </section>
+
             <section className="mt-4 overflow-hidden rounded-[18px] border border-[#d8e2d3] bg-[linear-gradient(145deg,#fbfcf8_0%,#f2f7ef_100%)] p-4 shadow-[0_12px_28px_rgba(31,74,54,0.05)] sm:p-5">
               <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#d8e2d3]/80 pb-4">
                 <div>
@@ -96,7 +146,7 @@ export default async function ResultPage({
                     <span className="h-5 w-1 rounded-full bg-gradient-to-b from-brand-dark to-brand-light" aria-hidden="true" />
                     <h3 className="font-mono text-xs font-semibold uppercase tracking-[0.12em] text-brand-dark lg:text-sm">Rules used</h3>
                   </div>
-                  <p className="mt-2 pl-3.5 text-sm leading-relaxed text-ink-muted">These named checks produced the risk level shown above.</p>
+                  <p className="mt-2 pl-3.5 text-sm leading-relaxed text-ink-muted">Here is why HealthGuard gave you this guidance.</p>
                 </div>
                 <span className="rounded-full border border-[#c9d8cb] bg-white/75 px-2.5 py-1 font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-brand-dark shadow-[0_2px_8px_rgba(31,74,54,0.05)]">{record.triggered_rules.length} applied</span>
               </div>
@@ -108,8 +158,9 @@ export default async function ResultPage({
                       {record.triggered_rules.indexOf(rule) + 1}
                     </span>
                     <div className="min-w-0">
-                      <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-secondary">{rule.name}</p>
-                      <p className="mt-1.5 text-sm leading-6 text-ink-muted">{rule.description}</p>
+                      <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-secondary">{ruleTitle(rule.name)}</p>
+                      <p className="mt-1.5 text-sm leading-6 text-ink-muted">{ruleDescription(rule.name, rule.description)}</p>
+                      <p className="mt-2 font-mono text-[10px] text-ink-faint">Rule ID: {rule.name}</p>
                     </div>
                   </li>
                 ))}

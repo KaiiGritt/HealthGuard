@@ -200,6 +200,7 @@ class AdminLexiconItem(BaseModel):
     severity_weight: int
     category: str
     reviewed: bool = False
+    review_status: str = "pending"
     reviewed_by: str | None = None
     reviewed_at: datetime | None = None
 

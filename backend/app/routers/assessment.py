@@ -305,7 +305,7 @@ def _reference_guides() -> list[DashboardReferenceItem]:
 @router.get("/dashboard/summary", response_model=DashboardSummaryOut)
 def dashboard_summary(
     db: Session = Depends(get_db),
-    user: User = Depends(require_role("mho")),
+    user: User = Depends(require_role("mho", "admin")),
 ) -> DashboardSummaryOut:
     total_assessments = db.scalar(select(func.count(Assessment.id))) or 0
     today_count = db.scalar(
@@ -499,6 +499,7 @@ def admin_modules(
                 severity_weight=row.severity_weight,
                 category=row.category,
                 reviewed=row.reviewed,
+                review_status=row.review_status,
                 reviewed_by=row.reviewed_by,
                 reviewed_at=row.reviewed_at,
             )
@@ -597,6 +598,7 @@ def create_lexicon_entry(
         severity_weight=entry.severity_weight,
         category=entry.category,
         reviewed=entry.reviewed,
+        review_status=entry.review_status,
         reviewed_by=entry.reviewed_by,
         reviewed_at=entry.reviewed_at,
     )
@@ -606,12 +608,31 @@ def create_lexicon_entry(
 def review_lexicon_entry(
     lexicon_id: int,
     db: Session = Depends(get_db),
+    user: User = Depends(require_role("mho", "admin")),
+) -> SymptomLexicon:
+    entry = db.get(SymptomLexicon, lexicon_id)
+    if entry is None:
+        raise HTTPException(status_code=404, detail="Lexicon entry not found.")
+    entry.reviewed = True
+    entry.review_status = "approved"
+    entry.reviewed_by = user.email
+    entry.reviewed_at = _utc_now()
+    db.commit()
+    db.refresh(entry)
+    return entry
+
+
+@router.patch("/admin/lexicon/{lexicon_id}/reject", response_model=AdminLexiconItem)
+def reject_lexicon_entry(
+    lexicon_id: int,
+    db: Session = Depends(get_db),
     user: User = Depends(require_role("mho")),
 ) -> SymptomLexicon:
     entry = db.get(SymptomLexicon, lexicon_id)
     if entry is None:
         raise HTTPException(status_code=404, detail="Lexicon entry not found.")
     entry.reviewed = True
+    entry.review_status = "rejected"
     entry.reviewed_by = user.email
     entry.reviewed_at = _utc_now()
     db.commit()
@@ -636,7 +657,7 @@ def mho_lexicon(
 
 
 def _load_entries(db: Session) -> list[LexiconEntry]:
-    rows = db.execute(select(SymptomLexicon)).scalars().all()
+    rows = db.execute(select(SymptomLexicon).where(SymptomLexicon.review_status != "rejected")).scalars().all()
     return [
         LexiconEntry(
             local_term=r.local_term,
@@ -758,6 +779,7 @@ def analyze_symptoms(
         risk_level=result.classification.risk_level,
         reason=result.classification.reason,
         recommendation=result.classification.recommendation,
+        created_at=_utc_now(),
         triggered_rules=[
             {"name": rule.name, "description": rule.description}
             for rule in result.classification.triggered_rules

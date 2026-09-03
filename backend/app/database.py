@@ -134,6 +134,7 @@ def migrate_lexicon_review_schema() -> None:
     cols = {c["name"] for c in insp.get_columns("symptom_lexicon")}
     alters = {
         "reviewed": "BOOLEAN NOT NULL DEFAULT FALSE",
+        "review_status": "VARCHAR(16) NOT NULL DEFAULT 'pending'",
         "reviewed_by": "VARCHAR(191)",
         "reviewed_at": "TIMESTAMP",
     }
@@ -141,6 +142,7 @@ def migrate_lexicon_review_schema() -> None:
         for column, ddl in alters.items():
             if column not in cols:
                 conn.execute(text(f"ALTER TABLE symptom_lexicon ADD COLUMN {column} {ddl}"))
+        conn.execute(text("UPDATE symptom_lexicon SET review_status = 'approved' WHERE reviewed = TRUE AND review_status = 'pending'"))
 
 
 def migrate_user_preferences_schema() -> None:

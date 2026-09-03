@@ -502,6 +502,31 @@ def classify(
     )
     triggered.extend(demographic_rules)
 
+    if matches:
+        symptom_weights = ", ".join(
+            f"{match.medical_term} ({match.severity_weight})"
+            for match in matches
+        )
+        triggered.append(
+            Rule(
+                name="weighted-symptom-score",
+                description=f"Recognized symptom weights: {symptom_weights}. The base symptom score is {score}; context adjustments produce a final score of {adjusted_score}.",
+            )
+        )
+
+    if len(detected_terms) >= 2:
+        symptom_weights = ", ".join(
+            f"{match.medical_term} ({match.severity_weight})"
+            for match in matches
+            if match.medical_term in detected_terms
+        )
+        triggered.append(
+            Rule(
+                name="symptom-combination-score",
+                description=f"These symptoms were assessed together: {symptom_weights}. Their combined score contributes to the final urgency level ({adjusted_score}).",
+            )
+        )
+
     if adjusted_score >= RED_SCORE_THRESHOLD and not (breathing_hit and len(detected_terms) == 1):
         triggered.append(
             Rule(

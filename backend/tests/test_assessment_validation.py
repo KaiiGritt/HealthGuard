@@ -72,6 +72,8 @@ def test_weighted_score_and_symptom_count_rules() -> None:
 
     assert classify([cough, headache]).risk_level == "GREEN"
     assert classify([fever, cough]).risk_level == "YELLOW"
+    assert any(rule.name == "symptom-combination-score" for rule in classify([fever, cough]).triggered_rules)
+    assert any(rule.name == "weighted-symptom-score" for rule in classify([fever, cough]).triggered_rules)
     assert classify([fever, cough, headache]).risk_level == "RED"
     assert classify([breathing]).risk_level == "YELLOW"
     assert classify([breathing, cough]).risk_level == "RED"
