@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { cn } from "./ui/primitives";
 import { logout, type User } from "@/lib/api";
 
@@ -26,7 +26,7 @@ function Icon({ name }: { name: IconName }) {
   return <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d={ICONS[name]} /></svg>;
 }
 
-export default function ResponsiveSidebar({ user, dashboardAlertCount = 0 }: { user: User | null; dashboardAlertCount?: number }) {
+function ResponsiveSidebarContent({ user, dashboardAlertCount = 0 }: { user: User | null; dashboardAlertCount?: number }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
@@ -78,5 +78,13 @@ export default function ResponsiveSidebar({ user, dashboardAlertCount = 0 }: { u
         {user && <button type="button" onClick={() => void handleLogout()} disabled={loggingOut} className="premium-logout mx-3 mb-4 flex min-h-[44px] items-center gap-3 rounded-xl border border-[#D8E2D3] bg-[linear-gradient(180deg,#FFFFFF_0%,#F7FAF4_100%)] px-3 py-2.5 text-left text-sm font-semibold text-ink-secondary shadow-[0_5px_14px_rgba(24,38,25,0.05)] transition-all duration-200 hover:border-[#E6B2A8] hover:bg-[#FFF6F3] hover:text-emergency-red hover:shadow-[0_10px_20px_rgba(192,67,43,0.1)] disabled:cursor-wait disabled:opacity-60"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-ink-faint shadow-sm"><Icon name="logout" /></span>{loggingOut ? "Logging out..." : "Log out"}</button>}
       </aside>
     </>
+  );
+}
+
+export default function ResponsiveSidebar(props: { user: User | null; dashboardAlertCount?: number }) {
+  return (
+    <Suspense fallback={null}>
+      <ResponsiveSidebarContent {...props} />
+    </Suspense>
   );
 }

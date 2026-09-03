@@ -6,7 +6,7 @@ import {
   PageMain,
   PrimaryLink,
 } from "@/app/components/ui/primitives";
-import { getAssessment } from "@/lib/api";
+import { getAssessment, type AssessmentOut } from "@/lib/api";
 import Disclaimer from "../../components/Disclaimer";
 import MedicationGuidanceCard from "../../components/MedicationGuidanceCard";
 import PageHeader from "../../components/PageHeader";
@@ -25,7 +25,7 @@ export default async function ResultPage({
 }) {
   const { id } = await params;
 
-  let record;
+  let record: AssessmentOut;
   try {
     record = await getAssessment(id);
   } catch {
@@ -63,19 +63,23 @@ export default async function ResultPage({
               />
             </div>
 
-            <section className="mt-6 rounded-[18px] border border-[#e2e8db] bg-white/80 p-4 sm:p-5">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="font-mono text-xs font-semibold uppercase tracking-[0.1em] text-ink-faint lg:text-sm">Condition summary</h3>
-                <span className="text-xs text-ink-muted">{record.detected_symptoms.length} noted</span>
+            <section className="mt-6 rounded-[20px] border border-[#dfe7dc] bg-[linear-gradient(180deg,#ffffff_0%,#f7faf4_100%)] p-4 shadow-[0_18px_38px_rgba(15,23,42,0.04)] ring-1 ring-[#eef3eb] sm:p-5">
+              <div className="flex items-center justify-between gap-3 border-b border-[#e6eee1] pb-3">
+                <h3 className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint sm:text-xs lg:text-sm">Condition summary</h3>
+                <span className="rounded-full border border-[#dfeadf] bg-[#f4faef] px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-brand-dark shadow-[0_2px_8px_rgba(47,107,79,0.06)]">
+                  {record.detected_symptoms.length} noted
+                </span>
               </div>
               {record.detected_symptoms.length > 0 ? (
-                <ul className="mt-4 flex flex-wrap gap-2">
+                <ul className="mt-4 flex flex-wrap gap-2.5">
                   {record.detected_symptoms.map((s) => (
                     <li
                       key={s}
-                      className="flex items-center gap-1.5 rounded-md border border-[#c9d8cb] bg-[#f1f7f0] px-3 py-2 text-sm font-semibold capitalize text-brand-dark"
+                      className="inline-flex items-center gap-2 rounded-full border border-[#cfe0cf] bg-[linear-gradient(180deg,#f2faef_0%,#eaf5ea_100%)] px-3.5 py-2 text-sm font-semibold capitalize text-[#1f4b3d] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]"
                     >
-                      <IconCheck size={16} />
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#e1f1e3] text-[#1d6b4d]">
+                        <IconCheck size={12} />
+                      </span>
                       {s}
                     </li>
                   ))}
@@ -85,14 +89,31 @@ export default async function ResultPage({
               )}
             </section>
 
-            <section className="mt-4 rounded-[18px] border border-[#e2e8db] bg-white/80 p-4 sm:p-5">
-              <h3 className="font-mono text-xs font-semibold uppercase tracking-[0.1em] text-ink-faint lg:text-sm">Clinical explanation</h3>
-              <p className="mt-3 text-base leading-7 text-ink-secondary">{record.reason}</p>
-              {record.input_text && (
-                <p className="mt-4 border-t border-border/70 pt-3 text-sm leading-relaxed text-ink-faint">
-                  Reported information: <span className="italic text-ink-muted">“{record.input_text}”</span>
-                </p>
-              )}
+            <section className="mt-4 overflow-hidden rounded-[18px] border border-[#d8e2d3] bg-[linear-gradient(145deg,#fbfcf8_0%,#f2f7ef_100%)] p-4 shadow-[0_12px_28px_rgba(31,74,54,0.05)] sm:p-5">
+              <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#d8e2d3]/80 pb-4">
+                <div>
+                  <div className="flex items-center gap-2.5">
+                    <span className="h-5 w-1 rounded-full bg-gradient-to-b from-brand-dark to-brand-light" aria-hidden="true" />
+                    <h3 className="font-mono text-xs font-semibold uppercase tracking-[0.12em] text-brand-dark lg:text-sm">Rules used</h3>
+                  </div>
+                  <p className="mt-2 pl-3.5 text-sm leading-relaxed text-ink-muted">These named checks produced the risk level shown above.</p>
+                </div>
+                <span className="rounded-full border border-[#c9d8cb] bg-white/75 px-2.5 py-1 font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-brand-dark shadow-[0_2px_8px_rgba(31,74,54,0.05)]">{record.triggered_rules.length} applied</span>
+              </div>
+              <ol className="mt-4 space-y-2.5">
+                {record.triggered_rules.map((rule) => (
+                  <li key={rule.name} className="group relative flex gap-3 overflow-hidden rounded-xl border border-[#dfe8dc] bg-white/85 px-3.5 py-3.5 shadow-[0_4px_12px_rgba(31,74,54,0.035)] transition-colors duration-200 hover:border-[#b9ceb9] sm:px-4">
+                    <span className="absolute inset-y-0 left-0 w-0.5 bg-brand/45 transition-colors duration-200 group-hover:bg-brand" aria-hidden="true" />
+                    <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#dce8d8] bg-[#f4f8f0] font-mono text-xs font-semibold text-brand-dark">
+                      {record.triggered_rules.indexOf(rule) + 1}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-secondary">{rule.name}</p>
+                      <p className="mt-1.5 text-sm leading-6 text-ink-muted">{rule.description}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
             </section>
 
             {record.risk_level !== "RED" && (

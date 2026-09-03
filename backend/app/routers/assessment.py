@@ -13,7 +13,7 @@ from ..deps import get_current_user_optional, require_role
 from ..models import Assessment, AssessmentSymptom, Symptom, SymptomLexicon, User
 from ..nlp.engine import analyze
 from ..nlp.lexicon import LexiconEntry
-from ..nlp.rules import build_premedication_guide, has_supported_symptom_input
+from ..nlp.rules import Rule, build_premedication_guide, has_supported_symptom_input
 from ..premedication_service import create_assessment_premedication, get_premedication_for_assessment
 from ..schemas import (
     AdminActivityItem,
@@ -52,6 +52,67 @@ router = APIRouter(prefix="/assessment", tags=["assessment"])
 
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _apply_repeat_assessment_rule(db: Session, user: User | None, result) -> None:
+    """Escalate a resident's repeated symptom report within the 48-hour window."""
+    if user is None or not result.matches:
+        return
+
+    current_symptoms = {match.medical_term for match in result.matches}
+    recent = db.execute(
+        select(Assessment)
+        .where(
+            Assessment.user_id == user.id,
+            Assessment.created_at >= _utc_now() - timedelta(hours=48),
+        )
+        .order_by(Assessment.created_at.desc())
+    ).scalars().all()
+    repeated = any(
+        current_symptoms == {str(symptom) for symptom in (record.detected_symptoms or [])}
+        for record in recent
+    )
+    if not repeated:
+        return
+
+    current_level = result.classification.risk_level
+    next_level = {"GREEN": "YELLOW", "YELLOW": "RED"}.get(current_level)
+    if next_level is None:
+        return
+    result.classification.risk_level = next_level
+    result.classification.message = {
+        "YELLOW": "You may need a consultation.",
+        "RED": "Seek immediate medical attention.",
+    }[next_level]
+    result.classification.recommendation = {
+        "YELLOW": "Contact your Barangay Health Worker or visit the Rural Health Unit (RHU).",
+        "RED": "Go to the nearest hospital or call emergency services now. Do not delay.",
+    }[next_level]
+    result.classification.triggered_rules.append(
+        Rule(
+            name="repeat-assessment-escalation",
+            description="The same symptoms were reported again within 48 hours, so urgency was increased by one level.",
+        )
+    )
+
+
+def _assessment_rules(record: Assessment) -> list[TriggeredRule]:
+    """Return stored rule explanations, with a useful fallback for legacy records."""
+    if isinstance(record.triggered_rules, list) and record.triggered_rules:
+        return [
+            TriggeredRule(
+                name=str(rule.get("name", "triage-rule")),
+                description=str(rule.get("description", "")),
+            )
+            for rule in record.triggered_rules
+            if isinstance(rule, dict)
+        ]
+    return [
+        TriggeredRule(
+            name="recorded-classification",
+            description=record.reason or "The stored assessment explanation was used to determine this result.",
+        )
+    ]
 
 
 def _build_weekly_trend(db: Session) -> list[WeeklyTrendItem]:
@@ -655,14 +716,27 @@ def analyze_symptoms(
     db: Session = Depends(get_db),
     user: User | None = Depends(get_current_user_optional),
 ) -> AnalyzeResult:
-    if not has_supported_symptom_input(payload.input_text, payload.selected_symptoms):
+    if not payload.input_text.strip() and not payload.selected_symptoms:
         raise HTTPException(
             status_code=422,
             detail="No recognized symptom was detected. Please select a supported symptom or describe one of the supported symptoms.",
         )
 
     entries = _load_entries(db)
-    result = analyze(payload.input_text, payload.selected_symptoms, entries, age=payload.age, sex=payload.sex)
+    result = analyze(
+        payload.input_text,
+        payload.selected_symptoms,
+        entries,
+        age=payload.age,
+        sex=payload.sex,
+        duration_days=payload.duration_days,
+        pregnant=payload.pregnant,
+        temperature_c=payload.temperature_c,
+        oxygen_saturation=payload.oxygen_saturation,
+        heart_rate=payload.heart_rate,
+        systolic_bp=payload.systolic_bp,
+    )
+    _apply_repeat_assessment_rule(db, user, result)
 
     detected = [
         DetectedSymptom(
@@ -684,6 +758,10 @@ def analyze_symptoms(
         risk_level=result.classification.risk_level,
         reason=result.classification.reason,
         recommendation=result.classification.recommendation,
+        triggered_rules=[
+            {"name": rule.name, "description": rule.description}
+            for rule in result.classification.triggered_rules
+        ],
     )
     db.add(record)
     db.flush()
@@ -765,6 +843,7 @@ def history(
                 risk_level=record.risk_level,
                 reason=record.reason,
                 recommendation=record.recommendation,
+                triggered_rules=_assessment_rules(record),
                 created_at=record.created_at,
                 pre_medication=(
                     PreMedicationOut(
@@ -855,6 +934,7 @@ def get_assessment(
         risk_level=record.risk_level,
         reason=record.reason,
         recommendation=record.recommendation,
+        triggered_rules=_assessment_rules(record),
         created_at=record.created_at,
         pre_medication=(
             PreMedicationOut(

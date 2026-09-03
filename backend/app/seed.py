@@ -51,12 +51,27 @@ LEXICON_SEED: list[dict] = [
     {"medical_term": "chest pain", "local_term": "sakit sa dibdib", "language": "tl", "severity_weight": 4, "category": "cardiovascular"},
     {"medical_term": "chest pain", "local_term": "masakit ang dibdib", "language": "tl", "severity_weight": 4, "category": "cardiovascular"},
     # --- difficulty breathing (high severity) ---
-    {"medical_term": "difficulty breathing", "local_term": "difficulty breathing", "language": "en", "severity_weight": 4, "category": "respiratory"},
-    {"medical_term": "difficulty breathing", "local_term": "shortness of breath", "language": "en", "severity_weight": 4, "category": "respiratory"},
-    {"medical_term": "difficulty breathing", "local_term": "hirap huminga", "language": "tl", "severity_weight": 4, "category": "respiratory"},
-    {"medical_term": "difficulty breathing", "local_term": "nahihirapang huminga", "language": "tl", "severity_weight": 4, "category": "respiratory"},
-    {"medical_term": "difficulty breathing", "local_term": "hindi makahinga", "language": "tl", "severity_weight": 4, "category": "respiratory"},
-    {"medical_term": "difficulty breathing", "local_term": "sumisikip ang paghinga", "language": "tl", "severity_weight": 4, "category": "respiratory"},
+    {"medical_term": "difficulty breathing", "local_term": "difficulty breathing", "language": "en", "severity_weight": 6, "category": "respiratory"},
+    {"medical_term": "difficulty breathing", "local_term": "shortness of breath", "language": "en", "severity_weight": 6, "category": "respiratory"},
+    {"medical_term": "difficulty breathing", "local_term": "hirap huminga", "language": "tl", "severity_weight": 6, "category": "respiratory"},
+    {"medical_term": "difficulty breathing", "local_term": "nahihirapang huminga", "language": "tl", "severity_weight": 6, "category": "respiratory"},
+    {"medical_term": "difficulty breathing", "local_term": "hindi makahinga", "language": "tl", "severity_weight": 6, "category": "respiratory"},
+    {"medical_term": "difficulty breathing", "local_term": "sumisikip ang paghinga", "language": "tl", "severity_weight": 6, "category": "respiratory"},
+    # --- additional red flags ---
+    {"medical_term": "chest pain", "local_term": "chest tightness", "language": "en", "severity_weight": 4, "category": "cardiovascular"},
+    {"medical_term": "fainting", "local_term": "fainting", "language": "en", "severity_weight": 4, "category": "neurological"},
+    {"medical_term": "fainting", "local_term": "nahimatay", "language": "tl", "severity_weight": 4, "category": "neurological"},
+    {"medical_term": "severe dehydration", "local_term": "severe dehydration", "language": "en", "severity_weight": 4, "category": "general"},
+    {"medical_term": "bloody stool", "local_term": "bloody stool", "language": "en", "severity_weight": 4, "category": "gastrointestinal"},
+    {"medical_term": "blood in vomit", "local_term": "blood in vomit", "language": "en", "severity_weight": 4, "category": "gastrointestinal"},
+    {"medical_term": "severe abdominal pain", "local_term": "severe abdominal pain", "language": "en", "severity_weight": 4, "category": "gastrointestinal"},
+    {"medical_term": "sudden weakness", "local_term": "sudden weakness", "language": "en", "severity_weight": 4, "category": "neurological"},
+    {"medical_term": "confusion", "local_term": "confusion", "language": "en", "severity_weight": 4, "category": "neurological"},
+    {"medical_term": "severe rash", "local_term": "severe rash", "language": "en", "severity_weight": 4, "category": "general"},
+    {"medical_term": "facial swelling", "local_term": "facial swelling", "language": "en", "severity_weight": 4, "category": "allergic"},
+    {"medical_term": "wheezing", "local_term": "wheezing", "language": "en", "severity_weight": 4, "category": "respiratory"},
+    {"medical_term": "anaphylaxis", "local_term": "anaphylaxis", "language": "en", "severity_weight": 4, "category": "allergic"},
+    {"medical_term": "severe allergic reaction", "local_term": "severe allergic reaction", "language": "en", "severity_weight": 4, "category": "allergic"},
 ]
 
 # The canonical symptom list surfaced as selectable chips in the UI.
@@ -139,7 +154,7 @@ def seed_lexicon_rules(db: Session) -> None:
         ("fever", "fever", "YELLOW", "follow_up", 1.2),
         ("cough", "cough", "GREEN", "general", 0.8),
         ("cough", "cough", "YELLOW", "follow_up", 1.0),
-        ("difficulty breathing", "difficulty breathing", "RED", None, 5.0),
+        ("difficulty breathing", "difficulty breathing", "RED", None, 6.0),
     ]
 
     for term, normalized_term, risk_name, guide_name, weight in rules:
@@ -186,17 +201,21 @@ def seed_lexicon(db: Session) -> int:
     from .models import SymptomLexicon
 
     existing = {
-        (row.local_term, row.language)
+        (row.local_term, row.language): row
         for row in db.execute(select(SymptomLexicon)).scalars().all()
     }
     inserted = 0
     for entry in LEXICON_SEED:
         key = (entry["local_term"], entry["language"])
-        if key in existing:
+        current = existing.get(key)
+        if current is not None:
+            current.medical_term = entry["medical_term"]
+            current.severity_weight = entry["severity_weight"]
+            current.category = entry["category"]
             continue
         db.add(SymptomLexicon(**entry))
         inserted += 1
-    if inserted:
+    if inserted or existing:
         db.commit()
     return inserted
 

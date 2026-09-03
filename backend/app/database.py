@@ -179,6 +179,20 @@ def migrate_user_role_schema() -> None:
             conn.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR(16) NOT NULL DEFAULT 'resident'"))
 
 
+def migrate_assessment_rules_schema() -> None:
+    """Add stored rule explanations to existing assessment records."""
+    from sqlalchemy import inspect, text
+
+    insp = inspect(engine)
+    if "assessments" not in insp.get_table_names():
+        return
+
+    columns = {column["name"] for column in insp.get_columns("assessments")}
+    if "triggered_rules" not in columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE assessments ADD COLUMN triggered_rules JSON"))
+
+
 def migrate_lexicon_rule_base_schema() -> None:
     """Add rule_base_id to legacy lexicon_rules tables created before the diagram refactor."""
     from sqlalchemy import inspect, text

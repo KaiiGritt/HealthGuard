@@ -105,9 +105,23 @@ export default function AssessmentPage() {
       "breathless",
       "chest pain",
       "pain in chest",
+      "chest tightness",
       "weakness",
       "kahinaan",
       "rash",
+      "fainting",
+      "nahimatay",
+      "severe dehydration",
+      "bloody stool",
+      "blood in vomit",
+      "severe abdominal pain",
+      "sudden weakness",
+      "confusion",
+      "severe rash",
+      "facial swelling",
+      "wheezing",
+      "anaphylaxis",
+      "severe allergic reaction",
       "buni",
       "sore throat",
       "sakit ng lalamunan",
@@ -125,12 +139,6 @@ export default function AssessmentPage() {
     const trimmedText = text.trim();
     if (!trimmedText && selected.length === 0) {
       return "Please describe a supported symptom or tap one of the available symptoms.";
-    }
-    if (trimmedText && !matchesSupportedText(trimmedText) && selected.length > 0) {
-      return "Your free-text description was not recognized as a supported symptom. Remove the unsupported text or choose a supported symptom only.";
-    }
-    if (trimmedText && !matchesSupportedText(trimmedText) && selected.length === 0) {
-      return "No recognized symptom was detected. Please select a supported symptom or describe one of the supported symptoms.";
     }
     return null;
   };
@@ -152,6 +160,10 @@ export default function AssessmentPage() {
     try {
       const symptomText = text.trim();
       const durationText = duration.trim();
+      const durationMatch = durationText.match(/(\d+(?:\.\d+)?)\s*(hour|hours|day|days|week|weeks|month|months)/i);
+      const durationDays = durationMatch
+        ? Number(durationMatch[1]) * (durationMatch[2].toLowerCase().startsWith("hour") ? 1 / 24 : durationMatch[2].toLowerCase().startsWith("week") ? 7 : durationMatch[2].toLowerCase().startsWith("month") ? 30 : 1)
+        : null;
       const combinedText = [
         symptomText ? symptomText : "",
         durationText ? `Symptoms started ${durationText}.` : "",
@@ -163,6 +175,7 @@ export default function AssessmentPage() {
         input_text: combinedText,
         selected_symptoms: selected,
         method: text.trim() ? "text" : "select",
+        duration_days: durationDays,
       });
       router.push(`/result/${result.id}`);
     } catch (e) {

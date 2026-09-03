@@ -48,6 +48,7 @@ export interface AssessmentOut {
   risk_level: RiskLevel;
   reason: string;
   recommendation: string;
+  triggered_rules: TriggeredRule[];
   created_at: string;
   pre_medication?: PreMedicationOut | null;
 }
@@ -194,6 +195,14 @@ export interface AnalyzePayload {
   input_text?: string;
   selected_symptoms?: string[];
   method: "text" | "select";
+  duration_days?: number | null;
+  age?: number | null;
+  sex?: string | null;
+  pregnant?: boolean;
+  temperature_c?: number | null;
+  oxygen_saturation?: number | null;
+  heart_rate?: number | null;
+  systolic_bp?: number | null;
 }
 
 export type Role = "resident" | "mho" | "admin";

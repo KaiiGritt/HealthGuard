@@ -20,8 +20,14 @@ class AnalyzeRequest(BaseModel):
         default_factory=list, description="Standard symptom terms chosen from chips."
     )
     method: str = Field(default="text", description="'text' or 'select'.")
+    duration_days: float | None = Field(default=None, ge=0, le=365, description="How many days symptoms have been present.")
     age: int | None = Field(default=None, ge=0, le=150, description="Patient age for risk weighting.")
     sex: str | None = Field(default=None, max_length=16, description="Patient sex for contextual risk weighting.")
+    pregnant: bool = Field(default=False, description="Whether the patient is pregnant or recently postpartum.")
+    temperature_c: float | None = Field(default=None, ge=25, le=45, description="Temperature in degrees Celsius.")
+    oxygen_saturation: float | None = Field(default=None, ge=50, le=100, description="Pulse oximeter reading as a percentage.")
+    heart_rate: int | None = Field(default=None, ge=20, le=250, description="Heart rate in beats per minute.")
+    systolic_bp: int | None = Field(default=None, ge=50, le=250, description="Systolic blood pressure in mmHg.")
     user_id: int | None = None
 
 
@@ -79,6 +85,7 @@ class AssessmentOut(BaseModel):
     risk_level: str
     reason: str
     recommendation: str
+    triggered_rules: list[TriggeredRule] = Field(default_factory=list)
     created_at: datetime
     pre_medication: PreMedicationOut | None = None
 

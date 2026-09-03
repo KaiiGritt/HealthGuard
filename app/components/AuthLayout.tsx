@@ -16,7 +16,7 @@ export default function AuthLayout({ children, title, subtitle, footer, step }: 
   return (
     <div className="auth-pro-shell premium-page flex min-h-screen">
       <div className="xl:hidden">
-        <Sidebar user={null} showOnTablet />
+        <Sidebar user={null} />
       </div>
       {/* Brand panel — left on desktop */}
       <aside className="auth-pro-brand relative hidden w-[44%] shrink-0 flex-col justify-between overflow-hidden lg:flex xl:w-[42%]">

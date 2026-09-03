@@ -28,6 +28,12 @@ def analyze(
     entries: list[LexiconEntry],
     age: int | None = None,
     sex: str | None = None,
+    duration_days: float | None = None,
+    pregnant: bool = False,
+    temperature_c: float | None = None,
+    oxygen_saturation: float | None = None,
+    heart_rate: int | None = None,
+    systolic_bp: int | None = None,
 ) -> EngineResult:
     """Run the full pipeline and return matches + classification."""
     matches: list[Match] = []
@@ -50,5 +56,16 @@ def analyze(
     if active and matches:
         _ = scispacy_adapter.normalize_terms([m.medical_term for m in matches])
 
-    classification = classify(matches, age=age, sex=sex)
+    classification = classify(
+        matches,
+        age=age,
+        sex=sex,
+        input_text=input_text,
+        duration_days=duration_days,
+        pregnant=pregnant,
+        temperature_c=temperature_c,
+        oxygen_saturation=oxygen_saturation,
+        heart_rate=heart_rate,
+        systolic_bp=systolic_bp,
+    )
     return EngineResult(matches=matches, classification=classification, scispacy_active=active)

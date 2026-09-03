@@ -1,9 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { IconChat, IconPhone, IconSearch } from "@/app/components/ui/icons";
 import { IconCircle, TagBadge } from "@/app/components/ui/primitives";
 import { useInterfaceLanguage } from "@/app/components/LanguageProvider";
+import { getMe, type User } from "@/lib/api";
 import Disclaimer from "./components/Disclaimer";
 import PageHeader from "./components/PageHeader";
 
@@ -128,33 +131,58 @@ function TriageTag() {
 }
 
 export default function Home() {
+  const router = useRouter();
   const { language } = useInterfaceLanguage();
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    getMe().then((currentUser) => {
+      if (!active) return;
+      if (currentUser?.role === "admin") {
+        router.replace("/admin");
+        return;
+      }
+      if (currentUser?.role === "mho") {
+        router.replace("/dashboard");
+        return;
+      }
+      setUser(currentUser);
+    }).catch(() => {
+      if (active) setUser(null);
+    });
+    return () => {
+      active = false;
+    };
+  }, [router]);
+
+  const isSignedIn = user !== null;
   const strings = {
-    tag: "Para sa Irosin, Sorsogon",
+    tag: "Irosin community health guide",
     heading:
       language === "fil"
-        ? "Hindi mo alam kung oras na bang pumunta sa health center?"
+        ? "Alamin kung ano ang susunod na dapat gawin."
         : language === "both"
-          ? "Not sure if it’s time to go to the health center? / Hindi mo alam kung oras na bang pumunta sa health center?"
-          : "Not sure if it’s time to go to the health center?",
+          ? "Know what to do next. / Alamin kung ano ang susunod na dapat gawin."
+          : "Know what to do next.",
     subhead:
       language === "fil"
-        ? "Ilarawan ang iyong mga sintomas sa Ingles o Tagalog. Makakakuha ka ng malinaw na tag — green, yellow, o red — at isang simpleng gabay kung ano ang susunod."
+        ? "Ilarawan ang iyong mga sintomas sa Ingles o Tagalog. Makakakuha ka ng malinaw na gabay kung dapat mag-monitor, kumonsulta, o humingi agad ng tulong."
         : language === "both"
-          ? "Describe your symptoms in English or Tagalog. You’ll get a clear tag — green, yellow, or red — and one plain instruction for what to do next. / Ilarawan ang iyong mga sintomas sa Ingles o Tagalog. Makakakuha ka ng malinaw na tag — green, yellow, o red — at isang simpleng gabay kung ano ang susunod."
-          : "Describe your symptoms in English or Tagalog. You’ll get a clear tag — green, yellow, or red — and one plain instruction for what to do next.",
+          ? "Describe your symptoms in English or Tagalog. Get a clear next step: monitor, consult, or seek urgent help. / Ilarawan ang iyong mga sintomas sa Ingles o Tagalog. Makakakuha ng malinaw na gabay: mag-monitor, kumonsulta, o humingi agad ng tulong."
+          : "Describe your symptoms in English or Tagalog. Get a clear next step: monitor, consult, or seek urgent help.",
     cta:
       language === "fil"
-        ? "Mag-log in para simulan"
+        ? isSignedIn ? "Simulan ang assessment" : "Mag-log in para simulan"
         : language === "both"
-          ? "Log in to start / Mag-log in para simulan"
-          : "Log in to start",
+          ? isSignedIn ? "Start assessment / Simulan ang assessment" : "Log in to start / Mag-log in para simulan"
+          : isSignedIn ? "Start assessment" : "Log in to start",
     helper:
       language === "fil"
-        ? "Mag-log in muna para i-save ang iyong health history"
+        ? isSignedIn ? "Buksan ang iyong symptom check" : "Mag-log in muna para i-save ang iyong health history"
         : language === "both"
-          ? "Sign in first to save your health history / Mag-log in muna para i-save ang iyong health history"
-          : "Sign in first to save your health history",
+          ? isSignedIn ? "Open your symptom check / Buksan ang iyong symptom check" : "Sign in first to save your health history / Mag-log in muna para i-save ang iyong health history"
+          : isSignedIn ? "Open your symptom check" : "Sign in first to save your health history",
   } as const;
 
   return (
@@ -162,7 +190,7 @@ export default function Home() {
       <PageHeader />
       <main className="premium-page flex-1 text-ink">
         <section className="border-b border-border">
-          <div className="mx-auto grid w-full max-w-[1600px] gap-8 px-5 py-14 sm:px-7 sm:py-18 md:grid-cols-[1.12fr_0.88fr] md:items-center lg:gap-12 lg:px-10 lg:py-24 xl:px-14 xl:py-28 2xl:px-20">
+          <div className="mx-auto grid w-full max-w-[1600px] gap-8 px-5 pb-14 pt-20 sm:px-7 sm:py-18 md:grid-cols-[1.12fr_0.88fr] md:items-center lg:gap-12 lg:px-10 lg:py-24 xl:px-14 xl:py-28 2xl:px-20">
             <div className="relative overflow-hidden rounded-[28px] border border-[#DDE7DB] bg-[linear-gradient(135deg,rgba(255,255,255,0.94)_0%,rgba(251,252,249,0.9)_62%,rgba(241,245,238,0.88)_100%)] p-5 shadow-[0_24px_56px_rgba(24,38,25,0.09)] backdrop-blur-sm sm:p-7 lg:p-9 xl:p-10">
               <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" aria-hidden="true" />
               <TagBadge>{strings.tag}</TagBadge>
@@ -180,7 +208,7 @@ export default function Home() {
               </div>
               <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:flex-wrap sm:items-center">
                 <Link
-                  href="/login?next=/assessment"
+                  href={isSignedIn ? "/assessment" : "/login?next=/assessment"}
                   className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-brand/15 bg-gradient-to-r from-brand to-brand-light px-5 text-base font-semibold tracking-[0.01em] text-brand-foreground shadow-[0_12px_28px_rgba(47,107,79,0.18)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_32px_rgba(47,107,79,0.22)] sm:w-auto sm:min-h-[3.2rem] sm:px-7 sm:text-lg lg:min-h-[3.45rem] lg:px-8 lg:text-xl"
                 >
                   {strings.cta}

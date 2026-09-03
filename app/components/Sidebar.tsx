@@ -16,7 +16,6 @@ function Icon({ path }: { path: string }) {
 
 const icons = {
   home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1v-9.5Z",
-  assessment: "M9 4h6l4 4v12H5V4h4Zm3 0v5h5M8 13h8M8 17h5",
   overview: "M4 13h6V4H4v9Zm0 7h6v-5H4v5Zm10 0h6V11h-6v9Zm0-16v5h6V4h-6Z",
   users: "M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm8 10v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75",
   lexicon: "M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15Z",
@@ -39,25 +38,24 @@ const ADMIN_ITEMS: NavItem[] = [
 ];
 
 const MHO_ITEMS: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard", icon: "overview" },
+  { href: "/dashboard", label: "Overview", icon: "overview" },
+  { href: "/dashboard/records", label: "Assessment records", icon: "records" },
+  { href: "/dashboard/reports", label: "Analytics & reports", icon: "reports" },
 ];
 
 const PUBLIC_ITEMS: NavItem[] = [
   { href: "/", label: "Home", icon: "home" },
 ];
 
-export default function Sidebar({ user, showOnTablet = false }: { user: User | null; showOnTablet?: boolean }) {
+export default function Sidebar({ user }: { user: User | null }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const drawerHiddenClass = showOnTablet ? "xl:hidden" : "lg:hidden";
-  const drawerDesktopShadowClass = showOnTablet ? "xl:shadow-none" : "lg:shadow-none";
-  const drawerDesktopPositionClass = showOnTablet ? "xl:translate-x-0" : "lg:translate-x-0";
   const accountItems = user
     ? user.role === "admin"
       ? ADMIN_ITEMS
       : user.role === "mho"
         ? MHO_ITEMS
-        : [{ href: "/assessment", label: "Assessment", icon: "assessment" as const }, { href: "/history", label: "History", icon: "records" as const }]
+        : [{ href: "/history", label: "History", icon: "records" as const }]
     : [
         { href: "/login", label: "Log in", icon: "login" as const },
         { href: "/register", label: "Sign up", icon: "signup" as const },
@@ -73,8 +71,7 @@ export default function Sidebar({ user, showOnTablet = false }: { user: User | n
 
   const content: ReactNode = (
     <>
-      <div className="relative border-b border-[#D7E0D2] px-5 py-6">
-        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" aria-hidden="true" />
+      <div className="border-b border-border px-5 py-6">
         <Link href="/" className="flex items-center gap-3">
           <span
             className="flex h-9 w-9 items-center justify-center rounded-lg bg-linear-to-br from-brand to-brand-dark text-base font-medium text-brand-foreground shadow-sm"
@@ -136,11 +133,11 @@ export default function Sidebar({ user, showOnTablet = false }: { user: User | n
 
   return (
     <>
-      <button type="button" aria-label={open ? "Close navigation" : "Open navigation"} onClick={() => setOpen((value) => !value)} className={`fixed right-4 top-4 z-50 flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-header text-ink-secondary shadow-sm outline-none focus-visible:ring-4 focus-visible:ring-brand/20 ${drawerHiddenClass}`}>
+      <button type="button" aria-label={open ? "Close navigation" : "Open navigation"} onClick={() => setOpen((value) => !value)} className="fixed right-4 top-4 z-50 flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-header text-ink-secondary shadow-sm outline-none focus-visible:ring-4 focus-visible:ring-brand/20 lg:hidden">
         <Icon path={open ? "M6 6l12 12M18 6 6 18" : "M4 6h16M4 12h16M4 18h16"} />
       </button>
-      {open && <button type="button" aria-label="Close navigation" onClick={() => setOpen(false)} className={`premium-overlay fixed inset-0 z-40 bg-ink/25 backdrop-blur-[2px] ${drawerHiddenClass}`} />}
-      <aside className={`fixed left-0 top-0 z-50 flex h-screen w-64 shrink-0 flex-col border-r border-[#D7E0D2] bg-[linear-gradient(180deg,#FBF9F2_0%,#F2F6EE_100%)] shadow-[0_18px_48px_rgba(20,31,25,0.18)] transition-transform ${drawerDesktopShadowClass} ${open ? "!translate-x-0" : `-translate-x-full ${drawerDesktopPositionClass}`}`}>
+      {open && <button type="button" aria-label="Close navigation" onClick={() => setOpen(false)} className="fixed inset-0 z-40 bg-ink/25 backdrop-blur-[2px] lg:hidden" />}
+      <aside className={`fixed left-0 top-0 z-50 flex h-screen w-64 shrink-0 flex-col border-r border-border bg-surface shadow-[0_18px_48px_rgba(20,31,25,0.18)] transition-transform lg:shadow-none ${open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}>
         {content}
       </aside>
     </>

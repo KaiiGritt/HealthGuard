@@ -247,6 +247,7 @@ class Assessment(Base):
     risk_level: Mapped[str] = mapped_column(String(8), index=True)
     reason: Mapped[str] = mapped_column(Text, default="")
     recommendation: Mapped[str] = mapped_column(Text, default="")
+    triggered_rules: Mapped[list] = mapped_column(JSON, default=list)
     handled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
