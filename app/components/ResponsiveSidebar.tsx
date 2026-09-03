@@ -43,11 +43,11 @@ function ResponsiveSidebarContent({ user, dashboardAlertCount = 0 }: { user: Use
           : []),
         ...(user.role === "admin"
           ? [
-              { href: "/admin#overview", label: "Overview", icon: "dashboard" as const },
-              { href: "/admin#users", label: "Users", icon: "profile" as const },
-              { href: "/admin#lexicon", label: "Lexicon", icon: "dashboard" as const },
-              { href: "/admin#rules", label: "Triage rules", icon: "dashboard" as const },
-              { href: "/admin#settings", label: "Settings", icon: "dashboard" as const },
+              { href: "/admin#admin-overview", label: "Overview", icon: "dashboard" as const },
+              { href: "/admin#admin-users", label: "Users", icon: "profile" as const },
+              { href: "/admin#admin-lexicon", label: "Lexicon", icon: "dashboard" as const },
+              { href: "/admin#admin-rules", label: "Triage rules", icon: "dashboard" as const },
+              { href: "/admin#admin-settings", label: "Settings", icon: "dashboard" as const },
             ]
           : []),
         ...(user.role === "resident" ? [{ href: "/assessment", label: "Assessment", icon: "assessment" as const }, { href: "/history", label: "History", icon: "history" as const }] : []),

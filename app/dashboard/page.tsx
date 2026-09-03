@@ -883,31 +883,38 @@ function DashboardPageContent() {
         {pendingLexicon.length > 0 ? (
           <div className="space-y-3">
             {pendingLexicon.slice(0, 4).map((entry) => (
-              <div key={entry.id} className="flex flex-col gap-4 rounded-2xl border border-[#e1e8dc] bg-[linear-gradient(110deg,#fbfdf9_0%,#f3f8f1_100%)] p-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-md border border-brand/20 bg-white px-2.5 py-1 text-sm font-semibold text-ink">{entry.local_term}</span>
-                    <span className="text-ink-faint" aria-hidden="true">→</span>
-                    <span className="text-sm font-medium text-brand-dark">{entry.medical_term}</span>
+              <article key={entry.id} className="relative overflow-hidden rounded-[22px] border border-[#dbe6d8] bg-[linear-gradient(135deg,#ffffff_0%,#f4f8f1_100%)] p-4 shadow-[0_12px_28px_rgba(24,38,25,0.045)] transition-shadow hover:shadow-[0_16px_34px_rgba(24,38,25,0.08)] sm:p-5">
+                <div className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-brand to-[#c7b37a]" aria-hidden="true" />
+                <div className="flex flex-col gap-5 pl-2 sm:gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-faint">Community phrase</span>
+                      <span className="rounded-full border border-[#e7d7aa] bg-[#fffaf0] px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-[#806326]">Pending review</span>
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+                      <span className="rounded-xl border border-brand/15 bg-white px-3 py-2 text-sm font-semibold text-ink shadow-[0_3px_10px_rgba(24,38,25,0.04)]">{entry.local_term}</span>
+                      <span className="font-mono text-xs text-ink-faint" aria-hidden="true">maps to</span>
+                      <span className="rounded-xl border border-[#cfe0cf] bg-[#f3f8f0] px-3 py-2 text-sm font-semibold text-brand-dark">{entry.medical_term}</span>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint">
+                      <span>{entry.language === "tl" ? "Tagalog" : "English"}</span>
+                      <span>{entry.category}</span>
+                      <span>Draft weight {entry.severity_weight}</span>
+                    </div>
                   </div>
-                  <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint">
-                    <span>{entry.language}</span>
-                    <span>{entry.category}</span>
-                    <span>Weight {entry.severity_weight}</span>
+                  <div className="w-full shrink-0 rounded-2xl border border-[#e3ebdf] bg-white/70 p-2.5 lg:w-auto">
+                    <p className="mb-2 px-1 font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-ink-faint">Review decision</p>
+                    <div className="flex flex-col gap-2 sm:flex-row lg:flex-col xl:flex-row">
+                      <button type="button" onClick={() => void reviewLexiconEntry(entry.id)} disabled={reviewingLexicon === entry.id} className="inline-flex min-h-10 items-center justify-center rounded-xl bg-gradient-to-r from-brand to-brand-light px-4 text-xs font-semibold text-white shadow-[0_8px_16px_rgba(47,107,79,0.16)] outline-none transition hover:-translate-y-0.5 hover:shadow-[0_12px_22px_rgba(47,107,79,0.2)] focus-visible:ring-4 focus-visible:ring-brand/20 disabled:cursor-wait disabled:opacity-60">
+                        {reviewingLexicon === entry.id ? "Reviewing..." : "Mark reviewed"}
+                      </button>
+                      <button type="button" onClick={() => void rejectLexiconEntryForReview(entry.id)} disabled={reviewingLexicon === entry.id} className="inline-flex min-h-10 items-center justify-center rounded-xl border border-[#e6b2a8] bg-[#fff6f3] px-4 text-xs font-semibold text-emergency-red outline-none transition hover:-translate-y-0.5 hover:bg-[#ffebe7] hover:shadow-[0_8px_16px_rgba(192,67,43,0.1)] focus-visible:ring-4 focus-visible:ring-emergency-red/20 disabled:cursor-wait disabled:opacity-60">
+                        Not approved
+                      </button>
+                    </div>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => void reviewLexiconEntry(entry.id)}
-                  disabled={reviewingLexicon === entry.id}
-                  className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-xl border border-brand/25 bg-white px-3.5 text-xs font-semibold text-brand-dark outline-none transition hover:border-brand/50 hover:bg-brand-tint focus-visible:ring-4 focus-visible:ring-brand/20 disabled:cursor-wait disabled:opacity-60"
-                >
-                  {reviewingLexicon === entry.id ? "Reviewing..." : "Mark reviewed"}
-                </button>
-                <button type="button" onClick={() => void rejectLexiconEntryForReview(entry.id)} disabled={reviewingLexicon === entry.id} className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-xl border border-[#e6b2a8] bg-[#fff6f3] px-3.5 text-xs font-semibold text-emergency-red outline-none transition hover:bg-[#ffebe7] focus-visible:ring-4 focus-visible:ring-emergency-red/20 disabled:cursor-wait disabled:opacity-60">
-                  Not approved
-                </button>
-              </div>
+              </article>
             ))}
             {pendingLexicon.length > 4 && (
               <p className="pt-1 text-center text-xs text-ink-muted">+{pendingLexicon.length - 4} more terms waiting for review</p>
@@ -1114,19 +1121,19 @@ function DashboardPageContent() {
       <>
         <PageMain wide>
           <div className="space-y-6" aria-busy="true" aria-label="Loading dashboard">
-            <div className="h-32 animate-pulse rounded-md bg-brand/15" />
+            <div className="premium-skeleton h-32 rounded-[24px]" />
             <div className="grid gap-6 xl:grid-cols-[220px_minmax(0,1fr)]">
-              <div className="h-64 animate-pulse rounded-lg bg-border/30" />
+              <div className="premium-skeleton h-64 rounded-[24px]" />
               <div className="space-y-6">
                 <div className="grid gap-4 md:grid-cols-4">
-                  <div className="h-28 animate-pulse rounded-md bg-border/50" />
-                  <div className="h-28 animate-pulse rounded-md bg-border/50" />
-                  <div className="h-28 animate-pulse rounded-md bg-border/50" />
-                  <div className="h-28 animate-pulse rounded-md bg-border/50" />
+                  <div className="premium-skeleton h-28 rounded-[22px]" />
+                  <div className="premium-skeleton h-28 rounded-[22px]" />
+                  <div className="premium-skeleton h-28 rounded-[22px]" />
+                  <div className="premium-skeleton h-28 rounded-[22px]" />
                 </div>
                 <div className="grid gap-6 lg:grid-cols-2">
-                  <div className="h-72 animate-pulse rounded-md bg-border/40" />
-                  <div className="h-72 animate-pulse rounded-md bg-border/40" />
+                  <div className="premium-skeleton h-72 rounded-[24px]" />
+                  <div className="premium-skeleton h-72 rounded-[24px]" />
                 </div>
               </div>
             </div>

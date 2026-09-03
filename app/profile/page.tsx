@@ -240,55 +240,32 @@ export default function ProfilePage() {
       <div className="premium-page min-h-screen">
         <PageHeader />
         <PageMain>
-          <style jsx>{`
-            @keyframes shimmer {
-              0% {
-                background-position: -1000px 0;
-              }
-              100% {
-                background-position: 1000px 0;
-              }
-            }
-            .skeleton {
-              background: linear-gradient(
-                90deg,
-                rgba(15, 23, 42, 0.08) 0%,
-                rgba(15, 23, 42, 0.12) 50%,
-                rgba(15, 23, 42, 0.08) 100%
-              );
-              background-size: 1000px 100%;
-              animation: shimmer 2s infinite;
-            }
-          `}</style>
-
-          {/* Record card skeleton */}
-          <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-brand via-brand/90 to-brand p-10 sm:p-10">
+          <section className="premium-skeleton relative overflow-hidden rounded-[30px] p-6 sm:p-9">
             <div className="grid gap-8 md:grid-cols-[auto_1fr_auto] md:items-center md:gap-10">
-              <div className="skeleton h-16 w-16 flex-none rounded-xl bg-brand-foreground/20" />
+              <div className="h-16 w-16 flex-none rounded-2xl bg-white/45" />
               
               <div className="min-w-0 space-y-3">
-                <div className="skeleton h-4 w-32 rounded bg-brand-foreground/20" />
-                <div className="skeleton h-10 w-64 rounded bg-brand-foreground/20" />
+                <div className="h-4 w-32 rounded bg-white/45" />
+                <div className="h-10 w-64 rounded bg-white/45" />
                 <div className="space-y-2">
-                  <div className="skeleton h-3 w-full rounded bg-brand-foreground/20" />
-                  <div className="skeleton h-3 w-5/6 rounded bg-brand-foreground/20" />
+                  <div className="h-3 w-full rounded bg-white/45" />
+                  <div className="h-3 w-5/6 rounded bg-white/45" />
                 </div>
               </div>
 
-              <div className="skeleton h-20 w-48 rounded bg-brand-foreground/20" />
+              <div className="h-20 w-48 rounded-2xl bg-white/45" />
             </div>
           </section>
 
-          {/* Form sections skeleton */}
           <div className="mt-8 space-y-8">
             {[1, 2, 3].map((idx) => (
-              <section key={idx} className="rounded-2xl border border-border-soft bg-card p-8">
-                <div className="skeleton mb-6 h-6 w-40 rounded bg-ink-secondary/15" />
+              <section key={idx} className="rounded-[24px] border border-border-soft bg-card p-6 shadow-[0_12px_28px_rgba(24,38,25,0.04)] sm:p-8">
+                <div className="premium-skeleton mb-6 h-6 w-40 rounded" />
                 <div className="space-y-4">
                   {[1, 2, 3].map((jdx) => (
                     <div key={jdx}>
-                      <div className="skeleton mb-2 h-4 w-24 rounded bg-ink-secondary/10" />
-                      <div className="skeleton h-10 w-full rounded bg-surface" />
+                      <div className="premium-skeleton mb-2 h-4 w-24 rounded" />
+                      <div className="premium-skeleton h-11 w-full rounded-xl" />
                     </div>
                   ))}
                 </div>

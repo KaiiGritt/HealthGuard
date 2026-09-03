@@ -90,7 +90,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     const syncFromHash = () => {
-      const hash = window.location.hash.replace("#", "") || "overview";
+      const hash = (window.location.hash.replace("#", "") || "overview").replace(/^admin-/, "");
       if (adminNav.some((item) => item.id === hash)) {
         setActiveSection(hash);
       }
@@ -311,6 +311,19 @@ export default function AdminPage() {
             }
           />
         </div>
+
+        <nav aria-label="Admin sections" className="mt-4 flex gap-2 overflow-x-auto rounded-2xl border border-[#D7E0D2] bg-[#F7F9F5] p-2 md:hidden">
+          {adminNav.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => goToSection(item.id)}
+              className={`shrink-0 rounded-xl px-3.5 py-2.5 text-xs font-semibold transition ${activeSection === item.id ? "bg-brand text-white shadow-sm" : "text-ink-secondary hover:bg-white hover:text-brand-dark"}`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </nav>
 
         <div className="mt-6 grid gap-6 md:grid-cols-[220px_minmax(0,1fr)] md:items-start">
           <aside className="relative hidden overflow-hidden rounded-[24px] border border-[#D7E0D2] bg-[linear-gradient(180deg,#FBF9F2_0%,#F2F6EE_100%)] p-4 shadow-[0_18px_40px_rgba(15,23,42,0.05)] md:sticky md:top-24 md:block md:p-5">

@@ -140,8 +140,8 @@ export default function AssessmentPage() {
     if (!trimmedText && selected.length === 0) {
       return "Please describe a supported symptom or tap one of the available symptoms.";
     }
-    if (trimmedText && selected.length === 0 && !matchesSupportedText(trimmedText)) {
-      return "We could not recognize a symptom in your message. Please describe a symptom such as fever, cough, headache, or difficulty breathing.";
+    if (trimmedText && !matchesSupportedText(trimmedText)) {
+      return "We could not recognize a symptom in your message. Please check the spelling and describe a symptom such as fever, cough, headache, or difficulty breathing.";
     }
     return null;
   };
