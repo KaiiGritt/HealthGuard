@@ -20,7 +20,7 @@ import {
   Toast,
   TriageBadge,
 } from "@/app/components/ui/primitives";
-import { getDashboardSummary, getMe, getMhoLexicon, markLexiconReviewed, type AdminModuleLexiconEntry, type User } from "@/lib/api";
+import { getDashboardSummary, getMe, getMhoLexicon, markLexiconReviewed, rejectLexiconEntry, type AdminModuleLexiconEntry, type User } from "@/lib/api";
 import { openReportForPrinting } from "@/lib/report";
 
 const SECTIONS = [
@@ -562,6 +562,19 @@ function DashboardPageContent() {
     }
   }
 
+  async function rejectLexiconEntryForReview(id: number) {
+    setReviewingLexicon(id);
+    try {
+      const rejected = await rejectLexiconEntry(id);
+      setLexiconEntries((entries) => entries.map((entry) => (entry.id === id ? rejected : entry)));
+      setToast({ message: "Lexicon term not approved and removed from matching.", tone: "success" });
+    } catch {
+      setToast({ message: "Could not update lexicon review status.", tone: "error" });
+    } finally {
+      setReviewingLexicon(null);
+    }
+  }
+
   const redCases = useMemo(
     () => (stats?.recent_assessments ?? []).filter((item) => (item.risk_level || "").toUpperCase() === "RED"),
     [stats],
@@ -607,7 +620,7 @@ function DashboardPageContent() {
   );
   const barangayStats = stats?.barangay_stats ?? [];
   const maxBarangayCases = Math.max(...barangayStats.map((item) => item.total), 1);
-  const pendingLexicon = lexiconEntries.filter((entry) => !entry.reviewed);
+  const pendingLexicon = lexiconEntries.filter((entry) => entry.review_status === "pending");
   const reviewedLexicon = lexiconEntries.filter((entry) => entry.reviewed);
   const updatedLabel = lastUpdated
     ? lastUpdated.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
@@ -891,6 +904,9 @@ function DashboardPageContent() {
                 >
                   {reviewingLexicon === entry.id ? "Reviewing..." : "Mark reviewed"}
                 </button>
+                <button type="button" onClick={() => void rejectLexiconEntryForReview(entry.id)} disabled={reviewingLexicon === entry.id} className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-xl border border-[#e6b2a8] bg-[#fff6f3] px-3.5 text-xs font-semibold text-emergency-red outline-none transition hover:bg-[#ffebe7] focus-visible:ring-4 focus-visible:ring-emergency-red/20 disabled:cursor-wait disabled:opacity-60">
+                  Not approved
+                </button>
               </div>
             ))}
             {pendingLexicon.length > 4 && (
@@ -1162,6 +1178,26 @@ function DashboardPageContent() {
                   </>
                 }
               />
+            </div>
+
+            <div className="mt-6 hidden md:block">
+              <nav aria-label="Dashboard sections" className="mb-4 flex flex-wrap gap-2 rounded-full border border-[#d7e0d2] bg-[linear-gradient(180deg,#fbf9f2_0%,#f2f6ee_100%)] p-1.5 shadow-[0_8px_20px_rgba(20,31,25,0.04)]">
+                {SECTIONS.map((section) => (
+                  <button
+                    key={section.id}
+                    type="button"
+                    onClick={() => setActiveSection(section.id)}
+                    className={cn(
+                      "rounded-full px-4 py-2 text-sm font-semibold transition-all duration-200",
+                      activeSection === section.id
+                        ? "bg-brand text-brand-foreground shadow-[0_8px_20px_rgba(47,107,79,0.18)]"
+                        : "text-ink-secondary hover:bg-white hover:text-ink",
+                    )}
+                  >
+                    {section.label}
+                  </button>
+                ))}
+              </nav>
             </div>
 
             <div className="mt-6">

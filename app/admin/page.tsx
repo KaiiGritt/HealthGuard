@@ -16,7 +16,7 @@ import {
   Toast,
   TriageBadge,
 } from "@/app/components/ui/primitives";
-import { createLexiconEntry, getAdminModules, getAdminSummary, getMe, markLexiconReviewed, rejectLexiconEntry, updateUserRole, updateUserStatus, type User } from "@/lib/api";
+import { createLexiconEntry, getAdminModules, getAdminSummary, getMe, updateUserRole, updateUserStatus, type User } from "@/lib/api";
 import { openReportForPrinting } from "@/lib/report";
 import { IconClipboard } from "@/app/components/ui/icons";
 
@@ -79,8 +79,27 @@ export default function AdminPage() {
 
   function goToSection(id: string) {
     setActiveSection(id);
+
+    if (typeof window !== "undefined") {
+      const nextUrl = `${window.location.pathname}#${id}`;
+      window.history.replaceState(null, "", nextUrl);
+    }
+
     document.getElementById(`admin-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
+
+  useEffect(() => {
+    const syncFromHash = () => {
+      const hash = window.location.hash.replace("#", "") || "overview";
+      if (adminNav.some((item) => item.id === hash)) {
+        setActiveSection(hash);
+      }
+    };
+
+    syncFromHash();
+    window.addEventListener("hashchange", syncFromHash);
+    return () => window.removeEventListener("hashchange", syncFromHash);
+  }, []);
 
   function generateReport() {
     if (!modules) return;
@@ -175,7 +194,7 @@ export default function AdminPage() {
         .includes(query);
     });
   }, [modules, lexiconQuery]);
-  const pendingReviewCount = modules?.lexicon_entries.filter((entry) => entry.review_status === "pending").length ?? 0;
+  const pendingReviewCount = modules?.lexicon_entries.filter((entry) => !entry.reviewed).length ?? 0;
 
   const rulePreviewMatches = useMemo(() => {
     if (!modules) return [];
@@ -239,20 +258,6 @@ export default function AdminPage() {
     }
   };
 
-  const handleLexiconReview = async (lexiconId: number, approved: boolean) => {
-    setPendingAction(lexiconId);
-    try {
-      const updated = approved ? await markLexiconReviewed(lexiconId) : await rejectLexiconEntry(lexiconId);
-      setModules((prev) => prev ? { ...prev, lexicon_entries: prev.lexicon_entries.map((entry) => entry.id === updated.id ? updated : entry) } : prev);
-      setToast({ message: approved ? "Lexicon term approved." : "Lexicon term rejected and removed from matching.", tone: "success" });
-    } catch {
-      setToast({ message: "Could not update lexicon review status.", tone: "error" });
-    } finally {
-      setPendingAction(null);
-    }
-  };
-
-
   if (loading) {
     return (
       <>
@@ -308,7 +313,7 @@ export default function AdminPage() {
         </div>
 
         <div className="mt-6 grid gap-6 md:grid-cols-[220px_minmax(0,1fr)] md:items-start">
-          <aside className="relative overflow-hidden rounded-[24px] border border-[#D7E0D2] bg-[linear-gradient(180deg,#FBF9F2_0%,#F2F6EE_100%)] p-4 shadow-[0_18px_40px_rgba(15,23,42,0.05)] md:sticky md:top-24 md:p-5">
+          <aside className="relative hidden overflow-hidden rounded-[24px] border border-[#D7E0D2] bg-[linear-gradient(180deg,#FBF9F2_0%,#F2F6EE_100%)] p-4 shadow-[0_18px_40px_rgba(15,23,42,0.05)] md:sticky md:top-24 md:block md:p-5">
             <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" />
             <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-ink-muted">Admin</p>
             <nav className="mt-4 space-y-2">
@@ -485,13 +490,7 @@ export default function AdminPage() {
                                 <td className="px-4 py-3 text-ink-secondary">{entry.medical_term}</td>
                                 <td className="px-4 py-3 text-ink-secondary">{entry.severity_weight}</td>
                                 <td className="px-4 py-3 text-xs text-ink-muted">
-                                  <div className="space-y-2">
-                                    {entry.review_status === "approved" ? <span className="text-brand-dark">Approved by {entry.reviewed_by ?? "reviewer"}</span> : entry.review_status === "rejected" ? <span className="text-emergency-red">Not approved by {entry.reviewed_by ?? "reviewer"}</span> : <span>Pending review</span>}
-                                    {entry.review_status === "pending" ? <div className="flex flex-wrap gap-2">
-                                      <button type="button" onClick={() => void handleLexiconReview(entry.id, true)} disabled={pendingAction === entry.id} className="rounded-sm bg-brand px-2.5 py-1.5 text-[11px] font-semibold text-white disabled:opacity-60">Approve</button>
-                                      <button type="button" onClick={() => void handleLexiconReview(entry.id, false)} disabled={pendingAction === entry.id} className="rounded-sm border border-[#e6b2a8] bg-[#fff6f3] px-2.5 py-1.5 text-[11px] font-semibold text-emergency-red disabled:opacity-60">Not approved</button>
-                                    </div> : null}
-                                  </div>
+                                  {entry.reviewed ? <span className={entry.review_status === "rejected" ? "text-emergency-red" : "text-brand-dark"}>{entry.review_status === "rejected" ? "Not approved" : "Reviewed"} by {entry.reviewed_by ?? "reviewer"}</span> : "Pending review by MHO"}
                                 </td>
                               </tr>
                             ))}

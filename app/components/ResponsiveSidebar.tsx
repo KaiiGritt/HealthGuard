@@ -41,7 +41,15 @@ function ResponsiveSidebarContent({ user, dashboardAlertCount = 0 }: { user: Use
               { href: "/dashboard?section=reports", label: "Reports", icon: "dashboard" as const },
             ]
           : []),
-        ...(user.role === "admin" ? [{ href: "/admin", label: "Overview", icon: "dashboard" as const }] : []),
+        ...(user.role === "admin"
+          ? [
+              { href: "/admin#overview", label: "Overview", icon: "dashboard" as const },
+              { href: "/admin#users", label: "Users", icon: "profile" as const },
+              { href: "/admin#lexicon", label: "Lexicon", icon: "dashboard" as const },
+              { href: "/admin#rules", label: "Triage rules", icon: "dashboard" as const },
+              { href: "/admin#settings", label: "Settings", icon: "dashboard" as const },
+            ]
+          : []),
         ...(user.role === "resident" ? [{ href: "/assessment", label: "Assessment", icon: "assessment" as const }, { href: "/history", label: "History", icon: "history" as const }] : []),
         { href: "/profile", label: "Profile", icon: "profile" },
       ]
@@ -52,10 +60,18 @@ function ResponsiveSidebarContent({ user, dashboardAlertCount = 0 }: { user: Use
       ];
 
   const active = (href: string) => {
-    const [path, query] = href.split("?");
-    if (path === "/dashboard" && query) {
-      return pathname === path && (searchParams.get("section") ?? "overview") === new URLSearchParams(query).get("section");
+    const [pathWithHash, queryAndHash] = href.split("?");
+    const [path, hash] = pathWithHash.split("#");
+    const query = queryAndHash ? new URLSearchParams(queryAndHash) : null;
+
+    if (path === "/dashboard" && query?.has("section")) {
+      return pathname === path && (searchParams.get("section") ?? "overview") === query.get("section");
     }
+
+    if (path === "/admin" && hash) {
+      return pathname === path && typeof window !== "undefined" && window.location.hash === `#${hash}`;
+    }
+
     return path === "/" ? pathname === path : pathname === path || pathname.startsWith(`${path}/`);
   };
 

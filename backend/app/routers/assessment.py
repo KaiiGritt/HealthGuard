@@ -305,7 +305,7 @@ def _reference_guides() -> list[DashboardReferenceItem]:
 @router.get("/dashboard/summary", response_model=DashboardSummaryOut)
 def dashboard_summary(
     db: Session = Depends(get_db),
-    user: User = Depends(require_role("mho", "admin")),
+    user: User = Depends(require_role("mho")),
 ) -> DashboardSummaryOut:
     total_assessments = db.scalar(select(func.count(Assessment.id))) or 0
     today_count = db.scalar(
@@ -608,7 +608,7 @@ def create_lexicon_entry(
 def review_lexicon_entry(
     lexicon_id: int,
     db: Session = Depends(get_db),
-    user: User = Depends(require_role("mho", "admin")),
+    user: User = Depends(require_role("mho")),
 ) -> SymptomLexicon:
     entry = db.get(SymptomLexicon, lexicon_id)
     if entry is None:
