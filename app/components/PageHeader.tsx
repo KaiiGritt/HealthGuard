@@ -254,12 +254,7 @@ export default function PageHeader({ dashboardAlertCount = 0 }: { dashboardAlert
               )}
 
               {user?.role === "mho" && (
-                <>
-                  <Link href="/dashboard" className={linkClass("/dashboard")}>Dashboard</Link>
-                  <Link href="/dashboard?section=records" className={linkClass("/dashboard/records")}>Assessment records</Link>
-                  <Link href="/dashboard?section=analytics" className={linkClass("/dashboard/analytics")}>Analytics</Link>
-                  <Link href="/dashboard?section=reports" className={linkClass("/dashboard/reports")}>Reports</Link>
-                </>
+                <Link href="/dashboard" className={linkClass("/dashboard")}>Dashboard</Link>
               )}
 
               {user?.role === "admin" && (

@@ -114,7 +114,7 @@ export function PageMain({
       className={cn(
         contentShellClass,
         contentPadClass,
-        "flex-1 py-10 sm:py-12 lg:py-14 xl:py-16",
+        "flex-1 pb-10 pt-20 sm:py-12 lg:py-14 xl:py-16",
         narrow && "max-w-5xl xl:max-w-[72rem]",
         wide && "2xl:max-w-[1760px]",
         className,

@@ -13,6 +13,7 @@ import {
   ListRow,
   PageMain,
   Panel,
+  PremiumSelect,
   PrimaryButton,
   StatCard,
   TagBadge,
@@ -404,26 +405,26 @@ function FilterToolbar({
   return (
     <div className="mb-4 space-y-3">
       <div className="grid gap-3 sm:grid-cols-3">
-        <select
+        <PremiumSelect
           value={riskFilter}
-          onChange={(event) => setRiskFilter(event.target.value)}
-          className="min-h-11 rounded-sm border border-border bg-surface px-3 text-sm text-ink"
-        >
-          <option value="all">All risk levels</option>
-          <option value="GREEN">Green</option>
-          <option value="YELLOW">Yellow</option>
-          <option value="RED">Red</option>
-        </select>
-        <select
+          onChange={setRiskFilter}
+          ariaLabel="Filter assessment records by risk level"
+          options={[
+            { value: "all", label: "All risk levels" },
+            { value: "GREEN", label: "Green" },
+            { value: "YELLOW", label: "Yellow" },
+            { value: "RED", label: "Red" },
+          ]}
+        />
+        <PremiumSelect
           value={barangayFilter}
-          onChange={(event) => setBarangayFilter(event.target.value)}
-          className="min-h-11 rounded-sm border border-border bg-surface px-3 text-sm text-ink"
-        >
-          <option value="all">All barangays</option>
-          {barangayOptions.map((barangay) => (
-            <option key={barangay} value={barangay}>{barangay}</option>
-          ))}
-        </select>
+          onChange={setBarangayFilter}
+          ariaLabel="Filter assessment records by barangay"
+          options={[
+            { value: "all", label: "All barangays" },
+            ...barangayOptions.map((barangay) => ({ value: barangay, label: barangay })),
+          ]}
+        />
         <div className="relative">
           <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint">
             <SearchIcon />
