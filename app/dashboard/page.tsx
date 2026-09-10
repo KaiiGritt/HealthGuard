@@ -807,7 +807,7 @@ function DashboardPageContent() {
           )}
         </WidgetCard>
 
-        <WidgetCard icon="map" title="Barangay heat map" subtitle="Urgency snapshot by location" updated={updatedLabel}>
+        <WidgetCard icon="map" title="Barangay risk overview" subtitle="Case distribution by location" updated={updatedLabel}>
           <BarangayRanking data={barangayStats} />
         </WidgetCard>
       </section>
