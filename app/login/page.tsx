@@ -14,7 +14,7 @@ import {
   authSubmitClass,
   cn,
 } from "@/app/components/ui/primitives";
-import { login } from "@/lib/api";
+import { clearPendingGuestPayload, getPendingGuestPayload, login, saveGuestAssessment } from "@/lib/api";
 
 function LoginForm() {
   const router = useRouter();
@@ -38,7 +38,14 @@ function LoginForm() {
     setError(null);
     try {
       await login(email.trim(), password);
-      router.push(next);
+      const pending = getPendingGuestPayload();
+      if (pending) {
+        const saved = await saveGuestAssessment(pending);
+        clearPendingGuestPayload();
+        router.push(`/summary/${saved.id}`);
+      } else {
+        router.push(next);
+      }
       router.refresh();
     } catch {
       setError("Incorrect email or password.");

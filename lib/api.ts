@@ -29,6 +29,7 @@ export interface AnalyzeResult {
   method: string;
   created_at: string;
   disclaimer: string;
+  pre_medication?: PreMedicationOut | null;
 }
 
 export interface PreMedicationOut {
@@ -42,6 +43,9 @@ export interface PreMedicationOut {
 
 export interface AssessmentOut {
   id: number;
+  resident_name?: string | null;
+  barangay?: string | null;
+  phone_number?: string | null;
   input_text: string;
   method: string;
   detected_symptoms: string[];
@@ -63,6 +67,7 @@ export interface DashboardAssessmentItem {
   id: number;
   resident_name: string;
   barangay: string | null;
+  detected_symptoms: string[];
   risk_level: string;
   note: string;
   created_at: string;
@@ -199,11 +204,6 @@ export interface AnalyzePayload {
   duration_days?: number | null;
   age?: number | null;
   sex?: string | null;
-  pregnant?: boolean;
-  temperature_c?: number | null;
-  oxygen_saturation?: number | null;
-  heart_rate?: number | null;
-  systolic_bp?: number | null;
 }
 
 export type Role = "resident" | "mho" | "admin";
@@ -226,6 +226,7 @@ export interface User {
   full_name: string;
   email: string;
   role: Role;
+  date_of_birth?: string | null;
   age: number | null;
   sex: string | null;
   barangay: string | null;
@@ -266,8 +267,30 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     cache: "no-store",
   });
   if (!res.ok) {
-    const detail = await res.text().catch(() => res.statusText);
-    throw new Error(`Request to ${path} failed (${res.status}): ${detail}`);
+    const detail = await res.text().catch(() => "");
+    let message = detail || res.statusText || "The request could not be completed.";
+
+    try {
+      const payload = JSON.parse(detail) as { detail?: unknown };
+      if (Array.isArray(payload.detail)) {
+        const firstMessage = payload.detail.find(
+          (item): item is { msg?: string } => Boolean(item && typeof item === "object"),
+        )?.msg;
+        if (firstMessage) {
+          message = firstMessage;
+        }
+      } else if (typeof payload.detail === "string") {
+        message = payload.detail;
+      }
+    } catch {
+      // Keep the plain response text when the server did not return JSON.
+    }
+
+    if (path === "/auth/profile" && message === "Date of birth must be earlier than today.") {
+      message = "Your date of birth must be before today. Please choose an earlier date.";
+    }
+
+    throw new Error(message);
   }
   return res.json() as Promise<T>;
 }
@@ -279,8 +302,37 @@ export function analyze(payload: AnalyzePayload): Promise<AnalyzeResult> {
   });
 }
 
+export function saveGuestAssessment(payload: AnalyzePayload): Promise<AnalyzeResult> {
+  return request<AnalyzeResult>("/assessment/save-guest", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getPendingGuestPayload(): AnalyzePayload | null {
+  if (typeof window === "undefined") return null;
+  const stored = window.sessionStorage.getItem("healthguard_pending_guest_assessment");
+  if (!stored) return null;
+  try {
+    return JSON.parse(stored) as AnalyzePayload;
+  } catch {
+    window.sessionStorage.removeItem("healthguard_pending_guest_assessment");
+    return null;
+  }
+}
+
+export function clearPendingGuestPayload() {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.removeItem("healthguard_pending_guest_assessment");
+  window.sessionStorage.removeItem("healthguard_guest_result");
+}
+
 export function getAssessment(id: number | string): Promise<AssessmentOut> {
   return request<AssessmentOut>(`/assessment/${id}`);
+}
+
+export function formatAssessmentRecordNumber(id: number | string): string {
+  return `MONB-${String(id).padStart(4, "0")}`;
 }
 
 export function getHistory(): Promise<AssessmentOut[]> {
@@ -359,7 +411,7 @@ export interface RegisterPayload {
   full_name: string;
   email: string;
   password: string;
-  age?: number | null;
+  date_of_birth: string;
   sex?: string | null;
   barangay?: string | null;
   phone_number?: string | null;
@@ -420,7 +472,8 @@ export function logout(): Promise<{ ok: boolean }> {
   return request<{ ok: boolean }>("/auth/logout", { method: "POST" });
 }
 
-export function updateProfile(payload: Partial<RegisterPayload> & {
+export function updateProfile(payload: Omit<Partial<RegisterPayload>, "date_of_birth"> & {
+  date_of_birth?: string | null;
   language_preference?: string | null;
   notification_preferences?: NotificationPreferences | null;
 }): Promise<User> {

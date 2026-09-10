@@ -82,7 +82,7 @@ def migrate_email_verification_schema() -> None:
         return
 
     cols = {c["name"] for c in insp.get_columns("email_verifications")}
-    needed = {"full_name", "password_hash", "age", "sex", "barangay"}
+    needed = {"full_name", "password_hash", "age", "sex", "barangay", "date_of_birth"}
     if needed.issubset(cols):
         # Some older schemas also need phone_number for registration and profile flows.
         if "phone_number" not in cols:
@@ -90,15 +90,10 @@ def migrate_email_verification_schema() -> None:
                 conn.execute(text("ALTER TABLE email_verifications ADD COLUMN phone_number VARCHAR(32)"))
         return
 
-    if engine.url.get_backend_name() == "sqlite":
-        with engine.begin() as conn:
-            conn.execute(text("DROP TABLE IF EXISTS email_verifications"))
-        EmailVerification.__table__.create(bind=engine)
-        return
-
     alters = {
         "full_name": "VARCHAR(128) NOT NULL DEFAULT ''",
         "password_hash": "VARCHAR(255) NOT NULL DEFAULT ''",
+        "date_of_birth": "DATE",
         "age": "INTEGER",
         "sex": "VARCHAR(16)",
         "barangay": "VARCHAR(96)",
@@ -108,6 +103,18 @@ def migrate_email_verification_schema() -> None:
         for column, ddl in alters.items():
             if column not in cols:
                 conn.execute(text(f"ALTER TABLE email_verifications ADD COLUMN {column} {ddl}"))
+
+
+def migrate_user_profile_schema() -> None:
+    """Add DOB to existing user tables while retaining legacy calculated ages."""
+    from sqlalchemy import inspect, text
+
+    if "users" not in inspect(engine).get_table_names():
+        return
+    columns = {column["name"] for column in inspect(engine).get_columns("users")}
+    if "date_of_birth" not in columns:
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE users ADD COLUMN date_of_birth DATE"))
 
 def migrate_assessment_handled_schema() -> None:
     """Add the persisted MHO handled timestamp to existing assessment databases."""

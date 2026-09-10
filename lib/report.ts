@@ -1,3 +1,5 @@
+import { jsPDF } from "jspdf";
+
 export type ReportRow = [string, string | number | null | undefined];
 
 export type ReportSection = {
@@ -325,5 +327,117 @@ export function openReportForPrinting({
     }, 400);
   };
 
+  return true;
+}
+
+export function downloadReport({
+  title,
+  subtitle,
+  generatedAt,
+  sections,
+  filename,
+}: {
+  title: string;
+  subtitle: string;
+  generatedAt: string;
+  sections: ReportSection[];
+  filename: string;
+}) {
+  const document = new jsPDF({ unit: "mm", format: "a4" });
+  const pageWidth = document.internal.pageSize.getWidth();
+  const pageHeight = document.internal.pageSize.getHeight();
+  const margin = 16;
+  const contentWidth = pageWidth - margin * 2;
+  let cursorY = margin;
+
+  const ensureSpace = (height: number) => {
+    if (cursorY + height > pageHeight - margin) {
+      document.addPage();
+      cursorY = margin;
+    }
+  };
+
+  document.setFillColor(23, 63, 45);
+  document.rect(0, 0, pageWidth, 38, "F");
+  document.setFillColor(199, 179, 122);
+  document.rect(0, 38, pageWidth, 2, "F");
+  document.setTextColor(255, 255, 255);
+  document.setFont("helvetica", "bold");
+  document.setFontSize(9);
+  document.text("MUNICIPAL HEALTH OFFICE", margin, 16);
+  document.setFontSize(21);
+  document.text(title, margin, 29);
+  document.setFont("helvetica", "normal");
+  document.setFontSize(8);
+  document.text(`Report: ${subtitle}`, pageWidth - margin, 16, { align: "right" });
+  document.text(`Generated: ${generatedAt}`, pageWidth - margin, 22, { align: "right" });
+
+  cursorY = 52;
+  document.setFillColor(247, 249, 245);
+  document.setDrawColor(216, 222, 209);
+  document.roundedRect(margin, cursorY, contentWidth, 10, 2, 2, "FD");
+  document.setTextColor(58, 65, 58);
+  document.setFontSize(8);
+  document.text("OFFICIAL HEALTH ASSESSMENT SUMMARY", margin + 5, cursorY + 6.5);
+  document.text("CONFIDENTIAL", pageWidth - margin - 5, cursorY + 6.5, { align: "right" });
+  cursorY += 18;
+
+  sections.forEach((section) => {
+    const headingHeight = 12;
+    ensureSpace(headingHeight + 15);
+    document.setFillColor(251, 249, 242);
+    document.setDrawColor(216, 222, 209);
+    document.roundedRect(margin, cursorY, contentWidth, headingHeight, 2, 2, "FD");
+    document.setTextColor(24, 38, 25);
+    document.setFont("helvetica", "bold");
+    document.setFontSize(11);
+    document.text(section.heading.toUpperCase(), margin + 5, cursorY + 7.5);
+    cursorY += headingHeight;
+
+    section.rows.forEach(([label, value]) => {
+      const valueLines = document.splitTextToSize(String(value ?? ""), contentWidth - 70) as string[];
+      const rowHeight = Math.max(9, valueLines.length * 4.5 + 4);
+      ensureSpace(rowHeight);
+      document.setFillColor(247, 249, 245);
+      document.setDrawColor(238, 241, 234);
+      document.rect(margin, cursorY, 55, rowHeight, "FD");
+      document.setFillColor(255, 255, 255);
+      document.rect(margin + 55, cursorY, contentWidth - 55, rowHeight, "FD");
+      document.setTextColor(24, 38, 25);
+      document.setFont("helvetica", "bold");
+      document.setFontSize(8.5);
+      document.text(String(label), margin + 4, cursorY + 5.5);
+      document.setTextColor(46, 58, 48);
+      document.setFont("helvetica", "normal");
+      document.text(valueLines, margin + 59, cursorY + 5.5);
+      cursorY += rowHeight;
+    });
+    cursorY += 8;
+  });
+
+  ensureSpace(34);
+  document.setDrawColor(216, 222, 209);
+  document.line(margin, cursorY, pageWidth - margin, cursorY);
+  cursorY += 15;
+  document.setTextColor(58, 65, 58);
+  document.setFontSize(8);
+  document.line(margin, cursorY, margin + 62, cursorY);
+  document.line(pageWidth - margin - 62, cursorY, pageWidth - margin, cursorY);
+  document.setFont("helvetica", "bold");
+  document.text("Prepared by", margin, cursorY + 5);
+  document.text("Reviewed / Approved", pageWidth - margin - 62, cursorY + 5);
+  document.setFont("helvetica", "normal");
+  document.text("Health Data Unit", margin, cursorY + 10);
+  document.text("Municipal Health Officer", pageWidth - margin - 62, cursorY + 10);
+
+  const pageCount = document.getNumberOfPages();
+  for (let page = 1; page <= pageCount; page += 1) {
+    document.setPage(page);
+    document.setTextColor(124, 133, 125);
+    document.setFontSize(7);
+    document.text(`HealthGuard • Confidential • Page ${page} of ${pageCount}`, pageWidth / 2, pageHeight - 8, { align: "center" });
+  }
+
+  document.save(filename.endsWith(".pdf") ? filename : `${filename}.pdf`);
   return true;
 }

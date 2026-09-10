@@ -332,6 +332,12 @@ In short:
 - extend with date-range and export filters
 - present reports in a structured admin-facing UI
 
+For clinical governance of the executable rules, bilingual lexicon, medication guidance,
+thresholds, test evidence, and physician sign-off, use
+[PHYSICIAN_RULE_VALIDATION_REPORT.md](PHYSICIAN_RULE_VALIDATION_REPORT.md). This is a
+separate validation record and must be completed before the rule set is treated as
+clinically approved.
+
 ## 16. Final Note
 
 This project is already close to having a strong reporting foundation because the backend tracks assessment data and the dashboard summary already computes community-oriented metrics. By formalizing the report endpoints and report templates, the system can evolve into a reliable decision-support tool for health monitoring and community response.

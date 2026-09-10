@@ -46,10 +46,6 @@ LEXICON_SEED: list[dict] = [
     {"medical_term": "diarrhea", "local_term": "diarrhea", "language": "en", "severity_weight": 2, "category": "gastrointestinal"},
     {"medical_term": "diarrhea", "local_term": "pagtatae", "language": "tl", "severity_weight": 2, "category": "gastrointestinal"},
     {"medical_term": "diarrhea", "local_term": "may pagtatae", "language": "tl", "severity_weight": 2, "category": "gastrointestinal"},
-    # --- chest pain ---
-    {"medical_term": "chest pain", "local_term": "chest pain", "language": "en", "severity_weight": 4, "category": "cardiovascular"},
-    {"medical_term": "chest pain", "local_term": "sakit sa dibdib", "language": "tl", "severity_weight": 4, "category": "cardiovascular"},
-    {"medical_term": "chest pain", "local_term": "masakit ang dibdib", "language": "tl", "severity_weight": 4, "category": "cardiovascular"},
     # --- difficulty breathing (high severity) ---
     {"medical_term": "difficulty breathing", "local_term": "difficulty breathing", "language": "en", "severity_weight": 6, "category": "respiratory"},
     {"medical_term": "difficulty breathing", "local_term": "shortness of breath", "language": "en", "severity_weight": 6, "category": "respiratory"},
@@ -57,21 +53,6 @@ LEXICON_SEED: list[dict] = [
     {"medical_term": "difficulty breathing", "local_term": "nahihirapang huminga", "language": "tl", "severity_weight": 6, "category": "respiratory"},
     {"medical_term": "difficulty breathing", "local_term": "hindi makahinga", "language": "tl", "severity_weight": 6, "category": "respiratory"},
     {"medical_term": "difficulty breathing", "local_term": "sumisikip ang paghinga", "language": "tl", "severity_weight": 6, "category": "respiratory"},
-    # --- additional red flags ---
-    {"medical_term": "chest pain", "local_term": "chest tightness", "language": "en", "severity_weight": 4, "category": "cardiovascular"},
-    {"medical_term": "fainting", "local_term": "fainting", "language": "en", "severity_weight": 4, "category": "neurological"},
-    {"medical_term": "fainting", "local_term": "nahimatay", "language": "tl", "severity_weight": 4, "category": "neurological"},
-    {"medical_term": "severe dehydration", "local_term": "severe dehydration", "language": "en", "severity_weight": 4, "category": "general"},
-    {"medical_term": "bloody stool", "local_term": "bloody stool", "language": "en", "severity_weight": 4, "category": "gastrointestinal"},
-    {"medical_term": "blood in vomit", "local_term": "blood in vomit", "language": "en", "severity_weight": 4, "category": "gastrointestinal"},
-    {"medical_term": "severe abdominal pain", "local_term": "severe abdominal pain", "language": "en", "severity_weight": 4, "category": "gastrointestinal"},
-    {"medical_term": "sudden weakness", "local_term": "sudden weakness", "language": "en", "severity_weight": 4, "category": "neurological"},
-    {"medical_term": "confusion", "local_term": "confusion", "language": "en", "severity_weight": 4, "category": "neurological"},
-    {"medical_term": "severe rash", "local_term": "severe rash", "language": "en", "severity_weight": 4, "category": "general"},
-    {"medical_term": "facial swelling", "local_term": "facial swelling", "language": "en", "severity_weight": 4, "category": "allergic"},
-    {"medical_term": "wheezing", "local_term": "wheezing", "language": "en", "severity_weight": 4, "category": "respiratory"},
-    {"medical_term": "anaphylaxis", "local_term": "anaphylaxis", "language": "en", "severity_weight": 4, "category": "allergic"},
-    {"medical_term": "severe allergic reaction", "local_term": "severe allergic reaction", "language": "en", "severity_weight": 4, "category": "allergic"},
 ]
 
 # The canonical symptom list surfaced as selectable chips in the UI.
@@ -204,6 +185,10 @@ def seed_lexicon(db: Session) -> int:
         (row.local_term, row.language): row
         for row in db.execute(select(SymptomLexicon)).scalars().all()
     }
+    desired_keys = {(entry["local_term"], entry["language"]) for entry in LEXICON_SEED}
+    for key, row in existing.items():
+        if key not in desired_keys:
+            db.delete(row)
     inserted = 0
     for entry in LEXICON_SEED:
         key = (entry["local_term"], entry["language"])

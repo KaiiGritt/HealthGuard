@@ -20,8 +20,8 @@ import {
   Toast,
   TriageBadge,
 } from "@/app/components/ui/primitives";
-import { getDashboardSummary, getMe, getMhoLexicon, markLexiconReviewed, rejectLexiconEntry, type AdminModuleLexiconEntry, type User } from "@/lib/api";
-import { openReportForPrinting } from "@/lib/report";
+import { formatAssessmentRecordNumber, getDashboardSummary, getMe, getMhoLexicon, markLexiconReviewed, rejectLexiconEntry, type AdminModuleLexiconEntry, type User } from "@/lib/api";
+import { downloadReport } from "@/lib/report";
 
 const SECTIONS = [
   { id: "overview", label: "Overview" },
@@ -33,6 +33,19 @@ const SECTIONS = [
 type SectionId = (typeof SECTIONS)[number]["id"];
 type UserRole = "resident" | "mho" | "admin";
 type DashboardState = Awaited<ReturnType<typeof getDashboardSummary>>;
+type InsightTone = "neutral" | "positive" | "watch" | "urgent";
+
+const ASSESSMENT_PAGE_SIZE = 5;
+
+function insightToneLabel(tone: InsightTone) {
+  const labels: Record<InsightTone, string> = {
+    neutral: "Operational update",
+    positive: "Positive indicator",
+    watch: "Follow-up required",
+    urgent: "Urgent action",
+  };
+  return labels[tone];
+}
 
 // ---------------------------------------------------------------------------
 // Widget system — new for this pass. Local to this file since I don't have
@@ -212,21 +225,32 @@ function TrendSparkline({ data }: { data: DashboardState["weekly_trend"] }) {
   const delta = prev ? last.count - prev.count : 0;
 
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-      <svg viewBox={`0 0 ${w} ${h}`} className="h-11 w-40 shrink-0 text-brand" preserveAspectRatio="none" aria-hidden="true">
-        <path d={path} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-        <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r={3} fill="currentColor" />
-      </svg>
-      <div>
-        <div className="flex items-baseline gap-2">
-          <p className="font-mono text-2xl font-semibold text-ink">{last.count}</p>
-          <p className="text-xs text-ink-muted">cases · {last.label}</p>
+    <div className="space-y-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+        <svg viewBox={`0 0 ${w} ${h}`} className="h-11 w-40 shrink-0 text-brand" preserveAspectRatio="none" aria-hidden="true">
+          <path d={path} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+          <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r={3} fill="currentColor" />
+        </svg>
+        <div>
+          <div className="flex items-baseline gap-2">
+            <p className="font-mono text-2xl font-semibold text-ink">{last.count}</p>
+            <p className="text-xs text-ink-muted">cases · {last.label}</p>
+          </div>
+          {prev && (
+            <p className={`mt-0.5 text-xs font-medium ${delta > 0 ? "text-emergency-red" : delta < 0 ? "text-brand-dark" : "text-ink-muted"}`}>
+              {delta === 0 ? "No change" : `${delta > 0 ? "+" : ""}${delta} vs. previous week`}
+            </p>
+          )}
         </div>
-        {prev && (
-          <p className={`mt-0.5 text-xs font-medium ${delta > 0 ? "text-emergency-red" : delta < 0 ? "text-brand-dark" : "text-ink-muted"}`}>
-            {delta === 0 ? "No change" : `${delta > 0 ? "+" : ""}${delta} vs. previous week`}
-          </p>
-        )}
+      </div>
+      <div className="grid grid-cols-2 gap-2 border-t border-border-soft pt-4 sm:grid-cols-4">
+        {data.map((week) => (
+          <div key={week.date} className={`rounded-xl border px-3 py-2.5 ${week === last ? "border-brand/25 bg-brand-tint" : "border-border-soft bg-surface/60"}`}>
+            <p className="truncate font-mono text-[10px] uppercase tracking-[0.06em] text-ink-faint">{week.label}</p>
+            <p className="mt-1 font-mono text-lg font-semibold text-ink">{week.count}</p>
+            <p className="text-[10px] text-ink-muted">cases</p>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -457,6 +481,7 @@ function DashboardPageContent() {
   const [riskFilter, setRiskFilter] = useState("all");
   const [barangayFilter, setBarangayFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [assessmentPage, setAssessmentPage] = useState(1);
   const requestedSection = searchParams.get("section") as SectionId | null;
   const activeSection: SectionId = requestedSection && SECTIONS.some((section) => section.id === requestedSection)
     ? requestedSection
@@ -479,10 +504,11 @@ function DashboardPageContent() {
   function generateReport() {
     if (!stats) return;
 
-    const printed = openReportForPrinting({
+    const downloaded = downloadReport({
       title: "Community Health Report",
       subtitle: "Municipal Health Office summary",
       generatedAt: new Date().toLocaleString(),
+      filename: `healthguard-community-report-${new Date().toISOString().slice(0, 10)}`,
       sections: [
         {
           heading: "Barangay summary",
@@ -500,8 +526,8 @@ function DashboardPageContent() {
     });
 
     setToast({
-      message: printed ? "Report ready. Choose Save as PDF in the print dialog." : "Could not open the print window.",
-      tone: printed ? "success" : "error",
+      message: downloaded ? "PDF report downloaded successfully." : "Could not download the report.",
+      tone: downloaded ? "success" : "error",
     });
   }
 
@@ -599,6 +625,22 @@ function DashboardPageContent() {
       return matchesRisk && matchesBarangay && matchesSearch;
     });
   }, [stats, riskFilter, barangayFilter, searchTerm]);
+
+  const assessmentPageCount = Math.max(1, Math.ceil(filteredAssessments.length / ASSESSMENT_PAGE_SIZE));
+  const paginatedAssessments = filteredAssessments.slice(
+    (assessmentPage - 1) * ASSESSMENT_PAGE_SIZE,
+    assessmentPage * ASSESSMENT_PAGE_SIZE,
+  );
+  const assessmentStart = filteredAssessments.length === 0 ? 0 : (assessmentPage - 1) * ASSESSMENT_PAGE_SIZE + 1;
+  const assessmentEnd = Math.min(assessmentPage * ASSESSMENT_PAGE_SIZE, filteredAssessments.length);
+
+  useEffect(() => {
+    setAssessmentPage(1);
+  }, [riskFilter, barangayFilter, searchTerm]);
+
+  useEffect(() => {
+    setAssessmentPage((page) => Math.min(page, assessmentPageCount));
+  }, [assessmentPageCount]);
 
   function applyUrgentOnly() {
     setRiskFilter("RED");
@@ -757,7 +799,7 @@ function DashboardPageContent() {
       </section>
 
       <section className="grid gap-6 xl:grid-cols-2">
-        <WidgetCard icon="trend" title="This week" subtitle="Case volume trend" updated={updatedLabel}>
+        <WidgetCard icon="trend" title="Previous weeks" subtitle="Eight-week case volume trend" updated={updatedLabel}>
           {stats && stats.weekly_trend.length > 0 ? (
             <TrendSparkline data={stats.weekly_trend} />
           ) : (
@@ -792,19 +834,36 @@ function DashboardPageContent() {
           <div className="space-y-3">
             {stats && stats.recent_assessments.length > 0 ? (
               stats.recent_assessments.slice(0, 3).map((item) => (
-                <div key={item.id} className="rounded-2xl border border-border-soft bg-gradient-to-r from-white via-slate-50 to-white p-3 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
-                  <div className="flex items-start justify-between gap-3 mb-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium text-ink">{item.resident_name}</p>
-                      <p className="text-[11px] uppercase tracking-[0.08em] text-ink-faint">ID #{item.id}</p>
+                  <div key={item.id} className="rounded-2xl border border-border-soft bg-gradient-to-r from-white via-slate-50 to-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium text-ink">{item.resident_name}</p>
+                        <p className="mt-0.5 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-faint">Record no. {formatAssessmentRecordNumber(item.id)}</p>
+                      </div>
+                      <TriageBadge level={item.risk_level} />
                     </div>
-                    <TriageBadge level={item.risk_level} />
+                    <div className="mt-3 grid gap-2 border-y border-border-soft/80 py-3 text-xs sm:grid-cols-2">
+                      <div>
+                        <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint">Location</p>
+                        <p className="mt-0.5 font-medium text-ink-secondary">{item.barangay ?? "Not provided"}</p>
+                      </div>
+                      <div>
+                        <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint">Mobile number</p>
+                        <p className="mt-0.5 font-medium text-ink-secondary">{item.phone_number ?? "Not provided"}</p>
+                      </div>
+                      <div>
+                        <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint">Symptoms recognized</p>
+                        <p className="mt-0.5 font-medium capitalize text-ink-secondary">{item.detected_symptoms?.length ? item.detected_symptoms.join(", ") : "Not recorded"}</p>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint">Submitted details</p>
+                      <p className="mt-0.5 text-xs leading-relaxed text-ink-secondary">{item.note}</p>
+                    </div>
+                    <p className="mt-3 text-[10px] uppercase tracking-[0.08em] text-ink-faint">
+                      Submitted {new Date(item.created_at).toLocaleString()}
+                    </p>
                   </div>
-                  <p className="mb-2 text-xs leading-relaxed text-ink-secondary">{item.note}</p>
-                  <p className="text-[10px] uppercase tracking-[0.08em] text-ink-faint">
-                    {new Date(item.created_at).toLocaleString()}
-                  </p>
-                </div>
               ))
             ) : (
               <p className="rounded-md border border-dashed border-border bg-surface p-5 text-sm text-ink-muted">
@@ -987,7 +1046,7 @@ function DashboardPageContent() {
                 <div className="flex items-center justify-between gap-3">
                   <p className="font-medium text-ink">{insight.title}</p>
                   <TagBadge tone={insight.tone === "urgent" ? "staff" : insight.tone === "watch" ? "neutral" : "brand"}>
-                    {insight.tone}
+                    {insightToneLabel(insight.tone)}
                   </TagBadge>
                 </div>
                 <p className="text-sm leading-relaxed text-ink-secondary">{insight.detail}</p>
@@ -1014,24 +1073,52 @@ function DashboardPageContent() {
       />
       <div className="space-y-3">
         {filteredAssessments.length > 0 ? (
-          filteredAssessments.slice(0, 8).map((item) => (
-            <ListRow key={item.id} className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          paginatedAssessments.map((item) => (
+            <ListRow key={item.id} className="block">
               <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="font-medium text-ink">{item.resident_name}</p>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-ink">{item.resident_name}</p>
+                    <p className="mt-0.5 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-faint">Record no. {formatAssessmentRecordNumber(item.id)}</p>
+                  </div>
                   <TriageBadge level={item.risk_level} />
-                  <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-muted">{item.barangay ?? "Unknown"}</span>
                 </div>
-                <p className="mt-2 text-sm text-ink-secondary">{item.note}</p>
-                <p className="mt-2 text-xs text-ink-muted">{new Date(item.created_at).toLocaleString()}</p>
+                <div className="mt-3 grid gap-3 border-y border-border-soft/80 py-3 text-xs sm:grid-cols-2">
+                  <div>
+                    <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint">Location</p>
+                    <p className="mt-0.5 font-medium text-ink-secondary">{item.barangay ?? "Not provided"}</p>
+                  </div>
+                  <div>
+                    <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint">Mobile number</p>
+                    <p className="mt-0.5 font-medium text-ink-secondary">{item.phone_number ?? "Not provided"}</p>
+                  </div>
+                  <div>
+                    <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint">Symptoms recognized</p>
+                    <p className="mt-0.5 font-medium capitalize text-ink-secondary">{item.detected_symptoms?.length ? item.detected_symptoms.join(", ") : "Not recorded"}</p>
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint">Submitted details</p>
+                  <p className="mt-0.5 text-sm leading-relaxed text-ink-secondary">{item.note}</p>
+                </div>
+                <p className="mt-3 text-xs text-ink-muted">Submitted {new Date(item.created_at).toLocaleString()}</p>
               </div>
-              <Link href={`/result/${item.id}`} className="inline-flex min-h-11 items-center justify-center rounded-sm border border-border px-3 text-sm font-medium text-brand-dark hover:bg-brand-tint">Open</Link>
             </ListRow>
           ))
         ) : (
           <p className="rounded-md border border-dashed border-border bg-surface p-5 text-sm text-ink-muted">No assessment records match the selected filters.</p>
         )}
       </div>
+      {filteredAssessments.length > 0 ? (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border-soft pt-3">
+          <p className="text-xs text-ink-muted">Showing {assessmentStart}-{assessmentEnd} of {filteredAssessments.length}</p>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => setAssessmentPage((page) => Math.max(1, page - 1))} disabled={assessmentPage === 1} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">Previous</button>
+            <span className="min-w-16 text-center font-mono text-xs text-ink-muted">Page {assessmentPage} / {assessmentPageCount}</span>
+            <button type="button" onClick={() => setAssessmentPage((page) => Math.min(assessmentPageCount, page + 1))} disabled={assessmentPage === assessmentPageCount} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">Next</button>
+          </div>
+        </div>
+      ) : null}
     </Panel>
   );
 
@@ -1041,7 +1128,7 @@ function DashboardPageContent() {
         <RiskBreakdownBar green={greenBreakdown} yellow={yellowBreakdown} red={redBreakdown} />
       </Panel>
       {stats && stats.weekly_trend.length > 0 && (
-        <Panel title="Case volume trend" subtitle="Last 7 days">
+        <Panel title="Case volume trend" subtitle="Current week and previous 7 weeks">
           <TrendSparkline data={stats.weekly_trend} />
         </Panel>
       )}
@@ -1105,7 +1192,7 @@ function DashboardPageContent() {
               <div className="flex items-center justify-between gap-3">
                 <p className="font-medium text-ink">{insight.title}</p>
                 <TagBadge tone={insight.tone === "urgent" ? "staff" : insight.tone === "watch" ? "neutral" : "brand"}>
-                  {insight.tone}
+                  {insightToneLabel(insight.tone)}
                 </TagBadge>
               </div>
               <p className="text-sm leading-relaxed text-ink-secondary">{insight.detail}</p>

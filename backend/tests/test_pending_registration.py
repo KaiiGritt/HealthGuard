@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import unittest
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from unittest.mock import patch
 
 from sqlalchemy import create_engine, select
@@ -27,6 +27,7 @@ class PendingRegistrationTests(unittest.TestCase):
             full_name="Jane Resident",
             email="jane@example.com",
             password="password123",
+            date_of_birth=date(1995, 6, 15),
             barangay="Monbon",
         )
 

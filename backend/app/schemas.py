@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -15,6 +15,8 @@ DISCLAIMER = (
 class AnalyzeRequest(BaseModel):
     """Symptom submission — free text and/or selected symptom chips."""
 
+    model_config = ConfigDict(extra="forbid")
+
     input_text: str = Field(default="", description="Free-text symptoms in English or Tagalog.")
     selected_symptoms: list[str] = Field(
         default_factory=list, description="Standard symptom terms chosen from chips."
@@ -23,11 +25,6 @@ class AnalyzeRequest(BaseModel):
     duration_days: float | None = Field(default=None, ge=0, le=365, description="How many days symptoms have been present.")
     age: int | None = Field(default=None, ge=0, le=150, description="Patient age for risk weighting.")
     sex: str | None = Field(default=None, max_length=16, description="Patient sex for contextual risk weighting.")
-    pregnant: bool = Field(default=False, description="Whether the patient is pregnant or recently postpartum.")
-    temperature_c: float | None = Field(default=None, ge=25, le=45, description="Temperature in degrees Celsius.")
-    oxygen_saturation: float | None = Field(default=None, ge=50, le=100, description="Pulse oximeter reading as a percentage.")
-    heart_rate: int | None = Field(default=None, ge=20, le=250, description="Heart rate in beats per minute.")
-    systolic_bp: int | None = Field(default=None, ge=50, le=250, description="Systolic blood pressure in mmHg.")
     user_id: int | None = None
 
 
@@ -59,6 +56,9 @@ class AnalyzeResult(BaseModel):
     """The explainable triage result returned to the frontend."""
 
     id: int
+    resident_name: str | None = None
+    barangay: str | None = None
+    phone_number: str | None = None
     risk_level: str
     detected_symptoms: list[DetectedSymptom]
     triggered_rules: list[TriggeredRule]
@@ -100,6 +100,7 @@ class DashboardAssessmentItem(BaseModel):
     id: int
     resident_name: str
     barangay: str | None = None
+    detected_symptoms: list[str] = Field(default_factory=list)
     risk_level: str
     note: str
     created_at: datetime
@@ -296,7 +297,7 @@ class RegisterRequest(BaseModel):
     full_name: str = Field(min_length=1, max_length=128)
     email: str = Field(min_length=3, max_length=191)
     password: str = Field(min_length=8, max_length=128)
-    age: int | None = Field(default=None, ge=0, le=150)
+    date_of_birth: date = Field(description="Date of birth; age is calculated by the server.")
     sex: str | None = Field(default=None, max_length=16)
     barangay: str = Field(min_length=1, max_length=96)
     phone_number: str | None = Field(default=None, max_length=32)
@@ -316,6 +317,16 @@ class RegisterRequest(BaseModel):
         if not re.fullmatch(r"09\d{9}", normalized):
             raise ValueError("Phone number must be a valid Philippine mobile number like 09XXXXXXXXX or +63XXXXXXXXXX.")
         return normalized
+
+    @field_validator("date_of_birth")
+    @classmethod
+    def validate_date_of_birth(cls, value: date) -> date:
+        if value >= date.today():
+            raise ValueError("Date of birth must be earlier than today.")
+        age = date.today().year - value.year - ((date.today().month, date.today().day) < (value.month, value.day))
+        if age > 120:
+            raise ValueError("Date of birth is outside the supported age range.")
+        return value
 
     @field_validator("sex")
     @classmethod
@@ -378,7 +389,7 @@ class ChangePasswordRequest(BaseModel):
 
 class ProfileUpdate(BaseModel):
     full_name: str | None = Field(default=None, max_length=128)
-    age: int | None = Field(default=None, ge=0, le=150)
+    date_of_birth: date | None = None
     sex: str | None = Field(default=None, max_length=16)
     barangay: str | None = Field(default=None, max_length=96)
     phone_number: str | None = Field(default=None, max_length=32)
@@ -398,6 +409,18 @@ class ProfileUpdate(BaseModel):
         if not re.fullmatch(r"09\d{9}", normalized):
             raise ValueError("Phone number must be a valid Philippine mobile number like 09XXXXXXXXX or +63XXXXXXXXXX.")
         return normalized
+
+    @field_validator("date_of_birth")
+    @classmethod
+    def validate_date_of_birth(cls, value: date | None) -> date | None:
+        if value is None:
+            return None
+        if value >= date.today():
+            raise ValueError("Date of birth must be earlier than today.")
+        age = date.today().year - value.year - ((date.today().month, date.today().day) < (value.month, value.day))
+        if age > 120:
+            raise ValueError("Date of birth is outside the supported age range.")
+        return value
 
     @field_validator("sex")
     @classmethod
@@ -444,6 +467,7 @@ class UserOut(BaseModel):
     full_name: str
     email: str
     role: str
+    date_of_birth: date | None = None
     age: int | None = None
     sex: str | None = None
     barangay: str | None = None

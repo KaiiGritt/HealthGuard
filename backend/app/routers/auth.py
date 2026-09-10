@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import secrets
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
@@ -36,6 +36,11 @@ PASSWORD_ATTEMPTS: dict[int, list[datetime]] = {}
 
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _age_from_date_of_birth(value: date) -> int:
+    today = _utc_now().date()
+    return today.year - value.year - ((today.month, today.day) < (value.month, value.day))
 
 
 def _as_utc(value: datetime) -> datetime:
@@ -147,7 +152,8 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> Registe
             expires_at=expires_at,
             full_name=payload.full_name.strip(),
             password_hash=hash_password(payload.password),
-            age=payload.age,
+            date_of_birth=payload.date_of_birth,
+            age=_age_from_date_of_birth(payload.date_of_birth),
             sex=payload.sex,
             barangay=payload.barangay,
             phone_number=payload.phone_number,
@@ -158,7 +164,8 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> Registe
         pending.expires_at = expires_at
         pending.full_name = payload.full_name.strip()
         pending.password_hash = hash_password(payload.password)
-        pending.age = payload.age
+        pending.date_of_birth = payload.date_of_birth
+        pending.age = _age_from_date_of_birth(payload.date_of_birth)
         pending.sex = payload.sex
         pending.barangay = payload.barangay
         pending.phone_number = payload.phone_number
@@ -197,6 +204,7 @@ def verify_email(payload: VerifyEmailRequest, response: Response, db: Session = 
         email=email,
         password_hash=record.password_hash,
         role="resident",
+        date_of_birth=record.date_of_birth,
         age=record.age,
         sex=record.sex,
         barangay=record.barangay,
@@ -321,13 +329,18 @@ def update_profile(
         if previous != new_value:
             user.full_name = new_value
             changes["full_name"] = {"from": previous, "to": new_value}
-    for field in ("age", "sex", "barangay", "phone_number", "language_preference"):
+    for field in ("date_of_birth", "sex", "barangay", "phone_number", "language_preference"):
         if field in data:
             previous = getattr(user, field)
             new_value = data[field]
             if previous != new_value:
                 setattr(user, field, new_value)
                 changes[field] = {"from": previous, "to": new_value}
+    if "date_of_birth" in data and data["date_of_birth"] is not None:
+        calculated_age = _age_from_date_of_birth(data["date_of_birth"])
+        if user.age != calculated_age:
+            changes["age"] = {"from": user.age, "to": calculated_age}
+            user.age = calculated_age
     if "notification_preferences" in data:
         previous = user.notification_preferences or {}
         new_value = data["notification_preferences"]

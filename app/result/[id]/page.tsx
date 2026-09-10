@@ -6,7 +6,7 @@ import {
   PageMain,
   PrimaryLink,
 } from "@/app/components/ui/primitives";
-import { getAssessment, type AssessmentOut } from "@/lib/api";
+import { formatAssessmentRecordNumber, getAssessment, type AssessmentOut } from "@/lib/api";
 import Disclaimer from "../../components/Disclaimer";
 import MedicationGuidanceCard from "../../components/MedicationGuidanceCard";
 import PageHeader from "../../components/PageHeader";
@@ -84,9 +84,11 @@ export default async function ResultPage({
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-brand">HealthGuard clinical summary</p>
-              <h1 className="mt-2 font-display text-3xl font-semibold leading-tight text-ink sm:text-4xl">Assessment result</h1>
+              <h1 className="mt-2 font-display text-3xl font-semibold leading-tight text-ink sm:text-4xl">Assessment summary</h1>
             </div>
             <div className="text-left sm:text-right">
+              <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-faint">Record no.</p>
+              <p className="mt-1 font-mono text-sm font-semibold tracking-[0.08em] text-brand-dark">{formatAssessmentRecordNumber(record.id)}</p>
               <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-faint">Recorded</p>
               <p className="mt-1 text-sm text-ink-muted">{created}</p>
             </div>

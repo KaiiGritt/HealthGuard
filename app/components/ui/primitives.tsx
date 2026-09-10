@@ -386,10 +386,10 @@ export function Panel({ title, subtitle, badge, children, className }: {
   className?: string;
 }) {
   return (
-    <div className={cn("relative rounded-[24px] border border-[#DDE7DB] bg-[linear-gradient(180deg,#FFFFFF_0%,#F7FAF4_100%)] p-5 shadow-[0_18px_40px_rgba(15,23,42,0.05)] transition duration-200 hover:border-brand/20 hover:shadow-[0_24px_50px_rgba(31,74,54,0.08)] sm:p-6 xl:p-7 2xl:p-8", className)}>
+    <div className={cn("relative min-w-0 overflow-hidden rounded-[24px] border border-[#DDE7DB] bg-[linear-gradient(180deg,#FFFFFF_0%,#F7FAF4_100%)] p-5 shadow-[0_18px_40px_rgba(15,23,42,0.05)] transition duration-200 hover:border-brand/20 hover:shadow-[0_24px_50px_rgba(31,74,54,0.08)] sm:p-6 xl:p-7 2xl:p-8", className)}>
       <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" />
-      <div className="flex items-start justify-between gap-4">
-        <div>
+      <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
           <h2 className="font-display text-xl font-semibold text-ink sm:text-2xl xl:text-[1.65rem]">{title}</h2>
           {subtitle ? <p className="mt-1.5 text-base leading-relaxed text-ink-muted xl:text-lg">{subtitle}</p> : null}
         </div>
@@ -554,6 +554,9 @@ export const authLabelClass = "block text-sm font-medium text-ink-secondary";
 
 export const authInputClass =
   "h-12 w-full rounded-xl border border-border bg-white/90 px-3.75 text-[0.9375rem] text-ink shadow-[0_1px_2px_rgba(15,23,42,0.02),inset_0_1px_0_rgba(255,255,255,0.8)] outline-none transition placeholder:text-ink-faint hover:border-brand/50 focus:border-brand focus:bg-white focus:ring-4 focus:ring-brand/10";
+
+export const authDateInputClass =
+  "premium-date-input h-12 w-full min-w-0 appearance-none rounded-xl border border-border bg-white/90 px-3.75 pr-12 text-[0.9375rem] text-ink shadow-[0_1px_2px_rgba(15,23,42,0.02),inset_0_1px_0_rgba(255,255,255,0.8)] outline-none transition hover:border-brand/50 hover:bg-white focus:border-brand focus:bg-white focus:ring-4 focus:ring-brand/10";
 
 export const authSelectClass =
   "premium-select h-12 w-full cursor-pointer appearance-none rounded-xl border border-border bg-white/90 px-3.75 pr-10 text-[0.9375rem] text-ink shadow-[0_1px_2px_rgba(15,23,42,0.02),inset_0_1px_0_rgba(255,255,255,0.8)] outline-none transition hover:border-brand/50 hover:bg-white focus:border-brand focus:ring-4 focus:ring-brand/10";

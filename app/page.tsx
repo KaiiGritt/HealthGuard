@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { IconChat, IconPhone, IconSearch } from "@/app/components/ui/icons";
 import { IconCircle, TagBadge } from "@/app/components/ui/primitives";
 import { useInterfaceLanguage } from "@/app/components/LanguageProvider";
-import { getMe, type User } from "@/lib/api";
+import { getMe } from "@/lib/api";
 import Disclaimer from "./components/Disclaimer";
 import PageHeader from "./components/PageHeader";
 
@@ -133,7 +133,6 @@ function TriageTag() {
 export default function Home() {
   const router = useRouter();
   const { language } = useInterfaceLanguage();
-  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -147,16 +146,13 @@ export default function Home() {
         router.replace("/dashboard");
         return;
       }
-      setUser(currentUser);
     }).catch(() => {
-      if (active) setUser(null);
     });
     return () => {
       active = false;
     };
   }, [router]);
 
-  const isSignedIn = user !== null;
   const strings = {
     tag: "Irosin community health guide",
     heading:
@@ -173,16 +169,16 @@ export default function Home() {
           : "Describe your symptoms in English or Tagalog. Get a clear next step: monitor, consult, or seek urgent help.",
     cta:
       language === "fil"
-        ? isSignedIn ? "Simulan ang assessment" : "Mag-log in para simulan"
+        ? "Simulan ang assessment"
         : language === "both"
-          ? isSignedIn ? "Start assessment / Simulan ang assessment" : "Log in to start / Mag-log in para simulan"
-          : isSignedIn ? "Start assessment" : "Log in to start",
+          ? "Start assessment / Simulan ang assessment"
+          : "Start Assessment",
     helper:
       language === "fil"
-        ? isSignedIn ? "Buksan ang iyong symptom check" : "Mag-log in muna para i-save ang iyong health history"
+        ? "Maaari kang magsimula nang walang account."
         : language === "both"
-          ? isSignedIn ? "Open your symptom check / Buksan ang iyong symptom check" : "Sign in first to save your health history / Mag-log in muna para i-save ang iyong health history"
-          : isSignedIn ? "Open your symptom check" : "Sign in first to save your health history",
+          ? "Start without an account / Magsimula nang walang account"
+          : "Start without an account. Save your result later if you choose.",
   } as const;
 
   return (
@@ -208,7 +204,7 @@ export default function Home() {
               </div>
               <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:flex-wrap sm:items-center">
                 <Link
-                  href={isSignedIn ? "/assessment" : "/login?next=/assessment"}
+                  href="/assessment"
                   className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-brand/15 bg-gradient-to-r from-brand to-brand-light px-5 text-base font-semibold tracking-[0.01em] text-brand-foreground shadow-[0_12px_28px_rgba(47,107,79,0.18)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_32px_rgba(47,107,79,0.22)] sm:w-auto sm:min-h-[3.2rem] sm:px-7 sm:text-lg lg:min-h-[3.45rem] lg:px-8 lg:text-xl"
                 >
                   {strings.cta}

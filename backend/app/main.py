@@ -18,6 +18,7 @@ from .database import (
     migrate_email_verification_schema,
     migrate_assessment_handled_schema,
     migrate_assessment_rules_schema,
+    migrate_user_profile_schema,
     migrate_lexicon_review_schema,
     migrate_lexicon_rule_base_schema,
     migrate_user_preferences_schema,
@@ -53,6 +54,7 @@ async def lifespan(app: FastAPI):
     migrate_user_preferences_schema()
     migrate_user_role_schema()
     migrate_assessment_rules_schema()
+    migrate_user_profile_schema()
     migrate_lexicon_rule_base_schema()
     with SessionLocal() as db:
         inserted = seed_lexicon(db)

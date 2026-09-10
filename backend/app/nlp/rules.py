@@ -70,27 +70,25 @@ class MedicationGuide:
     note: str
 
 
-# RED-FLAG symptoms that require escalation to medical evaluation, NOT OTC-only advice.
-# Aligned with Philippine FDA and WHO guidance on when self-medication is inappropriate.
+# The only supported red-flag symptom is difficulty breathing, one of the seven
+# approved resident symptoms and the sole emergency override in this scope.
 RED_FLAG_SYMPTOMS = {
     "difficulty breathing",
     "shortness of breath",
-    "chest pain",
-    "chest tightness",
-    "fainting",
-    "loss of consciousness",
-    "severe dehydration",
-    "bloody stool",
-    "blood in vomit",
-    "severe abdominal pain",
-    "sudden weakness",
-    "confusion",
-    "severe rash",
-    "facial swelling",
-    "wheezing",
-    "anaphylaxis",
-    "severe allergic reaction",
 }
+
+NEGATION_PREFIXES = re.compile(
+    r"\b(?:no|without|don't have|do not have|not having|not|hindi(?: na)?|wala akong)\s+(?:any\s+)?$"
+)
+
+
+def _is_negated(normalized_text: str, term: str) -> bool:
+    """Reject a term when a short negation immediately precedes it."""
+    for match in re.finditer(re.escape(term), normalized_text):
+        prefix = normalized_text[max(0, match.start() - 24):match.start()]
+        if NEGATION_PREFIXES.search(prefix):
+            return True
+    return False
 
 # OTC decision table: symptom patterns → safe recommendation.
 # Each entry: (primary_symptom_keywords, optional_symptom_keywords, medicine_name)
@@ -370,10 +368,8 @@ _RECOMMENDATIONS = {
 }
 
 
-def _apply_demographic_adjustment(
-    score: int, age: int | None = None, pregnant: bool = False
-) -> tuple[int, list[Rule]]:
-    """Increase urgency for higher-risk age/sex contexts without diagnosing conditions."""
+def _apply_demographic_adjustment(score: int, age: int | None = None) -> tuple[int, list[Rule]]:
+    """Increase urgency for higher-risk age contexts without diagnosing conditions."""
     adjusted_score = score
     triggered: list[Rule] = []
 
@@ -386,15 +382,6 @@ def _apply_demographic_adjustment(
             )
         )
 
-    if pregnant:
-        adjusted_score += 1
-        triggered.append(
-            Rule(
-                name="pregnancy-risk-modifier",
-                description="Pregnancy or recent postpartum context increases caution for symptom review and follow-up.",
-            )
-        )
-
     return adjusted_score, triggered
 
 
@@ -404,15 +391,17 @@ def _text_rules(input_text: str, detected_terms: set[str], duration_days: float 
     triggered: list[Rule] = []
     emergency = False
 
-    if re.search(r"\b(severe|worst|unbearable|cannot|can't|unable|sudden)\b", normalized):
+    severity_terms = re.findall(r"\b(severe|worst|unbearable|cannot|can't|unable|sudden)\b", normalized)
+    if any(not _is_negated(normalized, term) for term in severity_terms):
         triggered.append(Rule(
             name="severe-or-worsening-language",
             description="The description uses severe or sudden wording and should not be treated as mild.",
         ))
-        if detected_terms & {"chest pain", "fainting", "confusion", "difficulty breathing", "severe abdominal pain"}:
+        if detected_terms & {"difficulty breathing"}:
             emergency = True
 
-    if re.search(r"\b(worsening|getting worse|lumalala|lumubha)\b", normalized):
+    worsening_terms = re.findall(r"\b(worsening|getting worse|lumalala|lumubha)\b", normalized)
+    if any(not _is_negated(normalized, term) for term in worsening_terms):
         triggered.append(Rule(
             name="worsening-symptoms",
             description="Worsening symptoms require prompt health-worker review.",
@@ -434,49 +423,22 @@ def _text_rules(input_text: str, detected_terms: set[str], duration_days: float 
     return triggered, emergency, 2 if triggered else 0
 
 
-def _apply_vital_sign_rules(
-    temperature_c: float | None,
-    oxygen_saturation: float | None,
-    heart_rate: int | None,
-    systolic_bp: int | None,
-) -> tuple[list[Rule], bool, int]:
-    triggered: list[Rule] = []
-    emergency = False
-    if oxygen_saturation is not None and oxygen_saturation < 90:
-        triggered.append(Rule(name="critical-oxygen-saturation", description="Oxygen saturation below 90% requires immediate medical attention."))
-        emergency = True
-    elif oxygen_saturation is not None and oxygen_saturation < 94:
-        triggered.append(Rule(name="low-oxygen-saturation", description="Oxygen saturation below 94% requires prompt clinical review."))
-    if temperature_c is not None and temperature_c >= 40:
-        triggered.append(Rule(name="critical-temperature", description="Temperature of 40°C or higher requires immediate medical attention."))
-        emergency = True
-    elif temperature_c is not None and temperature_c >= 39:
-        triggered.append(Rule(name="high-temperature", description="Temperature of 39°C or higher requires prompt clinical review."))
-    if heart_rate is not None and (heart_rate > 130 or heart_rate < 40):
-        triggered.append(Rule(name="critical-heart-rate", description="A very fast or slow heart rate requires immediate medical attention."))
-        emergency = True
-    if systolic_bp is not None and systolic_bp < 90:
-        triggered.append(Rule(name="low-blood-pressure", description="Systolic blood pressure below 90 mmHg requires immediate medical attention."))
-        emergency = True
-    return triggered, emergency, 2 if triggered and not emergency else 0
-
-
 def classify(
     matches: list[Match],
     age: int | None = None,
     sex: str | None = None,
     input_text: str = "",
     duration_days: float | None = None,
-    pregnant: bool = False,
-    temperature_c: float | None = None,
-    oxygen_saturation: float | None = None,
-    heart_rate: int | None = None,
-    systolic_bp: int | None = None,
 ) -> Classification:
     """Evaluate triage rules over detected symptom matches."""
     triggered: list[Rule] = []
-    score = sum(m.severity_weight for m in matches)
-    detected_terms = {m.medical_term for m in matches}
+    normalized_input = (input_text or "").lower()
+    active_matches = [
+        m for m in matches
+        if not _is_negated(normalized_input, m.matched_text.lower())
+    ]
+    score = sum(m.severity_weight for m in active_matches)
+    detected_terms = {m.medical_term for m in active_matches}
 
     # --- Generic scoring rules ---
     critical_hit = detected_terms & RED_FLAG_SYMPTOMS
@@ -492,20 +454,16 @@ def classify(
 
     text_rules, text_emergency, text_score = _text_rules(input_text, detected_terms, duration_days=duration_days)
     triggered.extend(text_rules)
-    vital_rules, vital_emergency, vital_score = _apply_vital_sign_rules(temperature_c, oxygen_saturation, heart_rate, systolic_bp)
-    triggered.extend(vital_rules)
-
     adjusted_score, demographic_rules = _apply_demographic_adjustment(
-        score + text_score + vital_score,
+        score + text_score,
         age=age,
-        pregnant=pregnant,
     )
     triggered.extend(demographic_rules)
 
-    if matches:
+    if active_matches:
         symptom_weights = ", ".join(
             f"{match.medical_term} ({match.severity_weight})"
-            for match in matches
+            for match in active_matches
         )
         triggered.append(
             Rule(
@@ -517,7 +475,7 @@ def classify(
     if len(detected_terms) >= 2:
         symptom_weights = ", ".join(
             f"{match.medical_term} ({match.severity_weight})"
-            for match in matches
+            for match in active_matches
             if match.medical_term in detected_terms
         )
         triggered.append(
@@ -559,7 +517,7 @@ def classify(
         )
 
     score_red = adjusted_score >= RED_SCORE_THRESHOLD and not (breathing_hit and len(detected_terms) == 1)
-    if other_red_flag_hit or score_red or text_emergency or vital_emergency or len(detected_terms) >= 4 or (breathing_hit and len(detected_terms) >= 2):
+    if other_red_flag_hit or score_red or text_emergency or len(detected_terms) >= 4 or (breathing_hit and len(detected_terms) >= 2):
         level = "RED"
     else:
         score_level = "YELLOW" if adjusted_score >= YELLOW_SCORE_THRESHOLD else "GREEN"
@@ -593,7 +551,7 @@ def classify(
                 description=f"Combined symptom severity ({adjusted_score}) is below the consultation threshold ({YELLOW_SCORE_THRESHOLD}).",
             )
         )
-    reason = _build_reason(matches, triggered)
+    reason = _build_reason(active_matches, triggered)
     return Classification(
         risk_level=level,
         score=adjusted_score,

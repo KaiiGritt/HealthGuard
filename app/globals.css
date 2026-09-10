@@ -60,6 +60,23 @@
   background-attachment: fixed;
 }
 
+.premium-date-input {
+  color-scheme: light;
+}
+
+.premium-date-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.58;
+  padding: 0.35rem;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.premium-date-input:hover::-webkit-calendar-picker-indicator,
+.premium-date-input:focus::-webkit-calendar-picker-indicator {
+  opacity: 0.9;
+  transform: scale(1.08);
+}
+
 .dashboard-report-button {
   background-color: #f4d58d;
   color: #24351f;

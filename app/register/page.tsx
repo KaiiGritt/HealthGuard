@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { register, verifyEmail } from "@/lib/api";
+import { clearPendingGuestPayload, getPendingGuestPayload, register, saveGuestAssessment, verifyEmail } from "@/lib/api";
 import { irosinBarangays } from "@/app/constants/irosinBarangays";
 import AuthLayout from "../components/AuthLayout";
+import PremiumDatePicker from "../components/ui/PremiumDatePicker";
 import { IconEye, IconEyeOff, IconShield } from "@/app/components/ui/icons";
 import {
   AuthProField,
@@ -24,7 +25,7 @@ export default function RegisterPage() {
     full_name: "",
     email: "",
     password: "",
-    age: "",
+    date_of_birth: "",
     sex: "",
     barangay: "",
     phone_number: "",
@@ -42,12 +43,23 @@ export default function RegisterPage() {
     const digits = value.replace(/\D/g, "");
     if (!digits) return "";
     if (digits.startsWith("63")) {
-      return `+63 ${digits.slice(2)}`;
+      const local = digits.slice(2, 12);
+      return `+63 ${local.slice(0, 3)}${local.length > 3 ? ` ${local.slice(3, 6)}` : ""}${local.length > 6 ? ` ${local.slice(6, 10)}` : ""}`.trim();
     }
     if (digits.startsWith("0")) {
-      return digits.replace(/(\d{3})(\d{3})(\d{4})/, "$1 $2 $3");
+      const local = digits.slice(0, 11);
+      return `${local.slice(0, 4)}${local.length > 4 ? ` ${local.slice(4, 7)}` : ""}${local.length > 7 ? ` ${local.slice(7, 11)}` : ""}`;
     }
-    return `+63 ${digits}`;
+    return digits.slice(0, 11);
+  };
+
+  const calculateAge = (dateOfBirth: string) => {
+    if (!dateOfBirth) return null;
+    const birth = new Date(`${dateOfBirth}T00:00:00`);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    if (today < new Date(today.getFullYear(), birth.getMonth(), birth.getDate())) age -= 1;
+    return age;
   };
 
   const passwordStrength =
@@ -76,6 +88,15 @@ export default function RegisterPage() {
       setError("Please select your barangay.");
       return;
     }
+    const age = calculateAge(form.date_of_birth);
+    if (!form.date_of_birth || age === null || age < 0 || age > 120) {
+      setError("Please enter a valid date of birth for an age from 0 to 120.");
+      return;
+    }
+    if (form.phone_number && !/^(09\d{2} \d{3} \d{4}|\+63 \d{3} \d{3} \d{4})$/.test(form.phone_number)) {
+      setError("Use a Philippine mobile number like 0994 620 6773 or +63 994 620 6773.");
+      return;
+    }
 
     setSubmitting(true);
     setError(null);
@@ -84,7 +105,7 @@ export default function RegisterPage() {
         full_name: form.full_name.trim(),
         email: form.email.trim(),
         password: form.password,
-        age: form.age ? Number(form.age) : null,
+        date_of_birth: form.date_of_birth,
         sex: form.sex || null,
         barangay: form.barangay.trim() || null,
         phone_number: form.phone_number.trim() || null,
@@ -115,7 +136,14 @@ export default function RegisterPage() {
     setError(null);
     try {
       await verifyEmail({ email: form.email.trim(), code: verificationCode.trim() });
-      router.push("/assessment");
+      const pending = getPendingGuestPayload();
+      if (pending) {
+        const saved = await saveGuestAssessment(pending);
+        clearPendingGuestPayload();
+        router.push(`/summary/${saved.id}`);
+      } else {
+        router.push("/assessment");
+      }
       router.refresh();
     } catch (err) {
       const msg =
@@ -190,7 +218,7 @@ export default function RegisterPage() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className={cn(authFormStackClass, "rounded-2xl border border-brand/15 bg-gradient-to-b from-white via-white to-surface/80 p-4 shadow-[0_18px_40px_rgba(24,38,25,0.07)] ring-1 ring-white sm:p-5")}>
+      <form noValidate onSubmit={handleSubmit} className={cn(authFormStackClass, "rounded-2xl border border-brand/15 bg-gradient-to-b from-white via-white to-surface/80 p-4 shadow-[0_18px_40px_rgba(24,38,25,0.07)] ring-1 ring-white sm:p-5")}>
         <AuthProField
           id="full_name"
           label="Full name"
@@ -260,22 +288,11 @@ export default function RegisterPage() {
             />
           </div>
 
-          <div className="mt-3 grid gap-4 sm:grid-cols-2">
-            <div>
-              <label htmlFor="age" className={authLabelClass}>
-                Age
-              </label>
-              <input
-                id="age"
-                type="number"
-                min={0}
-                max={150}
-                placeholder="—"
-                value={form.age}
-                onChange={set("age")}
-                className={cn(authInputClass, "mt-1.5")}
-              />
-            </div>
+            <div className="mt-3 grid gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="date_of_birth" className={authLabelClass}>Date of birth</label>
+                <div className="mt-1.5"><PremiumDatePicker id="date_of_birth" label="Date of birth" required value={form.date_of_birth} onChange={(value) => setForm((current) => ({ ...current, date_of_birth: value }))} /></div>
+              </div>
             <div>
               <label htmlFor="sex" className={authLabelClass}>
                 Sex

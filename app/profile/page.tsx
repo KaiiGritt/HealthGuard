@@ -21,6 +21,7 @@ import { irosinBarangays } from "@/app/constants/irosinBarangays";
 import { useInterfaceLanguage } from "@/app/components/LanguageProvider";
 import { changePassword, getMe, getProfileAudit, updateProfile, type ProfileAuditEntry, type User } from "@/lib/api";
 import PageHeader from "../components/PageHeader";
+import PremiumDatePicker from "../components/ui/PremiumDatePicker";
 
 function initials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -33,12 +34,23 @@ function formatPhilippinePhone(value: string) {
   const digits = value.replace(/\D/g, "");
   if (!digits) return "";
   if (digits.startsWith("63")) {
-    return `+63 ${digits.slice(2)}`;
+    const local = digits.slice(2, 12);
+    return `+63 ${local.slice(0, 3)}${local.length > 3 ? ` ${local.slice(3, 6)}` : ""}${local.length > 6 ? ` ${local.slice(6, 10)}` : ""}`.trim();
   }
   if (digits.startsWith("0")) {
-    return digits.replace(/(\d{3})(\d{3})(\d{4})/, "$1 $2 $3");
+    const local = digits.slice(0, 11);
+    return `${local.slice(0, 4)}${local.length > 4 ? ` ${local.slice(4, 7)}` : ""}${local.length > 7 ? ` ${local.slice(7, 11)}` : ""}`;
   }
-  return `+63 ${digits}`;
+  return digits.slice(0, 11);
+}
+
+function calculateAge(dateOfBirth: string) {
+  if (!dateOfBirth) return null;
+  const birth = new Date(`${dateOfBirth}T00:00:00`);
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  if (today < new Date(today.getFullYear(), birth.getMonth(), birth.getDate())) age -= 1;
+  return age;
 }
 
 function formatAuditValue(value: unknown): string {
@@ -86,7 +98,7 @@ const LANGUAGE_LABELS = {
 export default function ProfilePage() {
   const { language, setLanguage } = useInterfaceLanguage();
   const [user, setUser] = useState<User | null>(null);
-  const [form, setForm] = useState({ full_name: "", age: "", sex: "", barangay: "", phone_number: "", language_preference: "en" });
+  const [form, setForm] = useState({ full_name: "", date_of_birth: "", sex: "", barangay: "", phone_number: "", language_preference: "en" });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -116,10 +128,10 @@ export default function ProfilePage() {
         setPhotoUrl(storedPhoto ?? null);
         setForm({
           full_name: current.full_name ?? "",
-          age: current.age?.toString() ?? "",
+          date_of_birth: current.date_of_birth?.slice(0, 10) ?? "",
           sex: current.sex ?? "",
           barangay: current.barangay ?? "",
-          phone_number: current.phone_number ?? "",
+          phone_number: formatPhilippinePhone(current.phone_number ?? ""),
           language_preference: preferredLanguage,
         });
         if (typeof window !== "undefined") {
@@ -141,10 +153,53 @@ export default function ProfilePage() {
     setSaving(true);
     setMessage(null);
     setError(null);
+    if (!form.full_name.trim()) {
+      setError("Please enter your full name.");
+      setSaving(false);
+      return;
+    }
+    if (!form.date_of_birth) {
+      setError("Please enter your date of birth.");
+      setSaving(false);
+      return;
+    }
+    const today = new Date();
+    const todayValue = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    if (form.date_of_birth >= todayValue) {
+      setError("Your date of birth must be before today. Please choose an earlier date.");
+      setSaving(false);
+      return;
+    }
+    if (!form.sex) {
+      setError("Please select your sex.");
+      setSaving(false);
+      return;
+    }
+    if (!form.barangay) {
+      setError("Please select your barangay.");
+      setSaving(false);
+      return;
+    }
+    if (!form.phone_number.trim()) {
+      setError("Please enter your Philippine mobile number.");
+      setSaving(false);
+      return;
+    }
+    const age = calculateAge(form.date_of_birth);
+    if (form.date_of_birth && (age === null || age < 0 || age > 120)) {
+      setError("Date of birth must produce an age from 0 to 120.");
+      setSaving(false);
+      return;
+    }
+    if (!/^(09\d{2} \d{3} \d{4}|\+63 \d{3} \d{3} \d{4})$/.test(form.phone_number)) {
+      setError("Use a Philippine mobile number like 0994 620 6773 or +63 994 620 6773.");
+      setSaving(false);
+      return;
+    }
     try {
       const updated = await updateProfile({
         full_name: form.full_name.trim() || undefined,
-        age: form.age ? Number(form.age) : null,
+        date_of_birth: form.date_of_birth || null,
         sex: form.sex || null,
         barangay: form.barangay.trim() || null,
         phone_number: form.phone_number.trim() || null,
@@ -224,7 +279,7 @@ export default function ProfilePage() {
     heading: language === "fil" ? "Personal details" : language === "both" ? "Personal details / Mga detalye" : "Personal details",
     description: language === "fil" ? "Update the information attached to your assessments." : language === "both" ? "Update the information attached to your assessments. / I-update ang impormasyon sa iyong pagsusuri." : "Update the information attached to your assessments.",
     fullName: language === "fil" ? "Buong pangalan" : language === "both" ? "Full name / Buong pangalan" : "Full name",
-    age: language === "fil" ? "Edad" : language === "both" ? "Age / Edad" : "Age",
+    dateOfBirth: language === "fil" ? "Petsa ng kapanganakan" : language === "both" ? "Date of birth / Petsa ng kapanganakan" : "Date of birth",
     sex: language === "fil" ? "Kasarian" : language === "both" ? "Sex / Kasarian" : "Sex",
     barangay: language === "fil" ? "Barangay" : language === "both" ? "Barangay / Barangay" : "Barangay",
     phone: language === "fil" ? "Numero ng telepono" : language === "both" ? "Phone number / Numero ng telepono" : "Phone number",
@@ -388,12 +443,12 @@ export default function ProfilePage() {
                 {labels.description}
               </p>
 
-              <form onSubmit={handleSubmit} className={`mt-6 ${formStackClass}`}>
+              <form noValidate onSubmit={handleSubmit} className={`mt-6 ${formStackClass}`}>
                 <div>
                   <label className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
                     {labels.fullName} <span className={labelHintClass}>{language === "en" ? "/ Buong pangalan" : language === "fil" ? "/ Buong pangalan" : "/ Buong pangalan"}</span>
                   </label>
-                  <input
+                    <input
                     value={form.full_name}
                     onChange={(event) => setForm((prev) => ({ ...prev, full_name: event.target.value }))}
                     className={inputClass}
@@ -402,18 +457,9 @@ export default function ProfilePage() {
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
-                      {labels.age} <span className={labelHintClass}>{language === "en" ? "/ Edad" : language === "fil" ? "/ Edad" : "/ Edad"}</span>
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="120"
-                      value={form.age}
-                      onChange={(event) => setForm((prev) => ({ ...prev, age: event.target.value }))}
-                      className={inputClass}
-                    />
-                    <p className="mt-1.5 text-xs text-ink-faint">Used to match the right symptom checklist.</p>
+                    <label htmlFor="date_of_birth" className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>{labels.dateOfBirth}</label>
+                    <PremiumDatePicker id="date_of_birth" label={labels.dateOfBirth} required value={form.date_of_birth} onChange={(value) => setForm((prev) => ({ ...prev, date_of_birth: value }))} />
+                    <p className="mt-1.5 text-xs text-ink-faint">Age is calculated automatically: {calculateAge(form.date_of_birth) ?? "—"}.</p>
                   </div>
                   <div>
                     <label className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
@@ -448,6 +494,7 @@ export default function ProfilePage() {
                   </label>
                   <input
                     type="tel"
+                    required
                     value={form.phone_number}
                     onChange={(event) => setForm((prev) => ({ ...prev, phone_number: formatPhilippinePhone(event.target.value) }))}
                     className={inputClass}

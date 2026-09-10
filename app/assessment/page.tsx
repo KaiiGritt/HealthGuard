@@ -17,17 +17,18 @@ import PageHeader from "../components/PageHeader";
 import SymptomChip from "../components/SymptomChip";
 
 // value = the exact term sent to the API / matched against the lexicon.
-// en / tl = display labels. Keeping `value` in plain English preserves the
-// existing backend contract (selected_symptoms still arrives as
-// ["fever", "cough", ...]) even though the chip now reads in both languages.
+// en / tl = display labels. icon is a visual aid so recognition doesn't
+// depend on reading either language. Keeping `value` in plain English
+// preserves the existing backend contract (selected_symptoms still arrives
+// as ["fever", "cough", ...]).
 const SYMPTOMS = [
-  { value: "fever", en: "Fever", tl: "Lagnat" },
-  { value: "cough", en: "Cough", tl: "Ubo" },
-  { value: "headache", en: "Headache", tl: "Sakit ng ulo" },
-  { value: "abdominal pain", en: "Abdominal pain", tl: "Sakit ng tiyan" },
-  { value: "vomiting", en: "Vomiting", tl: "Pagsusuka" },
-  { value: "diarrhea", en: "Diarrhea", tl: "Pagtatae" },
-  { value: "difficulty breathing", en: "Difficulty breathing", tl: "Hirap huminga" },
+  { value: "fever", en: "Fever", tl: "Lagnat", icon: "🌡️" },
+  { value: "cough", en: "Cough", tl: "Ubo", icon: "😷" },
+  { value: "headache", en: "Headache", tl: "Sakit ng ulo", icon: "🤕" },
+  { value: "abdominal pain", en: "Abdominal pain", tl: "Sakit ng tiyan", icon: "😖" },
+  { value: "vomiting", en: "Vomiting", tl: "Pagsusuka", icon: "🤮" },
+  { value: "diarrhea", en: "Diarrhea", tl: "Pagtatae", icon: "😣" },
+  { value: "difficulty breathing", en: "Difficulty breathing", tl: "Hirap huminga", icon: "😮‍💨" },
 ] as const;
 
 // Symptoms that warrant a plain-language "don't wait" nudge before submit.
@@ -37,11 +38,22 @@ const SYMPTOMS = [
 // with whoever validated the triage rules before shipping it.
 const URGENT_NUDGE_SYMPTOMS = new Set(["difficulty breathing"]);
 
+// Tap-to-pick duration options. Replaces a free-text field where users had
+// to know to type a value in a parseable format ("2 days"). `days` is the
+// representative value sent to the API as duration_days.
+const DURATION_OPTIONS = [
+  { key: "today", en: "Today", tl: "Ngayon lang", days: 0.5 },
+  { key: "few_days", en: "1–2 days", tl: "1–2 araw", days: 1.5 },
+  { key: "about_a_week", en: "3–7 days", tl: "3–7 araw", days: 5 },
+  { key: "over_a_week", en: "More than a week", tl: "Higit sa isang linggo", days: 10 },
+] as const;
+
 export default function AssessmentPage() {
   const router = useRouter();
   const [text, setText] = useState("");
+  const [showTextInput, setShowTextInput] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
-  const [duration, setDuration] = useState("");
+  const [durationKey, setDurationKey] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; tone: "success" | "error" } | null>(null);
@@ -52,15 +64,13 @@ export default function AssessmentPage() {
     let active = true;
     getMe().then((user) => {
       if (!active) return;
-      if (!user) {
-        router.replace("/login?next=/assessment");
-        return;
-      }
-      if (user.role !== "resident") {
+      if (user && user.role !== "resident") {
         router.replace(user.role === "admin" ? "/admin" : "/dashboard");
         return;
       }
       setAuthChecking(false);
+    }).catch(() => {
+      if (active) setAuthChecking(false);
     });
     return () => {
       active = false;
@@ -86,6 +96,9 @@ export default function AssessmentPage() {
 
   const matchesSupportedText = (value: string) => {
     const normalized = value.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+    if (/\b(no|without|don't have|do not have|wala akong)\s+(any\s+)?symptoms?\b/.test(normalized)) {
+      return false;
+    }
     const tokens = [
       "fever",
       "lagnat",
@@ -103,25 +116,10 @@ export default function AssessmentPage() {
       "hirap huminga",
       "shortness of breath",
       "breathless",
-      "chest pain",
-      "pain in chest",
       "chest tightness",
       "weakness",
       "kahinaan",
       "rash",
-      "fainting",
-      "nahimatay",
-      "severe dehydration",
-      "bloody stool",
-      "blood in vomit",
-      "severe abdominal pain",
-      "sudden weakness",
-      "confusion",
-      "severe rash",
-      "facial swelling",
-      "wheezing",
-      "anaphylaxis",
-      "severe allergic reaction",
       "buni",
       "sore throat",
       "sakit ng lalamunan",
@@ -132,15 +130,21 @@ export default function AssessmentPage() {
     return tokens.some((token) => normalized.includes(token));
   };
 
+  const hasExplicitNoSymptoms = (value: string) => {
+    const normalized = value.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+    return /\b(no|without|don't have|do not have|wala akong)\s+(any\s+)?symptoms?\b/.test(normalized);
+  };
+
   const canSubmit = text.trim().length > 0 || selected.length > 0;
   const showUrgentNudge = selected.some((s) => URGENT_NUDGE_SYMPTOMS.has(s));
+  const selectedDuration = DURATION_OPTIONS.find((d) => d.key === durationKey) ?? null;
 
   const getSubmissionValidationError = () => {
     const trimmedText = text.trim();
     if (!trimmedText && selected.length === 0) {
-      return "Please describe a supported symptom or tap one of the available symptoms.";
+      return "Please tap what you're feeling, or type it in your own words.";
     }
-    if (trimmedText && !matchesSupportedText(trimmedText)) {
+    if (trimmedText && (hasExplicitNoSymptoms(trimmedText) || !matchesSupportedText(trimmedText))) {
       return "We could not recognize a symptom in your message. Please check the spelling and describe a symptom such as fever, cough, headache, or difficulty breathing.";
     }
     return null;
@@ -162,25 +166,27 @@ export default function AssessmentPage() {
     setError(null);
     try {
       const symptomText = text.trim();
-      const durationText = duration.trim();
-      const durationMatch = durationText.match(/(\d+(?:\.\d+)?)\s*(hour|hours|day|days|week|weeks|month|months)/i);
-      const durationDays = durationMatch
-        ? Number(durationMatch[1]) * (durationMatch[2].toLowerCase().startsWith("hour") ? 1 / 24 : durationMatch[2].toLowerCase().startsWith("week") ? 7 : durationMatch[2].toLowerCase().startsWith("month") ? 30 : 1)
-        : null;
       const combinedText = [
         symptomText ? symptomText : "",
-        durationText ? `Symptoms started ${durationText}.` : "",
+        selectedDuration ? `Symptoms started ${selectedDuration.en.toLowerCase()} ago.` : "",
       ]
         .filter(Boolean)
         .join(" ");
 
-      const result = await analyze({
+      const payload = {
         input_text: combinedText,
         selected_symptoms: selected,
         method: text.trim() ? "text" : "select",
-        duration_days: durationDays,
-      });
-      router.push(`/result/${result.id}`);
+        duration_days: selectedDuration ? selectedDuration.days : null,
+      } as const;
+      const result = await analyze(payload);
+      if (result.id === 0) {
+        window.sessionStorage.setItem("healthguard_pending_guest_assessment", JSON.stringify(payload));
+        window.sessionStorage.setItem("healthguard_guest_result", JSON.stringify(result));
+        router.push("/summary/guest");
+      } else {
+        router.push(`/summary/${result.id}`);
+      }
     } catch (e) {
       const message = e instanceof Error ? e.message : "Something went wrong. Please try again.";
       const friendlyMessage = message.includes("No recognized symptom was detected")
@@ -221,51 +227,28 @@ export default function AssessmentPage() {
               </div>
             ) : (
               <>
-                <PageTitle subtitle="Describe your symptoms in English or Tagalog, or tap the ones that apply.">
+                <PageTitle subtitle="Tap what you're feeling, then tap when it started.">
                   How are you feeling?
                 </PageTitle>
 
                 <div className="mt-8 flex gap-3 rounded-2xl border border-[#D9E5D8] bg-brand-tint/55 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
                   <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand text-sm font-semibold text-brand-foreground shadow-sm" aria-hidden="true">i</span>
-                  <div>
-                    <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-brand-dark">Assessment note</p>
-                    <p className="mt-2 text-base leading-relaxed text-ink-secondary">
-                    For urgent breathing problems, do not wait for the result. Go to the nearest clinic or hospital immediately.
-                    </p>
-                  </div>
+                  <p className="text-base leading-relaxed text-ink-secondary">
+                    Struggling to breathe right now? Don&apos;t wait — go to the nearest clinic or hospital.
+                  </p>
                 </div>
 
-                <label htmlFor="symptoms" className="mt-10 block text-base font-semibold text-ink lg:text-lg">
-                  Describe your symptoms
+                {/* STEP 1 — tap-to-select, icon-led. This is the whole task
+                    for most users; nothing else on the page needs reading. */}
+                <label className="mt-10 flex items-center gap-2 text-base font-semibold text-ink lg:text-lg">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand text-sm text-brand-foreground">1</span>
+                  What do you feel?
                 </label>
-                <textarea
-                  id="symptoms"
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  rows={4}
-                  placeholder='e.g. "May lagnat ako at hirap huminga" / "I have fever and cough"'
-                  className={`mt-3 min-h-36 resize-y bg-white/80 shadow-[0_6px_18px_rgba(24,38,25,0.035)] ${inputClass}`}
-                />
-
-                <div className="mt-8">
-                  <label htmlFor="duration" className="block text-base font-semibold text-ink lg:text-lg">
-                    How long have you been feeling this? <span className="font-normal text-ink-faint">(optional)</span>
-                  </label>
-                  <input
-                    id="duration"
-                    value={duration}
-                    onChange={(e) => setDuration(e.target.value)}
-                    placeholder="e.g. 2 days, 1 week, 3 hours"
-                    className={`mt-2 bg-white/80 shadow-[0_6px_18px_rgba(24,38,25,0.035)] ${inputClass}`}
-                  />
-                </div>
-
-                <p className="mt-10 text-base font-semibold text-ink lg:text-lg">Or tap your symptoms</p>
                 <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
                   {SYMPTOMS.map((s) => (
                     <SymptomChip
                       key={s.value}
-                      label={s.en}
+                      label={`${s.icon} ${s.en}`}
                       subLabel={s.tl}
                       selected={selected.includes(s.value)}
                       urgent={s.value === "difficulty breathing"}
@@ -281,15 +264,75 @@ export default function AssessmentPage() {
                   </div>
                 )}
 
+                {/* STEP 2 — tap-to-pick duration, no typing or format to get
+                    right. Optional, so no chip needs to be pre-selected. */}
+                <label className="mt-10 flex items-center gap-2 text-base font-semibold text-ink lg:text-lg">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand text-sm text-brand-foreground">2</span>
+                  When did it start? <span className="font-normal text-ink-faint">(optional)</span>
+                </label>
+                <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {DURATION_OPTIONS.map((d) => {
+                    const isSelected = durationKey === d.key;
+                    return (
+                      <button
+                        key={d.key}
+                        type="button"
+                        onClick={() => setDurationKey(isSelected ? null : d.key)}
+                        className={`rounded-2xl border px-3 py-3 text-center text-sm font-medium transition ${
+                          isSelected
+                            ? "border-brand bg-brand text-brand-foreground shadow-sm"
+                            : "border-border-soft bg-white/80 text-ink-secondary hover:border-brand/50"
+                        }`}
+                      >
+                        <span className="block">{d.en}</span>
+                        <span className={`block text-xs ${isSelected ? "text-brand-foreground/80" : "text-ink-faint"}`}>{d.tl}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Free-text path kept out of the default view so it doesn't
+                    compete with the two-step tap flow above. */}
+                <div className="mt-8">
+                  {!showTextInput ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowTextInput(true)}
+                      className="text-sm font-medium text-brand underline decoration-brand/40 underline-offset-4 hover:text-brand-dark"
+                    >
+                      Prefer to type it instead?
+                    </button>
+                  ) : (
+                    <>
+                      <label htmlFor="symptoms" className="block text-base font-semibold text-ink lg:text-lg">
+                        Describe it in your own words
+                      </label>
+                      <textarea
+                        id="symptoms"
+                        value={text}
+                        onChange={(e) => setText(e.target.value)}
+                        rows={4}
+                        placeholder='e.g. "May lagnat ako at hirap huminga" / "I have fever and cough"'
+                        className={`mt-3 min-h-36 resize-y bg-white/80 shadow-[0_6px_18px_rgba(24,38,25,0.035)] ${inputClass}`}
+                      />
+                    </>
+                  )}
+                </div>
+
                 {error && (
                   <div className="mt-6">
                     <ErrorAlert>{error}</ErrorAlert>
                   </div>
                 )}
 
-                <button type="button" onClick={handleSubmit} disabled={!canSubmit || submitting} className={`mt-10 bg-gradient-to-r from-brand to-brand-dark shadow-[0_14px_28px_rgba(31,74,54,0.2)] ${submitButtonClass}`}>
-                  {submitting ? "Checking…" : "Check my symptoms"}
-                </button>
+                <div className="mt-10 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <button type="button" onClick={() => router.back()} className="min-h-11 rounded-xl border border-border bg-white px-5 font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark">
+                    Back
+                  </button>
+                  <button type="button" onClick={handleSubmit} disabled={!canSubmit || submitting} className={`bg-gradient-to-r from-brand to-brand-dark shadow-[0_14px_28px_rgba(31,74,54,0.2)] sm:min-w-56 ${submitButtonClass}`}>
+                    {submitting ? "Checking…" : "Submit Assessment"}
+                  </button>
+                </div>
 
                 {toast && <Toast message={toast.message} tone={toast.tone} onDismiss={() => setToast(null)} />}
 
@@ -323,7 +366,7 @@ export default function AssessmentPage() {
               <ul className="mt-4 space-y-3 text-sm leading-relaxed text-ink-secondary">
                 <li className="flex gap-3">
                   <span className="mt-1 h-2.5 w-2.5 rounded-full bg-brand" />
-                  Severe breathing difficulty or chest pain should be treated as urgent.
+                  Severe breathing difficulty should be treated as urgent.
                 </li>
                 <li className="flex gap-3">
                   <span className="mt-1 h-2.5 w-2.5 rounded-full bg-yellow-500" />

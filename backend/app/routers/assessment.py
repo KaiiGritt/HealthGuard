@@ -9,7 +9,7 @@ from sqlalchemy import and_, case, func, select
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..deps import get_current_user_optional, require_role
+from ..deps import get_current_user, get_current_user_optional, require_role
 from ..models import Assessment, AssessmentSymptom, Symptom, SymptomLexicon, User
 from ..nlp.engine import analyze
 from ..nlp.lexicon import LexiconEntry
@@ -117,20 +117,25 @@ def _assessment_rules(record: Assessment) -> list[TriggeredRule]:
 
 def _build_weekly_trend(db: Session) -> list[WeeklyTrendItem]:
     today = _utc_now().date()
-    start = today - timedelta(days=6)
+    current_week_start = today - timedelta(days=today.weekday())
+    start = current_week_start - timedelta(weeks=7)
     rows = db.execute(
-        select(func.date(Assessment.created_at), func.count(Assessment.id))
+        select(Assessment.created_at)
         .where(func.date(Assessment.created_at) >= start)
-        .group_by(func.date(Assessment.created_at))
     ).all()
-    counts = {str(row[0]): row[1] for row in rows}
+    counts: Counter[str] = Counter()
+    for (created_at,) in rows:
+        created_date = created_at.date() if hasattr(created_at, "date") else datetime.fromisoformat(str(created_at)).date()
+        week_start = created_date - timedelta(days=created_date.weekday())
+        counts[week_start.isoformat()] += 1
+
     trend: list[WeeklyTrendItem] = []
-    for offset in range(6, -1, -1):
-        day = today - timedelta(days=offset)
-        key = day.isoformat()
+    for offset in range(7, -1, -1):
+        week_start = current_week_start - timedelta(weeks=offset)
+        key = week_start.isoformat()
         trend.append(
             WeeklyTrendItem(
-                label=day.strftime("%a"),
+                label="This week" if offset == 0 else f"{offset} week{'s' if offset != 1 else ''} ago",
                 date=key,
                 count=counts.get(key, 0),
             )
@@ -290,8 +295,8 @@ def _reference_guides() -> list[DashboardReferenceItem]:
             status="Protocol",
         ),
         DashboardReferenceItem(
-            title="Seasonal trend watch",
-            detail="Compare the 7-day activity chart month-to-month to spot fever, cough, or GI clusters early.",
+            title="Weekly trend watch",
+            detail="Compare the current week with the previous seven weeks to spot fever, cough, or GI clusters early.",
             status="Planning",
         ),
         DashboardReferenceItem(
@@ -336,6 +341,7 @@ def dashboard_summary(
             select(
                 Assessment.id,
                 Assessment.input_text,
+                Assessment.detected_symptoms,
                 Assessment.risk_level,
                 Assessment.created_at,
                 Assessment.user_id,
@@ -354,23 +360,23 @@ def dashboard_summary(
     recent_assessments = []
     for row in recent_rows:
         note = (row[1] or "No details provided").strip() or "No details provided"
-        if len(note) > 72:
-            note = note[:69] + "..."
-        # row[4] = Assessment.user_id; row[5] = User.full_name
+        symptoms = [str(item).strip() for item in (row[2] or []) if str(item).strip()]
+        # row[5] = Assessment.user_id; row[6] = User.full_name
         # If user_id is NULL (anonymous submission), show "Anonymous submission"
         # If user_id exists but full_name is NULL, still show a placeholder
-        resident_name = "Anonymous submission" if row[4] is None else (row[5] or f"Resident #{row[4]}")
+        resident_name = "Anonymous submission" if row[5] is None else (row[6] or f"Resident #{row[5]}")
         recent_assessments.append(
             DashboardAssessmentItem(
                 id=row[0],
                 resident_name=resident_name,
-                barangay=row[6],
-                risk_level=row[2],
+                barangay=row[7],
+                detected_symptoms=symptoms,
+                risk_level=row[3],
                 note=note,
-                created_at=row[3],
-                phone_number=row[7],
-                handled=row[8] is not None,
-                handled_at=row[8],
+                created_at=row[4],
+                phone_number=row[8],
+                handled=row[9] is not None,
+                handled_at=row[9],
             )
         )
 
@@ -751,11 +757,6 @@ def analyze_symptoms(
         age=payload.age,
         sex=payload.sex,
         duration_days=payload.duration_days,
-        pregnant=payload.pregnant,
-        temperature_c=payload.temperature_c,
-        oxygen_saturation=payload.oxygen_saturation,
-        heart_rate=payload.heart_rate,
-        systolic_bp=payload.systolic_bp,
     )
     _apply_repeat_assessment_rule(db, user, result)
 
@@ -769,6 +770,40 @@ def analyze_symptoms(
         )
         for m in result.matches
     ]
+
+    if user is None:
+        guide = build_premedication_guide(
+            result.classification.risk_level,
+            [match.medical_term for match in result.matches],
+        )
+        return AnalyzeResult(
+            id=0,
+            risk_level=result.classification.risk_level,
+            detected_symptoms=detected,
+            triggered_rules=[
+                TriggeredRule(name=rule.name, description=rule.description)
+                for rule in result.classification.triggered_rules
+            ],
+            reason=result.classification.reason,
+            recommendation=result.classification.recommendation,
+            message=result.classification.message,
+            score=result.classification.score,
+            input_text=payload.input_text,
+            method=payload.method,
+            created_at=_utc_now(),
+            pre_medication=(
+                PreMedicationOut(
+                    medication_name=guide.medication_name,
+                    dosage=guide.dosage,
+                    contraindications=list(guide.contraindications),
+                    side_effects=list(guide.side_effects),
+                    precautions=list(guide.precautions),
+                    note=guide.note,
+                )
+                if guide is not None
+                else None
+            ),
+        )
 
     record = Assessment(
         # Attribute to the logged-in user; anonymous submissions stay NULL.
@@ -826,26 +861,30 @@ def analyze_symptoms(
     )
 
 
+@router.post("/save-guest", response_model=AnalyzeResult)
+def save_guest_assessment(
+    payload: AnalyzeRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> AnalyzeResult:
+    """Re-run and persist a guest assessment after the user authenticates."""
+    return analyze_symptoms(payload=payload, db=db, user=user)
+
+
 @router.get("/history", response_model=list[AssessmentOut])
 def history(
     limit: int = 50,
     db: Session = Depends(get_db),
     user: User | None = Depends(get_current_user_optional),
 ) -> list[Assessment]:
+    if user is None:
+        return []
     stmt = select(Assessment).order_by(Assessment.created_at.desc()).limit(limit)
     if user is not None:
         # Logged-in users see only their own assessments.
         stmt = (
             select(Assessment)
             .where(Assessment.user_id == user.id)
-            .order_by(Assessment.created_at.desc())
-            .limit(limit)
-        )
-    else:
-        # Anonymous: show recent anonymous assessments (demo back-compat).
-        stmt = (
-            select(Assessment)
-            .where(Assessment.user_id.is_(None))
             .order_by(Assessment.created_at.desc())
             .limit(limit)
         )
@@ -903,6 +942,7 @@ def mark_assessment_handled(
         select(
             Assessment.id,
             Assessment.input_text,
+            Assessment.detected_symptoms,
             Assessment.risk_level,
             Assessment.created_at,
             Assessment.user_id,
@@ -916,19 +956,19 @@ def mark_assessment_handled(
     ).one()
 
     note = (row[1] or "No details provided").strip() or "No details provided"
-    if len(note) > 72:
-        note = note[:69] + "..."
-    resident_name = "Anonymous submission" if row[4] is None else (row[5] or f"Resident #{row[4]}")
+    symptoms = [str(item).strip() for item in (row[2] or []) if str(item).strip()]
+    resident_name = "Anonymous submission" if row[5] is None else (row[6] or f"Resident #{row[5]}")
     return DashboardAssessmentItem(
         id=row[0],
         resident_name=resident_name,
-        barangay=row[6],
-        risk_level=row[2],
+        barangay=row[7],
+        detected_symptoms=symptoms,
+        risk_level=row[3],
         note=note,
-        created_at=row[3],
-        phone_number=row[7],
-        handled=row[8] is not None,
-        handled_at=row[8],
+        created_at=row[4],
+        phone_number=row[8],
+        handled=row[9] is not None,
+        handled_at=row[9],
     )
 
 
@@ -941,15 +981,21 @@ def get_assessment(
     record = db.get(Assessment, assessment_id)
     if record is None:
         raise HTTPException(status_code=404, detail="Assessment not found")
-    # A record owned by a user is only viewable by that user; anonymous records are open.
-    if record.user_id is not None and (user is None or user.id != record.user_id):
+    # Residents may view only their own results; MHO and admin staff may view
+    # records surfaced in the staff dashboard for review and follow-up.
+    can_view_staff_record = user is not None and user.role in {"mho", "admin"}
+    if user is None or record.user_id is None or (user.id != record.user_id and not can_view_staff_record):
         raise HTTPException(status_code=404, detail="Assessment not found")
 
     terms = _assessment_symptom_terms(db, record)
+    resident = db.get(User, record.user_id) if record.user_id is not None else None
     guide = build_premedication_guide(record.risk_level, terms)
     db_guide = get_premedication_for_assessment(db, record.id)
     return AssessmentOut(
         id=record.id,
+        resident_name=resident.full_name if resident else None,
+        barangay=resident.barangay if resident else None,
+        phone_number=resident.phone_number if resident else None,
         input_text=record.input_text,
         method=record.method,
         detected_symptoms=record.detected_symptoms,

@@ -17,7 +17,7 @@ import {
   TriageBadge,
 } from "@/app/components/ui/primitives";
 import { createLexiconEntry, getAdminModules, getAdminSummary, getMe, updateUserRole, updateUserStatus, type User } from "@/lib/api";
-import { openReportForPrinting } from "@/lib/report";
+import { downloadReport } from "@/lib/report";
 import { IconClipboard } from "@/app/components/ui/icons";
 
 const adminNav = [
@@ -27,6 +27,9 @@ const adminNav = [
   { id: "rules", label: "Triage rules" },
   { id: "settings", label: "Settings" },
 ] as const;
+
+const LEXICON_PAGE_SIZE = 8;
+const USER_PAGE_SIZE = 4;
 
 type UserRole = "resident" | "mho" | "admin";
 
@@ -69,7 +72,9 @@ export default function AdminPage() {
   const [modules, setModules] = useState<AdminPageState | null>(null);
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [userPage, setUserPage] = useState(1);
   const [lexiconQuery, setLexiconQuery] = useState("");
+  const [lexiconPage, setLexiconPage] = useState(1);
   const [rulePreview, setRulePreview] = useState("difficulty breathing and cough");
   const [pendingAction, setPendingAction] = useState<number | null>(null);
   const [confirmingDeactivate, setConfirmingDeactivate] = useState<number | null>(null);
@@ -104,10 +109,11 @@ export default function AdminPage() {
   function generateReport() {
     if (!modules) return;
 
-    const printed = openReportForPrinting({
+    const downloaded = downloadReport({
       title: "System Administration Report",
       subtitle: "HealthGuard admin summary",
       generatedAt: new Date().toLocaleString(),
+      filename: `healthguard-admin-report-${new Date().toISOString().slice(0, 10)}`,
       sections: [
         {
           heading: "Users",
@@ -125,8 +131,8 @@ export default function AdminPage() {
     });
 
     setToast({
-      message: printed ? "Report ready. Use Save as PDF in the print dialog." : "Could not open the print window.",
-      tone: printed ? "success" : "error",
+      message: downloaded ? "PDF report downloaded successfully." : "Could not download the report.",
+      tone: downloaded ? "success" : "error",
     });
   }
 
@@ -182,6 +188,13 @@ export default function AdminPage() {
       return matchesRole && matchesStatus;
     });
   }, [modules, roleFilter, statusFilter]);
+  const userPageCount = Math.max(1, Math.ceil(filteredUsers.length / USER_PAGE_SIZE));
+  const paginatedUsers = filteredUsers.slice(
+    (userPage - 1) * USER_PAGE_SIZE,
+    userPage * USER_PAGE_SIZE,
+  );
+  const userStart = filteredUsers.length === 0 ? 0 : (userPage - 1) * USER_PAGE_SIZE + 1;
+  const userEnd = Math.min(userPage * USER_PAGE_SIZE, filteredUsers.length);
 
   const filteredLexicon = useMemo(() => {
     if (!modules) return [];
@@ -194,6 +207,29 @@ export default function AdminPage() {
         .includes(query);
     });
   }, [modules, lexiconQuery]);
+  const lexiconPageCount = Math.max(1, Math.ceil(filteredLexicon.length / LEXICON_PAGE_SIZE));
+  const paginatedLexicon = filteredLexicon.slice(
+    (lexiconPage - 1) * LEXICON_PAGE_SIZE,
+    lexiconPage * LEXICON_PAGE_SIZE,
+  );
+  const lexiconStart = filteredLexicon.length === 0 ? 0 : (lexiconPage - 1) * LEXICON_PAGE_SIZE + 1;
+  const lexiconEnd = Math.min(lexiconPage * LEXICON_PAGE_SIZE, filteredLexicon.length);
+
+  useEffect(() => {
+    setUserPage(1);
+  }, [roleFilter, statusFilter]);
+
+  useEffect(() => {
+    setUserPage((page) => Math.min(page, userPageCount));
+  }, [userPageCount]);
+
+  useEffect(() => {
+    setLexiconPage(1);
+  }, [lexiconQuery]);
+
+  useEffect(() => {
+    setLexiconPage((page) => Math.min(page, lexiconPageCount));
+  }, [lexiconPageCount]);
   const pendingReviewCount = modules?.lexicon_entries.filter((entry) => !entry.reviewed).length ?? 0;
 
   const rulePreviewMatches = useMemo(() => {
@@ -312,13 +348,14 @@ export default function AdminPage() {
           />
         </div>
 
-        <nav aria-label="Admin sections" className="mt-4 flex gap-2 overflow-x-auto rounded-2xl border border-[#D7E0D2] bg-[#F7F9F5] p-2 md:hidden">
+        <nav aria-label="Admin sections" className="mt-4 grid grid-cols-5 gap-1.5 rounded-[20px] border border-[#D7E0D2] bg-[linear-gradient(180deg,#FBFCF9_0%,#F1F5EE_100%)] p-1.5 shadow-[0_10px_28px_rgba(24,38,25,0.06)] md:hidden">
           {adminNav.map((item) => (
             <button
               key={item.id}
               type="button"
               onClick={() => goToSection(item.id)}
-              className={`shrink-0 rounded-xl px-3.5 py-2.5 text-xs font-semibold transition ${activeSection === item.id ? "bg-brand text-white shadow-sm" : "text-ink-secondary hover:bg-white hover:text-brand-dark"}`}
+              aria-current={activeSection === item.id ? "page" : undefined}
+              className={`min-w-0 rounded-[14px] px-1 py-3 text-[11px] font-semibold leading-tight transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/45 focus-visible:ring-offset-1 ${activeSection === item.id ? "bg-[linear-gradient(145deg,#367A59_0%,#22523C_100%)] text-white shadow-[0_7px_16px_rgba(31,74,54,0.22)] ring-1 ring-inset ring-white/20" : "text-ink-muted hover:bg-white/85 hover:text-brand-dark"}`}
             >
               {item.label}
             </button>
@@ -348,7 +385,7 @@ export default function AdminPage() {
             </nav>
           </aside>
 
-          <div className="space-y-6">
+          <div className="min-w-0 space-y-6">
             <section id="admin-overview" className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               {stats?.summary_cards.map((card) => (
                 <StatCard key={card.label} label={card.label} value={card.value} hint={card.hint} />
@@ -368,7 +405,7 @@ export default function AdminPage() {
 
                 <div className="space-y-3">
                   {filteredUsers.length > 0 ? (
-                    filteredUsers.map((entry) => (
+                    paginatedUsers.map((entry) => (
                       <ListRow key={entry.id} className="flex flex-col gap-4 border-[#E0E8DC] bg-[linear-gradient(135deg,#F8FAF6_0%,#F1F5EE_100%)] p-4 shadow-[0_8px_20px_rgba(24,38,25,0.035)] transition hover:border-brand/25 hover:shadow-[0_12px_24px_rgba(24,38,25,0.07)] sm:flex-row sm:items-center sm:justify-between sm:p-5">
                         <div className="flex min-w-0 flex-1 items-start gap-3">
                           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-brand/15 bg-white font-display text-lg font-semibold text-brand shadow-sm" aria-hidden="true">
@@ -417,6 +454,16 @@ export default function AdminPage() {
                     </p>
                   )}
                 </div>
+                {filteredUsers.length > 0 ? (
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border-soft pt-3">
+                    <p className="text-xs text-ink-muted">Showing {userStart}-{userEnd} of {filteredUsers.length}</p>
+                    <div className="flex items-center gap-2">
+                      <button type="button" onClick={() => setUserPage((page) => Math.max(1, page - 1))} disabled={userPage === 1} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">Previous</button>
+                      <span className="min-w-16 text-center font-mono text-xs text-ink-muted">Page {userPage} / {userPageCount}</span>
+                      <button type="button" onClick={() => setUserPage((page) => Math.min(userPageCount, page + 1))} disabled={userPage === userPageCount} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">Next</button>
+                    </div>
+                  </div>
+                ) : null}
               </Panel>
 
               <Panel title="System settings" badge={<TagBadge>Operational</TagBadge>}>
@@ -472,18 +519,19 @@ export default function AdminPage() {
                 </div>
                 <div>
                   <section id="admin-custom-lexicon" className="min-w-0 overflow-hidden rounded-md border border-border bg-surface">
-                    <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-4">
                       <div>
                         <h3 className="font-display text-xl text-ink">Custom bilingual layer</h3>
                         <p className="mt-1 text-xs text-ink-muted">Terms available for review and editing</p>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <TagBadge>{filteredLexicon.length} records</TagBadge>
                         {pendingReviewCount > 0 ? <TagBadge tone="staff">{pendingReviewCount} pending review</TagBadge> : null}
                       </div>
                     </div>
                     {filteredLexicon.length > 0 ? (
-                      <div className="max-h-[32rem] overflow-auto">
+                      <>
+                        <div className="hidden max-h-[32rem] overflow-auto md:block">
                         <table className="w-full min-w-[560px] text-left text-sm">
                           <thead className="sticky top-0 bg-white text-xs uppercase tracking-wide text-ink-muted">
                             <tr>
@@ -494,7 +542,7 @@ export default function AdminPage() {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-border">
-                            {filteredLexicon.map((entry) => (
+                            {paginatedLexicon.map((entry) => (
                               <tr key={entry.id} className="bg-card hover:bg-white">
                                 <td className="px-4 py-3">
                                   <p className="font-medium text-ink">{entry.local_term}</p>
@@ -509,7 +557,31 @@ export default function AdminPage() {
                             ))}
                           </tbody>
                         </table>
+                        </div>
+                        <div className="space-y-2 p-3 md:hidden">
+                        {paginatedLexicon.map((entry) => (
+                          <article key={entry.id} className="rounded-xl border border-[#E0E8DC] bg-white p-3.5 shadow-sm">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="break-words font-semibold text-ink">{entry.local_term}</p>
+                                <p className="mt-1 break-words text-xs uppercase text-ink-muted">{entry.language} · {entry.category}</p>
+                              </div>
+                              <span className="shrink-0 rounded-lg bg-brand-tint px-2 py-1 font-mono text-xs font-semibold text-brand-dark">Weight {entry.severity_weight}</span>
+                            </div>
+                            <p className="mt-3 break-words text-sm text-ink-secondary">Normalized to: <span className="font-medium text-ink">{entry.medical_term}</span></p>
+                            <p className="mt-2 break-words text-xs text-ink-muted">{entry.reviewed ? `${entry.review_status === "rejected" ? "Not approved" : "Reviewed"} by ${entry.reviewed_by ?? "reviewer"}` : "Pending review by MHO"}</p>
+                          </article>
+                        ))}
+                        </div>
+                      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3">
+                        <p className="text-xs text-ink-muted">Showing {lexiconStart}-{lexiconEnd} of {filteredLexicon.length}</p>
+                        <div className="flex items-center gap-2">
+                          <button type="button" onClick={() => setLexiconPage((page) => Math.max(1, page - 1))} disabled={lexiconPage === 1} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">Previous</button>
+                          <span className="min-w-16 text-center font-mono text-xs text-ink-muted">Page {lexiconPage} / {lexiconPageCount}</span>
+                          <button type="button" onClick={() => setLexiconPage((page) => Math.min(lexiconPageCount, page + 1))} disabled={lexiconPage === lexiconPageCount} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">Next</button>
+                        </div>
                       </div>
+                      </>
                     ) : <p className="p-5 text-sm text-ink-muted">No custom entries are available.</p>}
                   </section>
                 </div>
@@ -523,8 +595,8 @@ export default function AdminPage() {
                         <p className="font-medium text-ink">{rule.name}</p>
                         <TriageBadge level={rule.severity === "Critical" || rule.severity === "High" ? "RED" : rule.severity === "Medium" ? "YELLOW" : "GREEN"} />
                       </div>
-                      <p className="mt-2 text-sm text-ink-secondary">Condition: {rule.condition}</p>
-                      <p className="mt-1 text-sm text-ink-muted">Action: {rule.action}</p>
+                        <p className="mt-2 break-words text-sm text-ink-secondary">Condition: {rule.condition}</p>
+                        <p className="mt-1 break-words text-sm text-ink-muted">Action: {rule.action}</p>
                     </ListRow>
                   ))}
                 </div>

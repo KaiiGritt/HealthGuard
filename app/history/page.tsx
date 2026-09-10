@@ -11,7 +11,16 @@ import {
 } from "@/app/components/ui/primitives";
 import PageHeader from "../components/PageHeader";
 
-export default async function HistoryPage() {
+const HISTORY_PAGE_SIZE = 5;
+
+export default async function HistoryPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
+  const params = await searchParams;
+  const requestedPage = Number.parseInt(params.page ?? "1", 10);
+  const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const user = await getMe();
   if (!user) redirect("/login?next=/history");
   if (user.role !== "resident") redirect(user.role === "admin" ? "/admin" : "/dashboard");
@@ -22,6 +31,12 @@ export default async function HistoryPage() {
   } catch {
     rows = null;
   }
+
+  const totalPages = rows ? Math.max(1, Math.ceil(rows.length / HISTORY_PAGE_SIZE)) : 1;
+  const currentPage = Math.min(page, totalPages);
+  const pageRows = rows?.slice((currentPage - 1) * HISTORY_PAGE_SIZE, currentPage * HISTORY_PAGE_SIZE) ?? [];
+  const startRecord = rows && rows.length > 0 ? (currentPage - 1) * HISTORY_PAGE_SIZE + 1 : 0;
+  const endRecord = rows ? Math.min(currentPage * HISTORY_PAGE_SIZE, rows.length) : 0;
 
   return (
     <div className="premium-page min-h-screen">
@@ -59,7 +74,7 @@ export default async function HistoryPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {rows.map((r) => (
+                  {pageRows.map((r) => (
                     <tr key={r.id} className="group border-t border-border transition-colors hover:bg-brand-tint/40">
                       <td className="whitespace-nowrap px-5 py-5 text-sm text-ink-muted">
                         {new Date(r.created_at).toLocaleDateString()}
@@ -72,7 +87,7 @@ export default async function HistoryPage() {
                       </td>
                       <td className="px-5 py-5">
                         <Link
-                          href={`/result/${r.id}`}
+                          href={`/summary/${r.id}`}
                           className="inline-flex items-center rounded-xl border border-brand/25 bg-brand-tint px-3.5 py-2 text-sm font-semibold text-brand-dark shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-brand/45 hover:bg-white hover:shadow-[0_8px_18px_rgba(47,107,79,0.12)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15"
                         >
                           View result
@@ -85,8 +100,8 @@ export default async function HistoryPage() {
               </table>
             </div>
             <div className="mt-8 space-y-3 md:hidden">
-              {rows.map((r) => (
-                <Link key={r.id} href={`/result/${r.id}`} className="group block rounded-2xl border border-[#DDE7DB] bg-[linear-gradient(135deg,#F8FAF6_0%,#F1F5EE_100%)] p-4 shadow-[0_8px_20px_rgba(24,38,25,0.04)] outline-none transition-all duration-200 hover:-translate-y-0.5 hover:border-brand/30 hover:bg-white hover:shadow-[0_14px_28px_rgba(47,107,79,0.1)] focus-visible:ring-4 focus-visible:ring-brand/15">
+              {pageRows.map((r) => (
+                <Link key={r.id} href={`/summary/${r.id}`} className="group block rounded-2xl border border-[#DDE7DB] bg-[linear-gradient(135deg,#F8FAF6_0%,#F1F5EE_100%)] p-4 shadow-[0_8px_20px_rgba(24,38,25,0.04)] outline-none transition-all duration-200 hover:-translate-y-0.5 hover:border-brand/30 hover:bg-white hover:shadow-[0_14px_28px_rgba(47,107,79,0.1)] focus-visible:ring-4 focus-visible:ring-brand/15">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-mono text-xs uppercase tracking-wide text-ink-muted">{new Date(r.created_at).toLocaleDateString()}</p>
@@ -98,6 +113,26 @@ export default async function HistoryPage() {
                   <p className="mt-3 flex items-center justify-between font-mono text-xs uppercase tracking-[0.1em] text-brand"><span>Open full result</span><span className="transition-transform duration-200 group-hover:translate-x-1" aria-hidden="true">→</span></p>
                 </Link>
               ))}
+            </div>
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-border-soft pt-4">
+              <p className="text-xs text-ink-muted">Showing {startRecord}-{endRecord} of {rows.length} records</p>
+              <div className="flex items-center gap-2">
+                <Link
+                  href={currentPage > 1 ? `/history?page=${currentPage - 1}` : "/history?page=1"}
+                  aria-disabled={currentPage === 1}
+                  className={`rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark ${currentPage === 1 ? "pointer-events-none opacity-40" : ""}`}
+                >
+                  Previous
+                </Link>
+                <span className="min-w-16 text-center font-mono text-xs text-ink-muted">Page {currentPage} / {totalPages}</span>
+                <Link
+                  href={currentPage < totalPages ? `/history?page=${currentPage + 1}` : `/history?page=${totalPages}`}
+                  aria-disabled={currentPage === totalPages}
+                  className={`rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark ${currentPage === totalPages ? "pointer-events-none opacity-40" : ""}`}
+                >
+                  Next
+                </Link>
+              </div>
             </div>
             </>
           )}
