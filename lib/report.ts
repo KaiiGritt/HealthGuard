@@ -342,7 +342,7 @@ export function downloadReport({
   generatedAt: string;
   sections: ReportSection[];
   filename: string;
-}) {
+}): "downloaded" | "opened" | false {
   const document = new jsPDF({ unit: "mm", format: "a4" });
   const pageWidth = document.internal.pageSize.getWidth();
   const pageHeight = document.internal.pageSize.getHeight();
@@ -438,6 +438,29 @@ export function downloadReport({
     document.text(`HealthGuard • Confidential • Page ${page} of ${pageCount}`, pageWidth / 2, pageHeight - 8, { align: "center" });
   }
 
-  document.save(filename.endsWith(".pdf") ? filename : `${filename}.pdf`);
-  return true;
+  try {
+    const pdfBlob = document.output("blob");
+    const url = URL.createObjectURL(pdfBlob);
+    const filenameWithExtension = filename.endsWith(".pdf") ? filename : `${filename}.pdf`;
+    const isAppleMobile = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+    if (isAppleMobile) {
+      window.open(url, "_blank", "noopener,noreferrer");
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      return "opened";
+    }
+
+    const anchor = window.document.createElement("a");
+    anchor.href = url;
+    anchor.download = filenameWithExtension;
+    anchor.rel = "noopener";
+    anchor.style.display = "none";
+    window.document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    return "downloaded";
+  } catch {
+    return false;
+  }
 }

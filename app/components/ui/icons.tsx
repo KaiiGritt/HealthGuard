@@ -58,6 +58,15 @@ export function IconProfile(props: IconProps) {
   );
 }
 
+export function IconCamera(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 011 1v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9a1 1 0 011-1z" />
+      <circle cx="12" cy="13" r="3.25" />
+    </Icon>
+  );
+}
+
 export function IconLogin(props: IconProps) {
   return (
     <Icon {...props}>
@@ -238,6 +247,51 @@ export function IconActivity(props: IconProps) {
   return (
     <Icon {...props}>
       <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+    </Icon>
+  );
+}
+
+export function IconThermometer(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M14 14.76V5a2 2 0 10-4 0v9.76a4 4 0 104 0Z" />
+      <path d="M12 11V5" />
+    </Icon>
+  );
+}
+
+export function IconLungs(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M12 4v16M12 10c-2-2-3.5-4-5-4-1.5 0-3 2.5-3 6v3c0 2.2 1.8 4 4 4 2.5 0 4-2 4-5M12 10c2-2 3.5-4 5-4 1.5 0 3 2.5 3 6v3c0 2.2-1.8 4-4 4-2.5 0-4-2-4-5" />
+    </Icon>
+  );
+}
+
+export function IconBrain(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M9.5 4a3 3 0 00-3 3v.5A3.5 3.5 0 004 11a3.5 3.5 0 002.5 3.35V16a3 3 0 003 3H12V5a3 3 0 00-2.5-1Z" />
+      <path d="M14.5 4a3 3 0 013 3v.5A3.5 3.5 0 0120 11a3.5 3.5 0 01-2.5 3.35V16a3 3 0 01-3 3H12V5a3 3 0 012.5-1Z" />
+      <path d="M8 9h1m-2 4h2m6-4h1m-2 4h2" />
+    </Icon>
+  );
+}
+
+export function IconStomach(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M8 3v4c0 2 1 3 3 3h1v3c0 4 2 7 5 7 2 0 3-1.5 3-3.5V15c0-1.7-1.3-3-3-3h-1V8c0-2.8-1.8-5-4.5-5H8Z" />
+      <path d="M8 3H6a2 2 0 00-2 2v3" />
+    </Icon>
+  );
+}
+
+export function IconDroplets(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M8 3S4 7.2 4 10a4 4 0 008 0c0-2.8-4-7-4-7Z" />
+      <path d="M17 11s-3 3.2-3 5a3 3 0 006 0c0-1.8-3-5-3-5Z" />
     </Icon>
   );
 }

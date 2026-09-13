@@ -5,12 +5,13 @@ import { useState } from "react";
 import { forgotPassword, resetPassword } from "@/lib/api";
 import AuthLayout from "../components/AuthLayout";
 import { ErrorAlert, SuccessAlert, authFormStackClass, authInputClass, authSubmitClass } from "../components/ui/primitives";
-import { IconLock, IconShield } from "@/app/components/ui/icons";
+import { IconEye, IconEyeOff, IconLock, IconShield } from "@/app/components/ui/icons";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [stage, setStage] = useState<"request" | "reset">("request");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -73,7 +74,10 @@ export default function ForgotPasswordPage() {
           <label htmlFor="code" className="text-sm font-semibold text-ink">Verification code / Code sa email</label>
           <input id="code" inputMode="numeric" autoComplete="one-time-code" required maxLength={6} value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))} className={`${authInputClass} font-mono tracking-[0.35em]`} placeholder="000000" />
           <label htmlFor="new-password" className="text-sm font-semibold text-ink">New password</label>
-          <input id="new-password" type="password" autoComplete="new-password" required minLength={8} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} className={authInputClass} placeholder="At least 8 characters" />
+          <div className="relative">
+            <input id="new-password" type={showNewPassword ? "text" : "password"} autoComplete="new-password" required minLength={8} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} className={`${authInputClass} pr-11`} placeholder="At least 8 characters" />
+            <button type="button" onClick={() => setShowNewPassword((visible) => !visible)} className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-ink-faint transition hover:text-brand-dark focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15" aria-label={showNewPassword ? "Hide new password" : "Show new password"}>{showNewPassword ? <IconEyeOff size={18} /> : <IconEye size={18} />}</button>
+          </div>
         </>}
         {error && <ErrorAlert>{error}</ErrorAlert>}
         <button type="submit" disabled={submitting} className={authSubmitClass}>{submitting ? "Please wait…" : stage === "request" ? "Send verification code" : "Reset password"}</button>

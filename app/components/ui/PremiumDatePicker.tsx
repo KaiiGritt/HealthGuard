@@ -47,7 +47,9 @@ export default function PremiumDatePicker({
   const [calendarView, setCalendarView] = useState<"days" | "months" | "years">("days");
   const [typedValue, setTypedValue] = useState(() => displayValue(value));
   const [visibleMonth, setVisibleMonth] = useState(() => selectedDate ?? today);
+  const [openAbove, setOpenAbove] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function closeOnOutsideClick(event: MouseEvent) {
@@ -61,6 +63,19 @@ export default function PremiumDatePicker({
     const timer = window.setTimeout(() => setTypedValue(displayValue(value)), 0);
     return () => window.clearTimeout(timer);
   }, [value]);
+
+  useEffect(() => {
+    if (!open || !containerRef.current || !popupRef.current) return;
+    const frame = window.requestAnimationFrame(() => {
+      const anchor = containerRef.current?.getBoundingClientRect();
+      const popup = popupRef.current?.getBoundingClientRect();
+      if (!anchor || !popup) return;
+      const spaceBelow = window.innerHeight - anchor.bottom;
+      const spaceAbove = anchor.top;
+      setOpenAbove(spaceBelow < popup.height + 12 && spaceAbove > spaceBelow);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [open, calendarView]);
 
   const days = useMemo(() => {
     const first = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), 1);
@@ -133,7 +148,7 @@ export default function PremiumDatePicker({
       </div>
 
       {open && (
-        <div role="dialog" aria-label={label} className="absolute left-0 top-full z-50 mt-2 w-[min(20rem,calc(100vw-2.5rem))] overflow-hidden rounded-2xl border border-[#d8e2d3] bg-white p-4 shadow-[0_24px_55px_rgba(24,38,25,0.18)] ring-1 ring-black/5">
+        <div ref={popupRef} role="dialog" aria-label={label} className={cn("absolute z-50 w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-[#d8e2d3] bg-white p-4 shadow-[0_24px_55px_rgba(24,38,25,0.18)] ring-1 ring-black/5 sm:w-80", openAbove ? "bottom-full left-0 mb-2 max-[639px]:left-auto max-[639px]:right-0" : "left-0 top-full mt-2 sm:right-auto max-[639px]:left-auto max-[639px]:right-0", !openAbove && "max-h-[calc(100dvh-1rem)] overflow-y-auto") }>
           <div className="flex items-center justify-between gap-3">
             <button type="button" onClick={() => setCalendarView((current) => current === "days" ? "months" : "days")} className="rounded-lg px-2 py-1 font-display text-lg font-semibold text-ink transition hover:bg-brand-tint hover:text-brand-dark" aria-label="Choose month and year">{monthLabel} <span className="ml-1 font-sans text-xs text-brand">{calendarView === "days" ? "▾" : "▴"}</span></button>
             <div className="flex gap-1">

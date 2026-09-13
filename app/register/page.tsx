@@ -62,12 +62,16 @@ export default function RegisterPage() {
     return age;
   };
 
+  const passwordChecks = [
+    { label: "8+ characters", valid: form.password.length >= 8 },
+    { label: "Uppercase and lowercase", valid: /[a-z]/.test(form.password) && /[A-Z]/.test(form.password) },
+    { label: "At least one number", valid: /\d/.test(form.password) },
+    { label: "Special character", valid: /[^A-Za-z0-9]/.test(form.password) },
+  ];
+  const passwordScore = passwordChecks.filter((check) => check.valid).length;
   const passwordStrength =
-    form.password.length >= 12 ? "Strong" : form.password.length >= 8 ? "Good" : form.password.length > 0 ? "Too short" : "";
-  const strengthWidth =
-    form.password.length === 0 ? "0%" : form.password.length >= 12 ? "100%" : form.password.length >= 8 ? "65%" : "30%";
-  const strengthColor =
-    form.password.length >= 12 ? "bg-brand" : form.password.length >= 8 ? "bg-health-green" : "bg-warn-amber";
+    form.password.length === 0 ? "" : passwordScore <= 1 ? "Weak" : passwordScore === 2 ? "Fair" : passwordScore === 3 ? "Good" : "Strong";
+  const strengthColor = passwordScore <= 1 ? "bg-warn-amber" : passwordScore === 2 ? "bg-health-green/70" : "bg-brand";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -80,8 +84,8 @@ export default function RegisterPage() {
       setError("Please enter a valid email address.");
       return;
     }
-    if (form.password.length < 8) {
-      setError("Password must be at least 8 characters.");
+    if (passwordScore < passwordChecks.length) {
+      setError("Password must be at least 8 characters and include uppercase, lowercase, a number, and a special character.");
       return;
     }
     if (!form.barangay) {
@@ -93,7 +97,11 @@ export default function RegisterPage() {
       setError("Please enter a valid date of birth for an age from 0 to 120.");
       return;
     }
-    if (form.phone_number && !/^(09\d{2} \d{3} \d{4}|\+63 \d{3} \d{3} \d{4})$/.test(form.phone_number)) {
+    if (!form.phone_number.trim()) {
+      setError("Please enter your Philippine mobile number.");
+      return;
+    }
+    if (!/^(09\d{2} \d{3} \d{4}|\+63 \d{3} \d{3} \d{4})$/.test(form.phone_number)) {
       setError("Use a Philippine mobile number like 0994 620 6773 or +63 994 620 6773.");
       return;
     }
@@ -108,7 +116,7 @@ export default function RegisterPage() {
         date_of_birth: form.date_of_birth,
         sex: form.sex || null,
         barangay: form.barangay.trim() || null,
-        phone_number: form.phone_number.trim() || null,
+        phone_number: form.phone_number.trim(),
       });
       setIsVerificationStage(true);
       setSubmitting(false);
@@ -140,7 +148,7 @@ export default function RegisterPage() {
       if (pending) {
         const saved = await saveGuestAssessment(pending);
         clearPendingGuestPayload();
-        router.push(`/summary/${saved.id}`);
+        router.push(`/result/${saved.id}`);
       } else {
         router.push("/assessment");
       }
@@ -262,12 +270,25 @@ export default function RegisterPage() {
           </button>
         </AuthProField>
 
-        {passwordStrength && (
-          <div className="-mt-2">
-            <div className="h-1 overflow-hidden rounded-full bg-border-soft">
-              <div className={cn("h-full rounded-full transition-all duration-300", strengthColor)} style={{ width: strengthWidth }} />
+        {form.password && (
+          <div className="-mt-2 rounded-xl border border-border-soft bg-surface/70 px-3.5 py-3">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-medium text-ink-secondary">Password strength</span>
+              <span className={cn("font-semibold", passwordScore >= 3 ? "text-brand-dark" : "text-warn-amber")}>{passwordStrength}</span>
             </div>
-            <p className="mt-1.5 text-xs text-ink-faint">{passwordStrength}</p>
+            <div className="mt-2 grid grid-cols-4 gap-1.5" aria-label={`Password strength: ${passwordStrength}`}>
+              {passwordChecks.map((check, index) => (
+                <span key={check.label} className={cn("h-1.5 rounded-full transition-all duration-300", index < passwordScore ? strengthColor : "bg-border-soft")} />
+              ))}
+            </div>
+            <div className="mt-3 grid gap-1.5 sm:grid-cols-2">
+              {passwordChecks.map((check) => (
+                <p key={check.label} className={cn("flex items-center gap-1.5 text-[11px]", check.valid ? "text-brand-dark" : "text-ink-faint")}>
+                  <span className={cn("flex h-4 w-4 items-center justify-center rounded-full text-[10px]", check.valid ? "bg-brand-tint text-brand-dark" : "bg-border-soft text-ink-faint")} aria-hidden="true">{check.valid ? "✓" : "·"}</span>
+                  {check.label}
+                </p>
+              ))}
+            </div>
           </div>
         )}
 
@@ -281,6 +302,7 @@ export default function RegisterPage() {
             <input
               id="phone_number"
               type="tel"
+              required
               placeholder="09XX XXX XXXX"
               value={form.phone_number}
               onChange={(e) => setForm((f) => ({ ...f, phone_number: formatPhilippinePhone(e.target.value) }))}

@@ -4,7 +4,9 @@ from __future__ import annotations
 import re
 from datetime import date, datetime
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from .security import validate_password_policy
 
 DISCLAIMER = (
     "This system does not provide a medical diagnosis. It offers a preliminary health "
@@ -296,19 +298,22 @@ class NotificationPreferences(BaseModel):
 class RegisterRequest(BaseModel):
     full_name: str = Field(min_length=1, max_length=128)
     email: str = Field(min_length=3, max_length=191)
-    password: str = Field(min_length=8, max_length=128)
+    password: str = Field(min_length=8)
     date_of_birth: date = Field(description="Date of birth; age is calculated by the server.")
     sex: str | None = Field(default=None, max_length=16)
     barangay: str = Field(min_length=1, max_length=96)
-    phone_number: str | None = Field(default=None, max_length=32)
+    phone_number: str = Field(min_length=1, max_length=32)
     language_preference: str | None = Field(default="en", max_length=16)
     notification_preferences: NotificationPreferences | None = None
 
+    @model_validator(mode="after")
+    def validate_password(self) -> "RegisterRequest":
+        validate_password_policy(self.password, (self.full_name, self.email))
+        return self
+
     @field_validator("phone_number")
     @classmethod
-    def validate_phone_number(cls, value: str | None) -> str | None:
-        if value is None:
-            return None
+    def validate_phone_number(cls, value: str) -> str:
         normalized = re.sub(r"[^0-9+]", "", value.strip())
         if normalized.startswith("+63"):
             normalized = "0" + normalized[3:]
@@ -379,12 +384,17 @@ class PasswordResetRequest(BaseModel):
 class PasswordResetVerifyRequest(BaseModel):
     email: str = Field(min_length=3, max_length=191)
     code: str = Field(min_length=6, max_length=6)
-    new_password: str = Field(min_length=8, max_length=128)
+    new_password: str = Field(min_length=8)
+
+    @model_validator(mode="after")
+    def validate_new_password(self) -> "PasswordResetVerifyRequest":
+        validate_password_policy(self.new_password, (self.email,))
+        return self
 
 
 class ChangePasswordRequest(BaseModel):
-    current_password: str = Field(min_length=1, max_length=128)
-    new_password: str = Field(min_length=8, max_length=128)
+    current_password: str = Field(min_length=1)
+    new_password: str = Field(min_length=8)
 
 
 class ProfileUpdate(BaseModel):

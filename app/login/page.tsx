@@ -42,7 +42,7 @@ function LoginForm() {
       if (pending) {
         const saved = await saveGuestAssessment(pending);
         clearPendingGuestPayload();
-        router.push(`/summary/${saved.id}`);
+        router.push(`/result/${saved.id}`);
       } else {
         router.push(next);
       }

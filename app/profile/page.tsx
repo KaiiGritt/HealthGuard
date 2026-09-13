@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
-import { IconFolder, IconPlus } from "@/app/components/ui/icons";
+import { IconCamera, IconCheck, IconEye, IconEyeOff, IconFolder, IconLock, IconPlus, IconProfile } from "@/app/components/ui/icons";
 import {
   ErrorAlert,
   formStackClass,
@@ -16,10 +16,12 @@ import {
   selectClass,
   submitButtonClass,
   SuccessAlert,
+  Toast,
 } from "@/app/components/ui/primitives";
 import { irosinBarangays } from "@/app/constants/irosinBarangays";
 import { useInterfaceLanguage } from "@/app/components/LanguageProvider";
-import { changePassword, getMe, getProfileAudit, updateProfile, type ProfileAuditEntry, type User } from "@/lib/api";
+import { setAccountDeletionToast } from "@/app/components/SystemToast";
+import { changePassword, deleteAccount, getMe, getProfileAudit, updateProfile, type ProfileAuditEntry, type User } from "@/lib/api";
 import PageHeader from "../components/PageHeader";
 import PremiumDatePicker from "../components/ui/PremiumDatePicker";
 
@@ -53,18 +55,39 @@ function calculateAge(dateOfBirth: string) {
   return age;
 }
 
-function formatAuditValue(value: unknown): string {
+const AUDIT_FIELD_LABELS: Record<string, string> = {
+  full_name: "Name",
+  date_of_birth: "Date of birth",
+  sex: "Sex",
+  barangay: "Barangay",
+  phone_number: "Mobile number",
+  language_preference: "Language",
+  notification_preferences: "Notifications",
+};
+
+function formatAuditValue(value: unknown, field?: string): string {
   if (value === null || value === undefined || value === "") return "empty";
-  if (typeof value === "boolean") return value ? "on" : "off";
+  if (typeof value === "boolean") return value ? "enabled" : "disabled";
+  if (field === "sex" && typeof value === "string") return value.charAt(0).toUpperCase() + value.slice(1);
+  if (field === "language_preference" && typeof value === "string") {
+    return value === "fil" ? "Filipino" : value === "both" ? "English + Filipino" : "English";
+  }
   if (typeof value === "object") {
     if (Array.isArray(value)) return value.join(", ");
-    return JSON.stringify(value, null, 2);
+    const preferences = value as Record<string, unknown>;
+    if (field === "notification_preferences") {
+      return ["email", "sms", "push"]
+        .filter((key) => key in preferences)
+        .map((key) => `${key.toUpperCase()} ${preferences[key] ? "enabled" : "disabled"}`)
+        .join(" · ");
+    }
+    return Object.entries(preferences).map(([key, item]) => `${key}: ${formatAuditValue(item)}`).join(", ");
   }
   return String(value);
 }
 
 function formatAuditEntry(entry: ProfileAuditEntry) {
-  const actionLabel = entry.action.replace(/_/g, " ");
+  const actionLabel = entry.action === "profile_update" ? "Profile details updated" : entry.action === "password_changed" ? "Password updated" : entry.action === "account_deactivated" ? "Account deactivated" : entry.action.replace(/_/g, " ");
 
   try {
     const parsed = JSON.parse(entry.details);
@@ -72,13 +95,13 @@ function formatAuditEntry(entry: ProfileAuditEntry) {
       const lines = Object.entries(parsed).map(([key, value]) => {
         if (value && typeof value === "object" && "from" in value && "to" in value) {
           const change = value as { from?: unknown; to?: unknown };
-          const label = key.replace(/_/g, " ");
-          const from = formatAuditValue(change.from);
-          const to = formatAuditValue(change.to);
+          const label = AUDIT_FIELD_LABELS[key] ?? key.replace(/_/g, " ");
+          const from = formatAuditValue(change.from, key);
+          const to = formatAuditValue(change.to, key);
           return `${label}: ${from} → ${to}`;
         }
-        const label = key.replace(/_/g, " ");
-        return `${label}: ${formatAuditValue(value)}`;
+        const label = AUDIT_FIELD_LABELS[key] ?? key.replace(/_/g, " ");
+        return `${label}: ${formatAuditValue(value, key)}`;
       });
       return { actionLabel, lines: lines.length > 0 ? lines : [entry.details] };
     }
@@ -104,9 +127,12 @@ export default function ProfilePage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [passwordForm, setPasswordForm] = useState({ current: "", next: "", confirm: "" });
+  const [visiblePasswords, setVisiblePasswords] = useState({ current: false, next: false, confirm: false });
   const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [changingPassword, setChangingPassword] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [toast, setToast] = useState<{ message: string; tone: "success" | "error" } | null>(null);
   const [auditLog, setAuditLog] = useState<ProfileAuditEntry[]>([]);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -248,6 +274,24 @@ export default function ProfilePage() {
     }
   }
 
+  async function handleDeleteAccount() {
+    if (!user || deletingAccount) return;
+    const confirmed = window.confirm("Delete your account and personal data permanently? This cannot be undone.");
+    if (!confirmed) return;
+
+    setDeletingAccount(true);
+    setError(null);
+    try {
+      await deleteAccount();
+      window.localStorage.removeItem(`healthguard-profile-photo-${user.id}`);
+      setAccountDeletionToast("Your account and personal data have been deleted.");
+      window.location.assign("/");
+    } catch (err) {
+      setToast({ message: err instanceof Error ? err.message : "Unable to delete your account.", tone: "error" });
+      setDeletingAccount(false);
+    }
+  }
+
   function scorePassword(value: string) {
     let score = 0;
     if (value.length >= 8) score += 1;
@@ -264,6 +308,14 @@ export default function ProfilePage() {
   function handlePhotoSelect(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file || !user) return;
+    if (!file.type.startsWith("image/")) {
+      setToast({ message: "Please choose an image file.", tone: "error" });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setToast({ message: "Please choose an image smaller than 5 MB.", tone: "error" });
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => {
       const nextUrl = typeof reader.result === "string" ? reader.result : null;
@@ -375,25 +427,29 @@ export default function ProfilePage() {
         <section className="motion-safe:animate-[recordReveal_0.6s_ease-out] relative overflow-hidden rounded-[30px] border border-[#D1D9CF] bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.28),_transparent_30%),linear-gradient(135deg,#183D2D_0%,#1F4A36_42%,#2E6A52_100%)] text-brand-foreground shadow-[0_28px_60px_rgba(23,63,45,0.18)]">
           <div className="absolute inset-x-0 top-0 h-1.5 bg-[#F4D58D]" />
           <div className="grid gap-8 p-6 sm:p-9 md:grid-cols-[auto_1fr_auto] md:items-center md:gap-10 lg:p-10">
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="group relative flex h-16 w-16 flex-none items-center justify-center overflow-hidden rounded-2xl border border-white/20 bg-white/10 font-display text-2xl font-semibold shadow-[0_10px_24px_rgba(8,35,22,0.14)] ring-1 ring-inset ring-white/10 transition hover:scale-[1.02]"
-              aria-label="Upload profile photo"
-            >
-              {photoUrl ? (
-                <Image src={photoUrl} alt="Profile preview" width={64} height={64} className="h-full w-full object-cover" />
-              ) : (
-                <span>{initials(user.full_name)}</span>
-              )}
-              <span className="absolute inset-0 flex items-center justify-center bg-slate-900/20 text-[10px] font-mono uppercase tracking-[0.12em] text-white opacity-0 transition group-hover:opacity-100">
-                Photo
+            <div className="relative flex w-fit flex-none">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="group relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-[28px] border border-white/35 bg-white/10 font-display text-3xl font-semibold shadow-[0_16px_34px_rgba(8,35,22,0.22)] ring-4 ring-white/10 transition duration-200 hover:scale-[1.03] hover:ring-white/25 sm:h-28 sm:w-28"
+                aria-label="Upload profile photo"
+              >
+                {photoUrl ? (
+                  <Image src={photoUrl} alt="Profile preview" fill sizes="112px" className="object-cover" />
+                ) : (
+                  <span>{initials(user.full_name)}</span>
+                )}
+                <span className="absolute inset-0 flex items-center justify-center bg-[#10271d]/55 text-[10px] font-mono uppercase tracking-[0.12em] text-white opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100">
+                  Change photo
+                </span>
+              </button>
+              <span className="pointer-events-none absolute -bottom-2 -right-2 flex h-9 w-9 items-center justify-center rounded-xl border-2 border-[#1F4A36] bg-[#F4D58D] text-[#183D2D] shadow-[0_8px_18px_rgba(8,35,22,0.2)]">
+                <IconCamera size={16} />
               </span>
-            </button>
+            </div>
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoSelect} />
 
             <div className="min-w-0">
-              <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[#D8EFE0]">Health worker record</p>
               <h1 className="mt-1 truncate font-display text-3xl font-semibold sm:text-4xl">
                 {user.full_name}
               </h1>
@@ -403,20 +459,20 @@ export default function ProfilePage() {
               </p>
             </div>
 
-            <dl className="grid grid-cols-3 gap-x-5 gap-y-4 border-t border-white/20 pt-6 text-sm md:grid-cols-1 md:border-t-0 md:border-l md:pl-8 md:pt-0">
-              <div>
-                <dt className="text-brand-foreground/60">Role</dt>
-                <dd className="mt-0.5 font-medium">{user.role}</dd>
+            <div className="grid grid-cols-3 gap-2 border-t border-white/20 pt-6 text-sm md:grid-cols-1 md:border-t-0 md:border-l md:pl-8 md:pt-0">
+              <div className="rounded-2xl border border-white/15 bg-white/10 px-3 py-2.5 backdrop-blur-sm">
+                <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-brand-foreground/60">Role</p>
+                <p className="mt-1 font-semibold capitalize text-white">{user.role}</p>
               </div>
-              <div>
-                <dt className="text-brand-foreground/60">Record no.</dt>
-                <dd className="mt-0.5 font-mono font-medium tracking-tight">{recordNo}</dd>
+              <div className="rounded-2xl border border-white/15 bg-white/10 px-3 py-2.5 backdrop-blur-sm">
+                <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-brand-foreground/60">Record no.</p>
+                <p className="mt-1 font-mono text-xs font-semibold tracking-tight text-white">{recordNo}</p>
               </div>
-              <div>
-                <dt className="text-brand-foreground/60">Joined</dt>
-                <dd className="mt-0.5 font-medium">{joinedDate}</dd>
+              <div className="rounded-2xl border border-white/15 bg-white/10 px-3 py-2.5 backdrop-blur-sm">
+                <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-brand-foreground/60">Joined</p>
+                <p className="mt-1 font-semibold text-white">{joinedDate}</p>
               </div>
-            </dl>
+            </div>
           </div>
         </section>
 
@@ -436,14 +492,20 @@ export default function ProfilePage() {
         <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_340px]">
           <div className="space-y-6">
             {/* Profile form */}
-            <div className="relative rounded-[24px] border border-[#DDE7DB] bg-[linear-gradient(180deg,#FFFFFF_0%,#F7FAF4_100%)] p-5 shadow-[0_18px_40px_rgba(15,23,42,0.05)] sm:p-7 lg:p-8">
+            <div className="relative overflow-hidden rounded-[24px] border border-[#D5E0D3] bg-[linear-gradient(145deg,#FFFFFF_0%,#FBFCF9_54%,#F2F7EF_100%)] p-5 shadow-[0_22px_48px_rgba(15,23,42,0.07)] ring-1 ring-white/80 sm:p-7 lg:p-8">
               <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" />
-              <h2 className="font-display text-lg font-semibold text-ink">{labels.heading}</h2>
-              <p className="mt-1 text-sm text-ink-secondary">
-                {labels.description}
-              </p>
+              <div className="flex items-start gap-3 border-b border-[#E1E9DF] pb-5">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-brand/15 bg-brand-tint text-brand shadow-[0_6px_16px_rgba(47,107,79,0.1)]">
+                  <IconProfile size={21} />
+                </span>
+                <div className="min-w-0">
+                  <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-brand">Identity record</p>
+                  <h2 className="mt-1 font-display text-xl font-semibold text-ink">{labels.heading}</h2>
+                  <p className="mt-1 text-sm leading-relaxed text-ink-secondary">{labels.description}</p>
+                </div>
+              </div>
 
-              <form noValidate onSubmit={handleSubmit} className={`mt-6 ${formStackClass}`}>
+              <form noValidate onSubmit={handleSubmit} className={`mt-7 ${formStackClass}`}>
                 <div>
                   <label className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
                     {labels.fullName} <span className={labelHintClass}>{language === "en" ? "/ Buong pangalan" : language === "fil" ? "/ Buong pangalan" : "/ Buong pangalan"}</span>
@@ -517,36 +579,80 @@ export default function ProfilePage() {
 
                 {message && <SuccessAlert>{message}</SuccessAlert>}
                 {error && <ErrorAlert>{error}</ErrorAlert>}
-                <button type="submit" disabled={saving} className={submitButtonClass}>
-                  {saving ? labels.saveState : labels.save}
+                <button type="submit" disabled={saving} className={`${submitButtonClass} gap-2 shadow-[0_14px_26px_rgba(47,107,79,0.2)]`}>
+                  {saving ? labels.saveState : <><IconCheck size={17} />{labels.save}</>}
                 </button>
               </form>
             </div>
 
             {/* Password */}
-            <div className="relative overflow-hidden rounded-[24px] border border-[#DDE7DB] bg-[linear-gradient(180deg,#FFFFFF_0%,#F7FAF4_100%)] p-5 shadow-[0_18px_40px_rgba(15,23,42,0.05)] sm:p-7 lg:p-8">
+            <div className="relative overflow-hidden rounded-[24px] border border-[#DDE7DB] bg-[radial-gradient(circle_at_top_right,_rgba(244,213,141,0.14),_transparent_28%),linear-gradient(180deg,#FFFFFF_0%,#F7FAF4_100%)] p-5 shadow-[0_18px_40px_rgba(15,23,42,0.05)] sm:p-7 lg:p-8">
               <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" />
-              <h2 className="font-display text-lg font-semibold text-ink">{labels.changePassword}</h2>
-              <p className="mt-1 text-sm text-ink-secondary">{labels.passwordHint}</p>
+              <div className="flex items-start gap-4">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-brand/15 bg-brand-tint text-brand-dark shadow-sm">
+                  <IconLock size={20} />
+                </span>
+                <div>
+                  <h2 className="font-display text-lg font-semibold text-ink">{labels.changePassword}</h2>
+                  <p className="mt-1 text-sm leading-relaxed text-ink-secondary">{labels.passwordHint}</p>
+                </div>
+              </div>
+              <div className="mt-5 flex items-center gap-2 rounded-xl border border-brand/15 bg-brand-tint/50 px-3.5 py-2.5 text-xs text-brand-dark">
+                <span className="h-1.5 w-1.5 rounded-full bg-brand" aria-hidden="true" />
+                Use a unique password you do not use on another account.
+              </div>
               <form onSubmit={handlePasswordChange} className="mt-6 space-y-4">
-                <input type="password" required autoComplete="current-password" placeholder="Current password" value={passwordForm.current} onChange={(event) => setPasswordForm((prev) => ({ ...prev, current: event.target.value }))} className={inputClass} />
-                <input type="password" required minLength={8} autoComplete="new-password" placeholder="New password (8+ characters)" value={passwordForm.next} onChange={(event) => setPasswordForm((prev) => ({ ...prev, next: event.target.value }))} className={inputClass} />
+                <label className="block space-y-1.5">
+                  <span className={labelClass}>Current password</span>
+                  <div className="relative">
+                    <input type={visiblePasswords.current ? "text" : "password"} required autoComplete="current-password" placeholder="Enter your current password" value={passwordForm.current} onChange={(event) => setPasswordForm((prev) => ({ ...prev, current: event.target.value }))} className={`${inputClass} pr-12`} />
+                    <button type="button" onClick={() => setVisiblePasswords((prev) => ({ ...prev, current: !prev.current }))} className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-ink-faint transition hover:text-brand-dark focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15" aria-label={visiblePasswords.current ? "Hide current password" : "Show current password"}>{visiblePasswords.current ? <IconEyeOff size={18} /> : <IconEye size={18} />}</button>
+                  </div>
+                </label>
+                <label className="block space-y-1.5">
+                  <span className={labelClass}>New password</span>
+                  <div className="relative">
+                    <input type={visiblePasswords.next ? "text" : "password"} required minLength={8} autoComplete="new-password" placeholder="At least 8 characters" value={passwordForm.next} onChange={(event) => setPasswordForm((prev) => ({ ...prev, next: event.target.value }))} className={`${inputClass} pr-12`} />
+                    <button type="button" onClick={() => setVisiblePasswords((prev) => ({ ...prev, next: !prev.next }))} className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-ink-faint transition hover:text-brand-dark focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15" aria-label={visiblePasswords.next ? "Hide new password" : "Show new password"}>{visiblePasswords.next ? <IconEyeOff size={18} /> : <IconEye size={18} />}</button>
+                  </div>
+                </label>
                 {passwordForm.next ? (
-                  <div>
-                    <div className="mb-2 flex items-center justify-between text-xs text-ink-secondary">
-                      <span>Password strength</span>
-                      <span>{passwordStrengthLabel}</span>
+                  <div className="rounded-xl border border-border-soft bg-white/70 px-3.5 py-3">
+                    <div className="mb-2 flex items-center justify-between text-xs">
+                      <span className="font-medium text-ink-secondary">Password strength</span>
+                      <span className="font-semibold text-brand-dark">{passwordStrengthLabel}</span>
                     </div>
-                    <div className="h-2 rounded-full bg-border">
-                      <div className={`h-2 rounded-full ${passwordStrengthColor}`} style={{ width: `${(passwordStrength / 4) * 100}%` }} />
+                    <div className="grid grid-cols-4 gap-1.5" aria-label={`Password strength: ${passwordStrengthLabel}`}>
+                      {[1, 2, 3, 4].map((level) => <span key={level} className={`h-1.5 rounded-full ${level <= passwordStrength ? passwordStrengthColor : "bg-border"}`} />)}
                     </div>
                   </div>
                 ) : null}
-                <input type="password" required minLength={8} autoComplete="new-password" placeholder="Confirm new password" value={passwordForm.confirm} onChange={(event) => setPasswordForm((prev) => ({ ...prev, confirm: event.target.value }))} className={inputClass} />
+                <label className="block space-y-1.5">
+                  <span className={labelClass}>Confirm new password</span>
+                  <div className="relative">
+                    <input type={visiblePasswords.confirm ? "text" : "password"} required minLength={8} autoComplete="new-password" placeholder="Re-enter your new password" value={passwordForm.confirm} onChange={(event) => setPasswordForm((prev) => ({ ...prev, confirm: event.target.value }))} className={`${inputClass} pr-12`} />
+                    <button type="button" onClick={() => setVisiblePasswords((prev) => ({ ...prev, confirm: !prev.confirm }))} className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-ink-faint transition hover:text-brand-dark focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15" aria-label={visiblePasswords.confirm ? "Hide new password confirmation" : "Show new password confirmation"}>{visiblePasswords.confirm ? <IconEyeOff size={18} /> : <IconEye size={18} />}</button>
+                  </div>
+                </label>
                 {passwordMessage && <SuccessAlert>{passwordMessage}</SuccessAlert>}
                 {passwordError && <ErrorAlert>{passwordError}</ErrorAlert>}
-                <button type="submit" disabled={changingPassword} className={submitButtonClass}>{changingPassword ? "Updating…" : "Change password"}</button>
+                <button type="submit" disabled={changingPassword} className={`${submitButtonClass} mt-2 shadow-[0_12px_24px_rgba(47,107,79,0.18)]`}>{changingPassword ? "Updating…" : "Change password"}</button>
               </form>
+            </div>
+
+            <div className="relative overflow-hidden rounded-[24px] border border-red-200 bg-[linear-gradient(180deg,#FFFDFC_0%,#FFF7F5_100%)] p-5 shadow-[0_18px_40px_rgba(120,35,28,0.05)] sm:p-7 lg:p-8">
+              <h2 className="font-display text-lg font-semibold text-red-900">Delete account</h2>
+              <p className="mt-1 max-w-2xl text-sm leading-relaxed text-red-900/70">
+                Permanently delete your account and personal profile data. Your completed assessments will be detached from your account and cannot be restored.
+              </p>
+              <button
+                type="button"
+                onClick={handleDeleteAccount}
+                disabled={deletingAccount}
+                className="mt-5 min-h-11 rounded-xl border border-red-300 bg-white px-4 font-semibold text-red-800 transition hover:border-red-500 hover:bg-red-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-red-200 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {deletingAccount ? "Deleting account..." : "Delete my account"}
+              </button>
             </div>
           </div>
 
@@ -584,26 +690,37 @@ export default function ProfilePage() {
             </div>
 
             {/* Activity log */}
-            <div className="relative overflow-hidden rounded-[24px] border border-[#DDE7DB] bg-[linear-gradient(180deg,#FFFFFF_0%,#F7FAF4_100%)] p-5 shadow-[0_18px_40px_rgba(15,23,42,0.05)]">
+            <div className="relative overflow-hidden rounded-[24px] border border-[#DDE7DB] bg-[radial-gradient(circle_at_top_right,_rgba(244,213,141,0.14),_transparent_30%),linear-gradient(180deg,#FFFFFF_0%,#F7FAF4_100%)] p-5 shadow-[0_18px_40px_rgba(15,23,42,0.05)]">
               <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" />
-              <h2 className="font-display text-lg font-semibold text-ink">Recent activity</h2>
-              <ul className="mt-4 space-y-3">
+              <div className="flex items-end justify-between gap-3">
+                <div>
+                  <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-brand">Account timeline</p>
+                  <h2 className="mt-1 font-display text-lg font-semibold text-ink">Recent activity</h2>
+                </div>
+                {auditLog.length > 0 && <span className="rounded-full border border-brand/15 bg-brand-tint px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-brand-dark">{auditLog.length} {auditLog.length === 1 ? "update" : "updates"}</span>}
+              </div>
+              <ul className="mt-5 space-y-3">
                 {auditLog.length === 0 ? (
-                  <li className="text-sm text-ink-secondary">No recent profile changes.</li>
+                  <li className="rounded-2xl border border-dashed border-border-soft bg-white/60 px-4 py-5 text-center text-sm text-ink-secondary">Your profile timeline is clear.</li>
                 ) : (
                   auditLog.slice(0, 5).map((entry) => {
                     const formatted = formatAuditEntry(entry);
                     return (
-                      <li key={entry.id} className="rounded-lg border border-border-soft bg-surface-alt p-3">
-                        <p className="text-sm font-medium text-ink">{formatted.actionLabel}</p>
-                        <div className="mt-1 space-y-1 break-words text-xs text-ink-secondary">
+                      <li key={entry.id} className="relative rounded-2xl border border-[#E2E9DE] bg-white/75 p-3.5 shadow-[0_6px_16px_rgba(24,38,25,0.03)] transition hover:border-brand/25 hover:bg-white">
+                        <div className="flex items-start gap-3">
+                          <span className="mt-1.5 flex h-2.5 w-2.5 shrink-0 rounded-full bg-brand ring-4 ring-brand/10" aria-hidden="true" />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-ink">{formatted.actionLabel}</p>
+                            <p className="mt-1 text-[11px] uppercase tracking-[0.08em] text-ink-faint">
+                              {new Date(entry.created_at).toLocaleString("en", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="ml-5 mt-3 space-y-1.5 break-words border-l border-brand/15 pl-3 text-xs leading-relaxed text-ink-secondary">
                           {formatted.lines.map((line) => (
                             <p key={`${entry.id}-${line}`}>{line}</p>
                           ))}
                         </div>
-                        <p className="mt-1 text-[11px] uppercase tracking-[0.08em] text-ink-faint">
-                          {new Date(entry.created_at).toLocaleString("en", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
-                        </p>
                       </li>
                     );
                   })
@@ -638,6 +755,7 @@ export default function ProfilePage() {
           </aside>
         </div>
       </PageMain>
+      {toast && <Toast message={toast.message} tone={toast.tone} onDismiss={() => setToast(null)} />}
     </div>
   );
 }

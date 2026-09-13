@@ -26,9 +26,10 @@ class PendingRegistrationTests(unittest.TestCase):
         payload = RegisterRequest(
             full_name="Jane Resident",
             email="jane@example.com",
-            password="password123",
+            password="Secure!Pass123",
             date_of_birth=date(1995, 6, 15),
             barangay="Monbon",
+            phone_number="09946206773",
         )
 
         with patch.object(auth_router, "_require_smtp"), patch.object(auth_router, "_send_verification_email"):

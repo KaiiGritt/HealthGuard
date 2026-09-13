@@ -7,7 +7,7 @@ import Disclaimer from "../../components/Disclaimer";
 import MedicationGuidanceCard from "../../components/MedicationGuidanceCard";
 import PageHeader from "../../components/PageHeader";
 import RiskCard from "../../components/RiskCard";
-import type { AnalyzeResult } from "@/lib/api";
+import { clearPendingGuestPayload, type AnalyzeResult } from "@/lib/api";
 
 const MESSAGES: Record<string, string> = {
   GREEN: "Monitor your symptoms / I-monitor ang iyong mga sintomas.",
@@ -107,9 +107,9 @@ export default function GuestResultPage() {
             <section className="mt-6 rounded-2xl border border-brand/20 bg-brand-tint/50 p-5">
               <h2 className="font-semibold text-ink">Want to save this assessment to your health history?</h2>
               <p className="mt-2 text-sm leading-relaxed text-ink-secondary">Create an account or sign in. Your result will be attached after authentication, and you will not need to repeat the assessment.</p>
-              <div className="mt-4 flex flex-col gap-3 sm:flex-row"><Link href="/register?next=/summary/guest" className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-brand px-4 font-semibold text-brand-foreground">Sign Up to Save</Link><Link href="/login?next=/summary/guest" className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl border border-brand/25 bg-white px-4 font-semibold text-brand-dark">Log In to Save</Link></div>
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row"><Link href="/register?next=/result/guest" className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-brand px-4 font-semibold text-brand-foreground">Sign Up to Save</Link><Link href="/login?next=/result/guest" className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl border border-brand/25 bg-white px-4 font-semibold text-brand-dark">Log In to Save</Link></div>
             </section>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row"><PrimaryLink href="/assessment" className="flex-1">New assessment</PrimaryLink><Link href="/" className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl border border-border bg-white px-4 font-semibold text-ink-secondary">Continue without saving</Link></div>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row"><PrimaryLink href="/assessment" className="flex-1">New assessment</PrimaryLink><Link href="/" onClick={clearPendingGuestPayload} className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl border border-border bg-white px-4 font-semibold text-ink-secondary">Continue without saving</Link></div>
             <Disclaimer className="mt-6" />
           </Card>
 

@@ -12,6 +12,7 @@ pydantic-settings>=2.7
 python-dotenv>=1.0
 nltk>=3.9
 PyJWT>=2.9
+argon2-cffi>=23.1
 
 # --- Optional biomedical-normalization layer (Layer 1 / SPECIALIST lexicon) ---
 # scispaCy has no wheels for Python 3.14. Install these ONLY on a Python 3.11/3.12 venv

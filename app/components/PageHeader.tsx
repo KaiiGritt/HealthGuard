@@ -9,7 +9,7 @@ import { getMe, logout, type User } from "@/lib/api";
 import ResponsiveSidebar from "./ResponsiveSidebar";
 
 function IconWrapper({ children }: { children: ReactNode }) {
-  return <span className="flex h-5 w-5 items-center justify-center">{children}</span>;
+  return <span className="flex h-5 w-5 items-center justify-center transition-transform duration-200 group-hover:scale-110">{children}</span>;
 }
 
 function MenuIcon() {
@@ -180,10 +180,10 @@ export default function PageHeader({ dashboardAlertCount = 0 }: { dashboardAlert
   function linkClass(href: string) {
     const active = pathname === href;
     return cn(
-      "flex items-center gap-2 rounded-full px-3.5 py-2.5 text-sm font-medium outline-none transition-all duration-200 focus-visible:ring-4 focus-visible:ring-brand/20 sm:gap-2.5 sm:px-4 lg:gap-2.5 lg:px-4.5 lg:py-2.5 lg:text-base",
+      "group relative z-10 flex items-center gap-2 rounded-full px-3.5 py-2.5 text-sm font-medium outline-none transition-all duration-200 hover:-translate-y-0.5 focus-visible:ring-4 focus-visible:ring-brand/20 sm:gap-2.5 sm:px-4 lg:gap-2.5 lg:px-4.5 lg:py-2.5 lg:text-base",
       active
-        ? "bg-brand-tint text-brand-dark shadow-sm ring-1 ring-brand/15"
-        : "text-ink-secondary hover:bg-card hover:text-ink hover:shadow-sm hover:ring-1 hover:ring-border/80",
+        ? "bg-[linear-gradient(100deg,#E6F1E5_0%,#F4F8EF_100%)] text-brand-dark shadow-[0_5px_14px_rgba(47,107,79,0.08)] ring-1 ring-brand/15"
+        : "text-ink-secondary hover:bg-white/75 hover:text-ink hover:shadow-sm hover:ring-1 hover:ring-border/80",
     );
   }
 
@@ -215,21 +215,20 @@ export default function PageHeader({ dashboardAlertCount = 0 }: { dashboardAlert
       <div className="hidden md:block">
       <header className="sticky top-0 z-40 border-b border-border bg-header/90 backdrop-blur-xl">
       <div className="relative mx-auto grid w-full max-w-[1800px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 px-5 py-4 sm:px-8 sm:py-5 lg:px-12 lg:py-5 2xl:px-16">
-        <Link href="/" className="justify-self-start flex items-center gap-2.5 lg:gap-3">
+        <Link href="/" className="group justify-self-start flex items-center gap-2.5 lg:gap-3">
           <span
-            className="flex h-9 w-9 items-center justify-center rounded-lg bg-linear-to-br from-brand to-brand-dark text-lg text-brand-foreground shadow-sm lg:h-11 lg:w-11 lg:text-xl"
+            className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-[linear-gradient(145deg,#2E6A52_0%,#183D2D_100%)] text-lg text-brand-foreground shadow-[0_9px_20px_rgba(24,61,45,0.18)] ring-1 ring-white/70 transition-transform duration-200 group-hover:scale-[1.03] lg:h-11 lg:w-11 lg:text-xl"
             style={{ fontFamily: "var(--font-display)" }}
           >
             H
           </span>
-          <span className="text-lg font-medium text-ink lg:text-xl" style={{ fontFamily: "var(--font-display)" }}>
-            HealthGuard
-          </span>
+          <span><span className="block font-mono text-[9px] font-semibold uppercase tracking-[0.15em] text-brand">Irosin health workspace</span><span className="mt-0.5 block text-lg font-semibold leading-tight text-ink transition-colors group-hover:text-brand-dark lg:text-xl" style={{ fontFamily: "var(--font-display)" }}>HealthGuard</span></span>
         </Link>
 
         {!isCompactNav ? (
           <div className="col-start-3 justify-self-end flex items-center gap-3 lg:gap-4">
-            <nav className="hidden items-center gap-1 rounded-full border border-border bg-surface p-1.5 md:flex lg:gap-1.5">
+            <nav className="relative hidden items-center gap-1 overflow-hidden rounded-full border border-[#D8E2D3] bg-[linear-gradient(180deg,rgba(255,255,255,0.8)_0%,rgba(242,247,238,0.9)_100%)] p-1.5 shadow-[0_8px_22px_rgba(24,38,25,0.06)] backdrop-blur-sm md:flex lg:gap-1.5">
+              <span className="pointer-events-none absolute inset-x-10 top-0 h-px bg-white/90 blur-[1px]" aria-hidden="true" />
               {user?.role === "resident" && (
                 <>
                   <Link href="/assessment" className={linkClass("/assessment")}>
@@ -283,7 +282,7 @@ export default function PageHeader({ dashboardAlertCount = 0 }: { dashboardAlert
                   <button
                     type="button"
                     onClick={handleLogout}
-                    className="group flex items-center gap-2 rounded-xl border border-[#D8E2D3] bg-[linear-gradient(180deg,#FFFFFF_0%,#F7FAF4_100%)] px-2.5 py-2 text-sm font-semibold text-ink-secondary shadow-[0_5px_14px_rgba(24,38,25,0.05)] transition-all duration-200 hover:border-[#E6B2A8] hover:bg-[#FFF6F3] hover:text-emergency-red hover:shadow-[0_10px_20px_rgba(192,67,43,0.1)] lg:gap-2.5 lg:px-3 lg:py-2.5 lg:text-base"
+                    className="group flex items-center gap-2 rounded-xl border border-[#D8E2D3] bg-[linear-gradient(180deg,#FFFFFF_0%,#F7FAF4_100%)] px-2.5 py-2 text-sm font-semibold text-ink-secondary shadow-[0_5px_14px_rgba(24,38,25,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[#E6B2A8] hover:bg-[#FFF6F3] hover:text-emergency-red hover:shadow-[0_10px_20px_rgba(192,67,43,0.1)] lg:gap-2.5 lg:px-3 lg:py-2.5 lg:text-base"
                   >
                     <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-ink-faint shadow-sm transition-colors duration-200 group-hover:text-emergency-red">
                       <MobileMenuIcon type="logout" />

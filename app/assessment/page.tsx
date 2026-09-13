@@ -15,6 +15,7 @@ import {
 import Disclaimer from "../components/Disclaimer";
 import PageHeader from "../components/PageHeader";
 import SymptomChip from "../components/SymptomChip";
+import { IconBrain, IconDroplets, IconLungs, IconStomach, IconThermometer } from "../components/ui/icons";
 
 // value = the exact term sent to the API / matched against the lexicon.
 // en / tl = display labels. icon is a visual aid so recognition doesn't
@@ -22,13 +23,13 @@ import SymptomChip from "../components/SymptomChip";
 // preserves the existing backend contract (selected_symptoms still arrives
 // as ["fever", "cough", ...]).
 const SYMPTOMS = [
-  { value: "fever", en: "Fever", tl: "Lagnat", icon: "🌡️" },
-  { value: "cough", en: "Cough", tl: "Ubo", icon: "😷" },
-  { value: "headache", en: "Headache", tl: "Sakit ng ulo", icon: "🤕" },
-  { value: "abdominal pain", en: "Abdominal pain", tl: "Sakit ng tiyan", icon: "😖" },
-  { value: "vomiting", en: "Vomiting", tl: "Pagsusuka", icon: "🤮" },
-  { value: "diarrhea", en: "Diarrhea", tl: "Pagtatae", icon: "😣" },
-  { value: "difficulty breathing", en: "Difficulty breathing", tl: "Hirap huminga", icon: "😮‍💨" },
+  { value: "fever", en: "Fever", tl: "Lagnat", icon: <IconThermometer size={18} /> },
+  { value: "cough", en: "Cough", tl: "Ubo", icon: <IconLungs size={18} /> },
+  { value: "headache", en: "Headache", tl: "Sakit ng ulo", icon: <IconBrain size={18} /> },
+  { value: "abdominal pain", en: "Abdominal pain", tl: "Sakit ng tiyan", icon: <IconStomach size={18} /> },
+  { value: "vomiting", en: "Vomiting", tl: "Pagsusuka", icon: <IconDroplets size={18} /> },
+  { value: "diarrhea", en: "Diarrhea", tl: "Pagtatae", icon: <IconDroplets size={18} /> },
+  { value: "difficulty breathing", en: "Difficulty breathing", tl: "Hirap huminga", icon: <IconLungs size={18} /> },
 ] as const;
 
 // Symptoms that warrant a plain-language "don't wait" nudge before submit.
@@ -183,9 +184,9 @@ export default function AssessmentPage() {
       if (result.id === 0) {
         window.sessionStorage.setItem("healthguard_pending_guest_assessment", JSON.stringify(payload));
         window.sessionStorage.setItem("healthguard_guest_result", JSON.stringify(result));
-        router.push("/summary/guest");
+        router.push("/result/guest");
       } else {
-        router.push(`/summary/${result.id}`);
+        router.push(`/result/${result.id}`);
       }
     } catch (e) {
       const message = e instanceof Error ? e.message : "Something went wrong. Please try again.";
@@ -248,7 +249,8 @@ export default function AssessmentPage() {
                   {SYMPTOMS.map((s) => (
                     <SymptomChip
                       key={s.value}
-                      label={`${s.icon} ${s.en}`}
+                      label={s.en}
+                      icon={s.icon}
                       subLabel={s.tl}
                       selected={selected.includes(s.value)}
                       urgent={s.value === "difficulty breathing"}

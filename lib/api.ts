@@ -468,6 +468,10 @@ export function changePassword(currentPassword: string, newPassword: string): Pr
   });
 }
 
+export function deleteAccount(): Promise<{ message: string }> {
+  return request<{ message: string }>("/auth/account", { method: "DELETE" });
+}
+
 export function logout(): Promise<{ ok: boolean }> {
   return request<{ ok: boolean }>("/auth/logout", { method: "POST" });
 }

@@ -36,6 +36,7 @@ type DashboardState = Awaited<ReturnType<typeof getDashboardSummary>>;
 type InsightTone = "neutral" | "positive" | "watch" | "urgent";
 
 const ASSESSMENT_PAGE_SIZE = 5;
+const RECENT_ASSESSMENT_PAGE_SIZE = 3;
 
 function insightToneLabel(tone: InsightTone) {
   const labels: Record<InsightTone, string> = {
@@ -127,12 +128,6 @@ function WidgetCard({
   );
 }
 
-// Segmented ring chart. colorClass/dotClass must be real Tailwind classes
-// already used elsewhere in this codebase (stroke-triage-*, bg-triage-*,
-// stroke-brand, bg-border) — assuming your Tailwind color theme generates
-// stroke-* utilities for the same tokens as bg-*/text-*, which it does by
-// default when colors are defined via theme.extend.colors. Worth a quick
-// visual check the first time this renders.
 function DonutChart({
   segments,
   centerLabel,
@@ -161,37 +156,25 @@ function DonutChart({
   ).items;
 
   return (
-    <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-center">
-      <div className="relative shrink-0" style={{ width: size, height: size }}>
-        <svg viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
+    <div className="flex flex-col items-center gap-5 sm:flex-row sm:justify-center sm:gap-8">
+      <div className="relative shrink-0 rounded-full bg-[radial-gradient(circle,#ffffff_55%,#edf5eb_100%)] p-1 shadow-[0_14px_32px_rgba(24,38,25,0.12)] ring-1 ring-brand/10" style={{ width: size, height: size }}>
+        <div className="absolute inset-[25px] rounded-full bg-[radial-gradient(circle_at_35%_25%,#ffffff_0%,#f4f9f2_72%,#e7f0e5_100%)] shadow-[inset_0_1px_4px_rgba(24,38,25,0.1),0_0_0_1px_rgba(47,107,79,0.08)]" aria-hidden="true" />
+        <svg viewBox={`0 0 ${size} ${size}`} className="relative -rotate-90" role="img" aria-label={`${centerLabel} total cases by triage risk`}>
           <circle cx={size / 2} cy={size / 2} r={radius} fill="none" strokeWidth={strokeWidth} className="stroke-border" />
           {segmentLayout.map((seg) => (
-            <circle
-              key={seg.label}
-              cx={size / 2}
-              cy={size / 2}
-              r={radius}
-              fill="none"
-              strokeWidth={strokeWidth}
-              strokeDasharray={`${seg.dash} ${circumference - seg.dash}`}
-              strokeDashoffset={-seg.offset}
-              className={cn(seg.colorClass, "transition-all duration-500")}
-            />
+            <circle key={seg.label} cx={size / 2} cy={size / 2} r={radius} fill="none" strokeWidth={strokeWidth} strokeDasharray={`${seg.dash} ${circumference - seg.dash}`} strokeDashoffset={-seg.offset} className={cn(seg.colorClass, "transition-all duration-500")} />
           ))}
         </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <p className="font-mono text-xl font-semibold text-ink">{centerLabel}</p>
-          {centerSub && <p className="text-[10px] text-ink-muted">{centerSub}</p>}
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center">
+          <p className="font-mono text-2xl font-semibold tracking-tight text-ink">{centerLabel}</p>
+          {centerSub && <p className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.08em] text-ink-muted">{centerSub}</p>}
         </div>
       </div>
-      <div className="w-full space-y-2">
+      <div className="w-full space-y-2 sm:max-w-[220px]">
         {segments.map((seg) => (
-          <div key={seg.label} className="flex items-center justify-between gap-3 text-sm">
-            <span className="flex items-center gap-2 text-ink-secondary">
-              <span className={cn("h-2.5 w-2.5 rounded-full", seg.dotClass)} />
-              {seg.label}
-            </span>
-            <span className="font-medium text-ink">{seg.value}</span>
+          <div key={seg.label} className="flex items-center justify-between gap-3 rounded-xl border border-border-soft bg-surface-alt/70 px-3 py-2 text-sm transition-colors hover:bg-brand-tint/40">
+            <span className="flex items-center gap-2 font-medium text-ink-secondary"><span className={cn("h-2.5 w-2.5 rounded-full shadow-[0_0_0_3px_rgba(255,255,255,0.7)]", seg.dotClass)} />{seg.label}</span>
+            <span className="font-mono text-sm font-semibold text-ink">{seg.value}</span>
           </div>
         ))}
       </div>
@@ -209,48 +192,68 @@ function SearchIcon() {
 }
 
 function TrendSparkline({ data }: { data: DashboardState["weekly_trend"] }) {
+  const [timeframe, setTimeframe] = useState<"4" | "8" | "all">("all");
   if (!data || data.length === 0) return null;
-  const max = Math.max(...data.map((d) => d.count), 1);
-  const w = 160;
-  const h = 44;
-  const step = data.length > 1 ? w / (data.length - 1) : 0;
-  const points = data.map((d, i) => {
+  const trendData = timeframe === "4" ? data.slice(-4) : timeframe === "8" ? data.slice(-8) : data;
+  const max = Math.max(...trendData.map((d) => d.count), 1);
+  const w = 320;
+  const h = 100;
+  const step = trendData.length > 1 ? w / (trendData.length - 1) : 0;
+  const points = trendData.map((d, i) => {
     const x = i * step;
-    const y = h - (d.count / max) * (h - 6) - 3;
+    const y = h - (d.count / max) * (h - 20) - 10;
     return { x, y };
   });
   const path = points.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
-  const last = data[data.length - 1];
-  const prev = data.length > 1 ? data[data.length - 2] : null;
+  const areaPath = `${path} L ${w},${h} L 0,${h} Z`;
+  const last = trendData[trendData.length - 1];
+  const prev = trendData.length > 1 ? trendData[trendData.length - 2] : null;
   const delta = prev ? last.count - prev.count : 0;
+  const totalCases = trendData.reduce((sum, week) => sum + week.count, 0);
+  const averageCases = totalCases / trendData.length;
+  const peakWeek = trendData.reduce((peak, week) => week.count > peak.count ? week : peak, trendData[0]);
+  const direction = delta > 0 ? "Rising" : delta < 0 ? "Cooling" : "Stable";
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-        <svg viewBox={`0 0 ${w} ${h}`} className="h-11 w-40 shrink-0 text-brand" preserveAspectRatio="none" aria-hidden="true">
-          <path d={path} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-          <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r={3} fill="currentColor" />
-        </svg>
-        <div>
-          <div className="flex items-baseline gap-2">
-            <p className="font-mono text-2xl font-semibold text-ink">{last.count}</p>
-            <p className="text-xs text-ink-muted">cases · {last.label}</p>
+      <div className="rounded-2xl border border-brand/15 bg-[radial-gradient(circle_at_top_right,_rgba(244,213,141,0.16),_transparent_32%),linear-gradient(145deg,#f8fbf6_0%,#ffffff_58%,#f1f7ef_100%)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_10px_24px_rgba(31,74,54,0.05)]">
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.13em] text-brand-dark">Eight-week momentum</p>
+            <div className="mt-1 flex items-baseline gap-2">
+              <p className="font-mono text-3xl font-semibold tracking-tight text-ink">{last.count}</p>
+              <p className="text-xs text-ink-muted">cases this week</p>
+            </div>
           </div>
-          {prev && (
-            <p className={`mt-0.5 text-xs font-medium ${delta > 0 ? "text-emergency-red" : delta < 0 ? "text-brand-dark" : "text-ink-muted"}`}>
-              {delta === 0 ? "No change" : `${delta > 0 ? "+" : ""}${delta} vs. previous week`}
-            </p>
-          )}
+          {prev && <span className={`rounded-full border px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] ${delta > 0 ? "border-red-200 bg-red-50 text-emergency-red" : delta < 0 ? "border-brand/20 bg-brand-tint text-brand-dark" : "border-border-soft bg-white text-ink-muted"}`}>{delta === 0 ? "No change" : `${delta > 0 ? "+" : ""}${delta} vs last week`}</span>}
         </div>
+        <svg viewBox={`0 0 ${w} ${h}`} className="h-28 w-full overflow-visible text-brand" preserveAspectRatio="none" role="img" aria-label="Eight-week assessment trend">
+          <defs>
+            <linearGradient id="trendAreaFill" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor="currentColor" stopOpacity="0.24" />
+              <stop offset="100%" stopColor="currentColor" stopOpacity="0.02" />
+            </linearGradient>
+            <filter id="trendGlow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.5" result="blur" /><feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+          </defs>
+          {[25, 50, 75].map((line) => <line key={line} x1="0" x2={w} y1={line} y2={line} stroke="currentColor" strokeOpacity="0.08" strokeDasharray="3 5" vectorEffect="non-scaling-stroke" />)}
+          <path d={areaPath} fill="url(#trendAreaFill)" />
+          <path d={path} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" filter="url(#trendGlow)" />
+          {points.map((point, index) => <circle key={trendData[index].date} cx={point.x} cy={point.y} r={index === points.length - 1 ? 5 : 2.5} fill="white" stroke="currentColor" strokeWidth={index === points.length - 1 ? 2.5 : 1.5} vectorEffect="non-scaling-stroke" />)}
+        </svg>
       </div>
-      <div className="grid grid-cols-2 gap-2 border-t border-border-soft pt-4 sm:grid-cols-4">
-        {data.map((week) => (
-          <div key={week.date} className={`rounded-xl border px-3 py-2.5 ${week === last ? "border-brand/25 bg-brand-tint" : "border-border-soft bg-surface/60"}`}>
-            <p className="truncate font-mono text-[10px] uppercase tracking-[0.06em] text-ink-faint">{week.label}</p>
-            <p className="mt-1 font-mono text-lg font-semibold text-ink">{week.count}</p>
-            <p className="text-[10px] text-ink-muted">cases</p>
+      <div className="border-t border-border-soft pt-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-brand-dark">View timeframe</p>
+          <div className="flex rounded-xl border border-border-soft bg-surface/70 p-1" role="group" aria-label="Case volume timeframe">
+            {([{ value: "4", label: "4 weeks" }, { value: "8", label: "8 weeks" }, { value: "all", label: "All data" }] as const).map((option) => <button key={option.value} type="button" onClick={() => setTimeframe(option.value)} className={`rounded-lg px-2.5 py-1.5 text-[10px] font-semibold transition ${timeframe === option.value ? "bg-brand text-brand-foreground shadow-sm" : "text-ink-muted hover:bg-white hover:text-ink"}`}>{option.label}</button>)}
           </div>
-        ))}
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="rounded-xl border border-brand/15 bg-brand-tint/55 px-3 py-2.5"><p className="font-mono text-[10px] uppercase tracking-[0.06em] text-ink-faint">Total cases</p><p className="mt-1 font-mono text-lg font-semibold text-ink">{totalCases}</p></div>
+          <div className="rounded-xl border border-border-soft bg-surface/60 px-3 py-2.5"><p className="font-mono text-[10px] uppercase tracking-[0.06em] text-ink-faint">Weekly average</p><p className="mt-1 font-mono text-lg font-semibold text-ink">{averageCases.toFixed(1)}</p></div>
+          <div className="rounded-xl border border-border-soft bg-surface/60 px-3 py-2.5"><p className="font-mono text-[10px] uppercase tracking-[0.06em] text-ink-faint">Peak week</p><p className="mt-1 font-mono text-lg font-semibold text-ink">{peakWeek.count}</p></div>
+          <div className={`rounded-xl border px-3 py-2.5 ${direction === "Rising" ? "border-red-200 bg-red-50" : direction === "Cooling" ? "border-brand/15 bg-brand-tint/50" : "border-border-soft bg-surface/60"}`}><p className="font-mono text-[10px] uppercase tracking-[0.06em] text-ink-faint">Direction</p><p className="mt-1 font-mono text-lg font-semibold text-ink">{direction}</p></div>
+        </div>
       </div>
     </div>
   );
@@ -303,6 +306,14 @@ function RiskBreakdownBar({
 function BarangayRanking({ data }: { data: DashboardState["barangay_stats"] }) {
   const sorted = [...data].sort((a, b) => b.urgent - a.urgent || b.total - a.total);
   const max = Math.max(...sorted.map((item) => item.total), 1);
+  const pageSize = 5;
+  const [page, setPage] = useState(1);
+  const pageCount = Math.max(1, Math.ceil(sorted.length / pageSize));
+  const visibleRows = sorted.slice((page - 1) * pageSize, page * pageSize);
+
+  useEffect(() => {
+    setPage((currentPage) => Math.min(currentPage, pageCount));
+  }, [pageCount]);
 
   const getSeverity = (urgent: number, total: number) => {
     if (urgent > 0 && total > 0) {
@@ -316,29 +327,31 @@ function BarangayRanking({ data }: { data: DashboardState["barangay_stats"] }) {
 
   return (
     <div className="space-y-3">
-      {sorted.map((item, index) => {
+      {visibleRows.map((item, index) => {
         const percentage = (item.total / max) * 100;
         const severity = getSeverity(item.urgent, item.total);
+        const rank = (page - 1) * pageSize + index + 1;
 
         return (
           <div
             key={item.barangay}
-            className="rounded-[20px] border border-[#e4e9df] bg-[linear-gradient(180deg,#ffffff_0%,#f9faf5_100%)] p-3 shadow-[0_12px_28px_rgba(15,23,42,0.04)]"
+            className="group relative overflow-hidden rounded-[22px] border border-[#e4e9df] bg-[linear-gradient(180deg,#ffffff_0%,#f9faf5_100%)] p-3.5 shadow-[0_12px_28px_rgba(15,23,42,0.04)] transition-all duration-200 hover:-translate-y-0.5 hover:border-brand/25 hover:shadow-[0_18px_34px_rgba(31,74,54,0.1)]"
           >
+            <span className="pointer-events-none absolute -right-10 -top-12 h-28 w-20 rotate-[-28deg] bg-white/70 blur-xl opacity-0 transition-opacity duration-300 group-hover:opacity-100" aria-hidden="true" />
             <div className="flex items-start justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand/10 font-mono text-xs font-bold text-brand-dark">
-                  {index + 1}
+                <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] border font-mono text-xs font-bold shadow-sm", rank === 1 ? "border-[#ead79b] bg-[#fff8dc] text-[#927324]" : "border-brand/10 bg-brand/10 text-brand-dark")}>
+                  {rank}
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate font-medium text-ink">{item.barangay}</p>
-                  <p className="text-[11px] uppercase tracking-[0.08em] text-ink-faint">
+                  <p className="truncate font-semibold text-ink">{item.barangay}</p>
+                  <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint">
                     {item.total} total • {item.follow_up} follow-up
                   </p>
                 </div>
               </div>
 
-              <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] ${severity.tone}`}>
+              <span className={`inline-flex rounded-full border px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] shadow-sm ${severity.tone}`}>
                 {severity.label}
               </span>
             </div>
@@ -348,25 +361,25 @@ function BarangayRanking({ data }: { data: DashboardState["barangay_stats"] }) {
                 <span>Coverage</span>
                 <span>{Math.round(percentage)}%</span>
               </div>
-              <div className="relative h-3 overflow-hidden rounded-full bg-slate-100">
+              <div className="relative h-3 overflow-hidden rounded-full border border-white bg-slate-100 shadow-inner">
                 <div className="absolute inset-0 bg-gradient-to-r from-brand/10 via-brand/5 to-transparent" />
                 <div
-                  className={`relative h-full rounded-full ${severity.bar} transition-all duration-500`}
+                  className={`relative h-full rounded-full shadow-[0_1px_4px_rgba(24,38,25,0.16)] ${severity.bar} transition-all duration-500`}
                   style={{ width: `${Math.max(percentage, 8)}%` }}
                 />
               </div>
             </div>
 
             <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-xl bg-slate-50 px-2 py-2">
+              <div className="rounded-xl border border-slate-100 bg-slate-50/80 px-2 py-2">
                 <div className="font-mono text-base font-semibold text-ink">{item.total}</div>
                 <div className="text-[10px] uppercase tracking-[0.08em] text-ink-faint">Total</div>
               </div>
-              <div className="rounded-xl bg-red-50 px-2 py-2">
+              <div className="rounded-xl border border-red-100 bg-red-50/80 px-2 py-2">
                 <div className="font-mono text-base font-semibold text-emergency-red">{item.urgent}</div>
                 <div className="text-[10px] uppercase tracking-[0.08em] text-emergency-red/80">Urgent</div>
               </div>
-              <div className="rounded-xl bg-amber-50 px-2 py-2">
+              <div className="rounded-xl border border-amber-100 bg-amber-50/80 px-2 py-2">
                 <div className="font-mono text-base font-semibold text-amber-700">{item.follow_up}</div>
                 <div className="text-[10px] uppercase tracking-[0.08em] text-amber-700/80">Follow-up</div>
               </div>
@@ -374,6 +387,20 @@ function BarangayRanking({ data }: { data: DashboardState["barangay_stats"] }) {
           </div>
         );
       })}
+      {sorted.length === 0 ? (
+        <p className="rounded-2xl border border-dashed border-border-soft bg-surface/60 p-5 text-sm text-ink-muted">No barangay data available.</p>
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border-soft pt-3">
+          <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint">
+            Showing {(page - 1) * pageSize + 1}-{Math.min(page * pageSize, sorted.length)} of {sorted.length}
+          </p>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => setPage((currentPage) => Math.max(1, currentPage - 1))} disabled={page === 1} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">Previous</button>
+            <span className="min-w-14 text-center font-mono text-[10px] text-ink-muted">{page} / {pageCount}</span>
+            <button type="button" onClick={() => setPage((currentPage) => Math.min(pageCount, currentPage + 1))} disabled={page === pageCount} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">Next</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -482,6 +509,7 @@ function DashboardPageContent() {
   const [barangayFilter, setBarangayFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [assessmentPage, setAssessmentPage] = useState(1);
+  const [recentAssessmentPage, setRecentAssessmentPage] = useState(1);
   const requestedSection = searchParams.get("section") as SectionId | null;
   const activeSection: SectionId = requestedSection && SECTIONS.some((section) => section.id === requestedSection)
     ? requestedSection
@@ -504,29 +532,34 @@ function DashboardPageContent() {
   function generateReport() {
     if (!stats) return;
 
-    const downloaded = downloadReport({
-      title: "Community Health Report",
-      subtitle: "Municipal Health Office summary",
-      generatedAt: new Date().toLocaleString(),
-      filename: `healthguard-community-report-${new Date().toISOString().slice(0, 10)}`,
-      sections: [
-        {
-          heading: "Barangay summary",
-          rows: stats.barangay_stats.map((item) => [item.barangay, `${item.total} total (${item.urgent} urgent, ${item.follow_up} follow-up)`]),
-        },
-        {
-          heading: "Risk distribution",
-          rows: stats.triage_breakdown.map((item) => [item.level, String(item.value)]),
-        },
-        {
-          heading: "Weekly trend",
-          rows: stats.weekly_trend.map((item) => [item.label, `${item.date} • ${item.count} cases`]),
-        },
-      ],
-    });
+    let downloaded: "downloaded" | "opened" | false = false;
+    try {
+      downloaded = downloadReport({
+        title: "Community Health Report",
+        subtitle: "Municipal Health Office summary",
+        generatedAt: new Date().toLocaleString(),
+        filename: `healthguard-community-report-${new Date().toISOString().slice(0, 10)}`,
+        sections: [
+          {
+            heading: "Barangay summary",
+            rows: stats.barangay_stats.map((item) => [item.barangay, `${item.total} total (${item.urgent} urgent, ${item.follow_up} follow-up)`]),
+          },
+          {
+            heading: "Risk distribution",
+            rows: stats.triage_breakdown.map((item) => [item.level, String(item.value)]),
+          },
+          {
+            heading: "Weekly trend",
+            rows: stats.weekly_trend.map((item) => [item.label, `${item.date} • ${item.count} cases`]),
+          },
+        ],
+      });
+    } catch {
+      downloaded = false;
+    }
 
     setToast({
-      message: downloaded ? "PDF report downloaded successfully." : "Could not download the report.",
+      message: downloaded === "downloaded" ? "PDF report downloaded successfully." : downloaded === "opened" ? "Report opened in a new tab. Use your browser's Share or Save option." : "Could not create the report.",
       tone: downloaded ? "success" : "error",
     });
   }
@@ -633,6 +666,12 @@ function DashboardPageContent() {
   );
   const assessmentStart = filteredAssessments.length === 0 ? 0 : (assessmentPage - 1) * ASSESSMENT_PAGE_SIZE + 1;
   const assessmentEnd = Math.min(assessmentPage * ASSESSMENT_PAGE_SIZE, filteredAssessments.length);
+  const recentAssessments = stats?.recent_assessments ?? [];
+  const recentAssessmentPageCount = Math.max(1, Math.ceil(recentAssessments.length / RECENT_ASSESSMENT_PAGE_SIZE));
+  const visibleRecentAssessments = recentAssessments.slice(
+    (recentAssessmentPage - 1) * RECENT_ASSESSMENT_PAGE_SIZE,
+    recentAssessmentPage * RECENT_ASSESSMENT_PAGE_SIZE,
+  );
 
   useEffect(() => {
     setAssessmentPage(1);
@@ -641,6 +680,10 @@ function DashboardPageContent() {
   useEffect(() => {
     setAssessmentPage((page) => Math.min(page, assessmentPageCount));
   }, [assessmentPageCount]);
+
+  useEffect(() => {
+    setRecentAssessmentPage((page) => Math.min(page, recentAssessmentPageCount));
+  }, [recentAssessmentPageCount]);
 
   function applyUrgentOnly() {
     setRiskFilter("RED");
@@ -656,6 +699,13 @@ function DashboardPageContent() {
   const redBreakdown = stats?.triage_breakdown.find((item) => (item.level || "").toLowerCase() === "red")?.value ?? 0;
   const yellowBreakdown = stats?.triage_breakdown.find((item) => (item.level || "").toLowerCase() === "yellow")?.value ?? 0;
   const greenBreakdown = stats?.triage_breakdown.find((item) => (item.level || "").toLowerCase() === "green")?.value ?? 0;
+  const caseMixTotal = greenBreakdown + yellowBreakdown + redBreakdown;
+  const yellowShare = caseMixTotal > 0 ? Math.round((yellowBreakdown / caseMixTotal) * 100) : 0;
+  const caseMixRead = redBreakdown > 0
+    ? "Urgent cases need immediate review."
+    : yellowBreakdown > greenBreakdown
+      ? "Consultation cases are driving the current workload."
+      : "Most cases are currently in the routine monitoring band.";
   const selectedAssessment = useMemo(
     () => stats?.recent_assessments.find((item) => item.id === selectedAssessmentId) ?? stats?.recent_assessments[0] ?? null,
     [stats, selectedAssessmentId],
@@ -763,16 +813,26 @@ function DashboardPageContent() {
         <WidgetCard icon="pie" title="Case mix" subtitle="Current triage breakdown" updated={updatedLabel}>
           <div className="space-y-6">
             <DonutChart
-              centerLabel={String(greenBreakdown + yellowBreakdown + redBreakdown)}
+              centerLabel={String(caseMixTotal)}
               centerSub="total cases"
+              size={148}
               segments={[
                 { label: "Green", value: greenBreakdown, colorClass: "stroke-triage-green", dotClass: "bg-triage-green" },
                 { label: "Yellow", value: yellowBreakdown, colorClass: "stroke-triage-yellow", dotClass: "bg-triage-yellow" },
                 { label: "Red", value: redBreakdown, colorClass: "stroke-triage-red", dotClass: "bg-triage-red" },
               ]}
             />
-            <div className="rounded-2xl border border-border-soft bg-gradient-to-r from-slate-50 via-white to-slate-50 p-3">
-              <div className="space-y-3">
+            <div className="rounded-2xl border border-border-soft bg-[linear-gradient(145deg,#f7faf5_0%,#ffffff_52%,#f1f6ef_100%)] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-brand-dark">Distribution by risk</p>
+                <span className="rounded-full border border-brand/15 bg-white/80 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.08em] text-ink-faint">Live</span>
+              </div>
+              <div className="mb-3 flex h-2.5 overflow-hidden rounded-full border border-white bg-white/70 shadow-inner" aria-label={`Risk mix: ${redBreakdown} red, ${yellowBreakdown} yellow, ${greenBreakdown} green`}>
+                <span className="bg-triage-red transition-all duration-500" style={{ width: `${(redBreakdown / (caseMixTotal || 1)) * 100}%` }} />
+                <span className="bg-triage-yellow transition-all duration-500" style={{ width: `${(yellowBreakdown / (caseMixTotal || 1)) * 100}%` }} />
+                <span className="bg-triage-green transition-all duration-500" style={{ width: `${(greenBreakdown / (caseMixTotal || 1)) * 100}%` }} />
+              </div>
+              <div className="space-y-2.5">
                 {[
                   { label: "Red", value: redBreakdown, colorClass: "bg-triage-red", bg: "bg-red-50" },
                   { label: "Yellow", value: yellowBreakdown, colorClass: "bg-triage-yellow", bg: "bg-yellow-50" },
@@ -781,17 +841,31 @@ function DashboardPageContent() {
                   const total = greenBreakdown + yellowBreakdown + redBreakdown || 1;
                   const percentage = (row.value / total) * 100;
                   return (
-                    <div key={row.label} className={`rounded-xl ${row.bg} p-2`}>
+                    <div key={row.label} className={`rounded-xl border border-white/80 ${row.bg} p-2.5 shadow-[0_3px_10px_rgba(24,38,25,0.025)]`}>
                       <div className="mb-1 flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-muted">
                         <span>{row.label}</span>
                         <span className="font-mono">{row.value} ({Math.round(percentage)}%)</span>
                       </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-white/60">
-                        <div className={`h-full ${row.colorClass} transition-all duration-500`} style={{ width: `${percentage}%` }} />
+                      <div className="h-2.5 overflow-hidden rounded-full border border-white/80 bg-white/60 shadow-inner">
+                        <div className={`h-full rounded-full shadow-[0_1px_4px_rgba(24,38,25,0.14)] ${row.colorClass} transition-all duration-500`} style={{ width: `${percentage}%` }} />
                       </div>
                     </div>
                   );
                 })}
+              </div>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-3">
+              <div className="rounded-xl border border-brand/15 bg-brand-tint/45 px-3 py-3">
+                <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-brand-dark">Readout</p>
+                <p className="mt-1 text-xs font-medium leading-relaxed text-ink-secondary">{caseMixRead}</p>
+              </div>
+              <div className="rounded-xl border border-yellow-200 bg-yellow-50/70 px-3 py-3">
+                <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-amber-700">Follow-up pressure</p>
+                <p className="mt-1 text-xs font-medium leading-relaxed text-ink-secondary">{yellowShare}% of cases may need consultation.</p>
+              </div>
+              <div className={`rounded-xl border px-3 py-3 ${redBreakdown > 0 ? "border-red-200 bg-red-50/70" : "border-emerald-200 bg-emerald-50/70"}`}>
+                <p className={`font-mono text-[9px] font-semibold uppercase tracking-[0.1em] ${redBreakdown > 0 ? "text-emergency-red" : "text-emerald-700"}`}>Urgency</p>
+                <p className="mt-1 text-xs font-medium leading-relaxed text-ink-secondary">{redBreakdown > 0 ? `${redBreakdown} urgent case${redBreakdown === 1 ? "" : "s"} to review.` : "No urgent cases in this view."}</p>
               </div>
             </div>
           </div>
@@ -816,7 +890,7 @@ function DashboardPageContent() {
         <WidgetCard
           icon="list"
           title="Recent assessments"
-          subtitle="Latest 3 records"
+          subtitle={`${recentAssessments.length} recent records`}
           updated={updatedLabel}
           action={
             <Link
@@ -832,8 +906,8 @@ function DashboardPageContent() {
           }
         >
           <div className="space-y-3">
-            {stats && stats.recent_assessments.length > 0 ? (
-              stats.recent_assessments.slice(0, 3).map((item) => (
+            {recentAssessments.length > 0 ? (
+              visibleRecentAssessments.map((item) => (
                   <div key={item.id} className="rounded-2xl border border-border-soft bg-gradient-to-r from-white via-slate-50 to-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
@@ -869,6 +943,18 @@ function DashboardPageContent() {
               <p className="rounded-md border border-dashed border-border bg-surface p-5 text-sm text-ink-muted">
                 No assessment records available.
               </p>
+            )}
+            {recentAssessments.length > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border-soft pt-4">
+                <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint">
+                  Showing {(recentAssessmentPage - 1) * RECENT_ASSESSMENT_PAGE_SIZE + 1}-{Math.min(recentAssessmentPage * RECENT_ASSESSMENT_PAGE_SIZE, recentAssessments.length)} of {recentAssessments.length}
+                </p>
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={() => setRecentAssessmentPage((page) => Math.max(1, page - 1))} disabled={recentAssessmentPage === 1} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">Previous</button>
+                  <span className="min-w-14 text-center font-mono text-[10px] text-ink-muted">{recentAssessmentPage} / {recentAssessmentPageCount}</span>
+                  <button type="button" onClick={() => setRecentAssessmentPage((page) => Math.min(recentAssessmentPageCount, page + 1))} disabled={recentAssessmentPage === recentAssessmentPageCount} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">Next</button>
+                </div>
+              </div>
             )}
           </div>
         </WidgetCard>
@@ -990,38 +1076,7 @@ function DashboardPageContent() {
         )}
       </WidgetCard>
 
-      <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <WidgetCard icon="map" title="Barangay coverage" subtitle="Geographic view" updated={updatedLabel}>
-          <div className="space-y-5">
-            {barangayStats.length > 0 ? barangayStats.map((item) => {
-              const otherCases = Math.max(item.total - item.urgent - item.follow_up, 0);
-              const width = `${Math.max((item.total / maxBarangayCases) * 100, 4)}%`;
-              return (
-                <div key={item.barangay}>
-                  <div className="flex items-center justify-between gap-4 text-sm">
-                    <span className="font-medium text-ink">{item.barangay}</span>
-                    <span className="shrink-0 font-mono text-xs text-ink-muted">{item.total} total</span>
-                  </div>
-                  <div
-                    className="mt-2 h-5 overflow-hidden rounded-sm bg-surface transition-all duration-500"
-                    style={{ width }}
-                    aria-label={`${item.barangay}: ${item.total} total cases, ${item.urgent} urgent, ${item.follow_up} follow-up`}
-                  >
-                    {item.urgent > 0 ? <span className="inline-block h-full bg-triage-red" style={{ width: `${(item.urgent / item.total) * 100}%` }} /> : null}
-                    {item.follow_up > 0 ? <span className="inline-block h-full bg-triage-yellow" style={{ width: `${(item.follow_up / item.total) * 100}%` }} /> : null}
-                    {otherCases > 0 ? <span className="inline-block h-full bg-triage-green" style={{ width: `${(otherCases / item.total) * 100}%` }} /> : null}
-                  </div>
-                  <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-muted">
-                    <span>{item.urgent} urgent</span>
-                    <span>{item.follow_up} follow-up</span>
-                    <span>{otherCases} routine</span>
-                  </div>
-                </div>
-              );
-            }) : <p className="rounded-md border border-dashed border-border bg-surface p-5 text-sm text-ink-muted">No barangay data available.</p>}
-          </div>
-        </WidgetCard>
-
+      <section className="grid gap-6">
         <WidgetCard 
           icon="bulb" 
           title="Operational insights" 
@@ -1266,7 +1321,7 @@ function DashboardPageContent() {
                     <PrimaryButton type="button" onClick={() => void refreshSummary()} disabled={refreshing} className="rounded-xl border border-white/35 bg-white/12 px-5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(8,35,22,0.12)] hover:bg-white/20">
                       {refreshing ? "Refreshing…" : "Refresh data"}
                     </PrimaryButton>
-                    <PrimaryButton type="button" onClick={generateReport} disabled={!stats} className="dashboard-report-button rounded-xl px-5 text-sm font-semibold">
+                    <PrimaryButton type="button" onClick={generateReport} disabled={!stats} className="dashboard-report-button w-full rounded-xl px-5 text-sm font-semibold sm:w-auto">
                       Generate report
                     </PrimaryButton>
                   </>

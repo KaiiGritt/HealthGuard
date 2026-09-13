@@ -1,14 +1,17 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 type SymptomChipProps = {
   label: string;
+  icon?: ReactNode;
   subLabel?: string;
   selected: boolean;
   urgent?: boolean;
   onToggle: () => void;
 };
 
-export default function SymptomChip({ label, subLabel, selected, urgent = false, onToggle }: SymptomChipProps) {
+export default function SymptomChip({ label, icon, subLabel, selected, urgent = false, onToggle }: SymptomChipProps) {
   return (
     <button
       type="button"
@@ -26,7 +29,10 @@ export default function SymptomChip({ label, subLabel, selected, urgent = false,
       ].join(" ")}
     >
       {selected && <span className={`absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold text-white ${urgent ? "bg-emergency-red" : "bg-brand"}`} aria-hidden="true">✓</span>}
-      <span className="pr-6 text-sm font-semibold lg:text-base">{label}</span>
+      <span className="flex items-center gap-2 pr-6 text-sm font-semibold lg:text-base">
+        {icon ? <span className="text-brand" aria-hidden="true">{icon}</span> : null}
+        {label}
+      </span>
       {subLabel && <span className="pr-6 text-xs text-ink-faint lg:text-sm">{subLabel}</span>}
     </button>
   );

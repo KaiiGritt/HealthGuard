@@ -87,7 +87,7 @@ export default async function HistoryPage({
                       </td>
                       <td className="px-5 py-5">
                         <Link
-                          href={`/summary/${r.id}`}
+                          href={`/result/${r.id}`}
                           className="inline-flex items-center rounded-xl border border-brand/25 bg-brand-tint px-3.5 py-2 text-sm font-semibold text-brand-dark shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-brand/45 hover:bg-white hover:shadow-[0_8px_18px_rgba(47,107,79,0.12)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15"
                         >
                           View result
@@ -101,7 +101,7 @@ export default async function HistoryPage({
             </div>
             <div className="mt-8 space-y-3 md:hidden">
               {pageRows.map((r) => (
-                <Link key={r.id} href={`/summary/${r.id}`} className="group block rounded-2xl border border-[#DDE7DB] bg-[linear-gradient(135deg,#F8FAF6_0%,#F1F5EE_100%)] p-4 shadow-[0_8px_20px_rgba(24,38,25,0.04)] outline-none transition-all duration-200 hover:-translate-y-0.5 hover:border-brand/30 hover:bg-white hover:shadow-[0_14px_28px_rgba(47,107,79,0.1)] focus-visible:ring-4 focus-visible:ring-brand/15">
+                <Link key={r.id} href={`/result/${r.id}`} className="group block rounded-2xl border border-[#DDE7DB] bg-[linear-gradient(135deg,#F8FAF6_0%,#F1F5EE_100%)] p-4 shadow-[0_8px_20px_rgba(24,38,25,0.04)] outline-none transition-all duration-200 hover:-translate-y-0.5 hover:border-brand/30 hover:bg-white hover:shadow-[0_14px_28px_rgba(47,107,79,0.1)] focus-visible:ring-4 focus-visible:ring-brand/15">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-mono text-xs uppercase tracking-wide text-ink-muted">{new Date(r.created_at).toLocaleDateString()}</p>

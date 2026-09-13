@@ -71,7 +71,7 @@ export default function Sidebar({ user }: { user: User | null }) {
 
   const content: ReactNode = (
     <>
-      <div className="border-b border-border px-5 py-6">
+      <div className="border-b border-border px-4 py-5 sm:px-5 sm:py-6">
         <Link href="/" className="flex items-center gap-3">
           <span
             className="flex h-9 w-9 items-center justify-center rounded-lg bg-linear-to-br from-brand to-brand-dark text-base font-medium text-brand-foreground shadow-sm"
@@ -95,7 +95,7 @@ export default function Sidebar({ user }: { user: User | null }) {
         </div> : <p className="mt-5 text-xs leading-relaxed text-ink-muted">Bilingual health guidance for the Irosin community.</p>}
       </div>
 
-      <nav className="flex-1 space-y-0.5 px-3 py-4">
+      <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-4">
         {items.map((item) => {
           const active = isActive(item.href);
           return (
@@ -123,8 +123,8 @@ export default function Sidebar({ user }: { user: User | null }) {
         })}
       </nav>
 
-      <div className="border-t border-border px-5 py-4">
-        <p className="text-xs leading-relaxed text-ink-faint">
+      <div className="border-t border-border px-4 py-4 sm:px-5">
+        <p className="break-words text-xs leading-relaxed text-ink-faint">
           Irosin, Sorsogon — community health workspace
         </p>
       </div>
@@ -137,7 +137,7 @@ export default function Sidebar({ user }: { user: User | null }) {
         <Icon path={open ? "M6 6l12 12M18 6 6 18" : "M4 6h16M4 12h16M4 18h16"} />
       </button>
       {open && <button type="button" aria-label="Close navigation" onClick={() => setOpen(false)} className="fixed inset-0 z-40 bg-ink/25 backdrop-blur-[2px] lg:hidden" />}
-      <aside className={`fixed left-0 top-0 z-50 flex h-screen w-64 shrink-0 flex-col overflow-hidden border-r border-[#D7E0D2] bg-[linear-gradient(180deg,#FBF9F2_0%,#F2F6EE_100%)] shadow-[0_18px_48px_rgba(20,31,25,0.18)] transition-transform lg:shadow-none ${open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}>
+      <aside className={`fixed left-0 top-0 z-50 flex h-[100dvh] w-[min(18rem,calc(100vw-1rem))] max-w-full shrink-0 flex-col overflow-hidden border-r border-[#D7E0D2] bg-[linear-gradient(180deg,#FBF9F2_0%,#F2F6EE_100%)] shadow-[0_18px_48px_rgba(20,31,25,0.18)] transition-transform lg:hidden ${open ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" aria-hidden="true" />
         {content}
       </aside>

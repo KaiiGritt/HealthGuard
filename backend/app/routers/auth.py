@@ -14,7 +14,7 @@ from ..config import settings
 from ..database import get_db
 from ..deps import COOKIE_NAME, get_current_user
 from ..email import send_login_alert, send_message, send_password_reset_code, send_verification_code
-from ..models import EmailVerification, PasswordReset, ProfileAuditLog, User
+from ..models import Admin, AnalysisReport, Assessment, EmailVerification, MHO, PasswordReset, ProfileAuditLog, Resident, User
 from ..schemas import (
     ChangePasswordRequest,
     LoginRequest,
@@ -27,11 +27,14 @@ from ..schemas import (
     UserOut,
     VerifyEmailRequest,
 )
-from ..security import create_access_token, hash_password, verify_password
+from ..security import create_access_token, hash_password, password_needs_rehash, validate_password_policy, verify_password
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 logger = logging.getLogger(__name__)
 PASSWORD_ATTEMPTS: dict[int, list[datetime]] = {}
+LOGIN_ATTEMPTS: dict[str, list[datetime]] = {}
+RESET_ATTEMPTS: dict[str, list[datetime]] = {}
+RESET_CODE_ATTEMPTS: dict[str, list[datetime]] = {}
 
 
 def _utc_now() -> datetime:
@@ -74,6 +77,20 @@ def _record_password_attempt(user_id: int, *, success: bool) -> None:
     else:
         attempts.append(now)
     PASSWORD_ATTEMPTS[user_id] = attempts
+
+
+def _too_many_email_attempts(store: dict[str, list[datetime]], key: str) -> bool:
+    now = _utc_now()
+    attempts = [ts for ts in store.get(key, []) if now - ts < timedelta(minutes=10)]
+    store[key] = attempts
+    return len(attempts) >= 5
+
+
+def _record_email_attempt(store: dict[str, list[datetime]], key: str, *, success: bool = False) -> None:
+    if success:
+        store.pop(key, None)
+        return
+    store.setdefault(key, []).append(_utc_now())
 
 
 def _add_profile_audit(db: Session, user_id: int, action: str, **details: object) -> None:
@@ -222,15 +239,22 @@ def verify_email(payload: VerifyEmailRequest, response: Response, db: Session = 
 @router.post("/login", response_model=UserOut)
 def login(payload: LoginRequest, response: Response, db: Session = Depends(get_db)) -> User:
     email = payload.email.strip().lower()
+    if _too_many_email_attempts(LOGIN_ATTEMPTS, email):
+        raise HTTPException(status_code=429, detail="Too many sign-in attempts. Please wait 10 minutes before trying again.")
     user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
     # Generic error to avoid leaking which emails exist.
     if user is None or not verify_password(payload.password, user.password_hash):
+        _record_email_attempt(LOGIN_ATTEMPTS, email)
         logger.warning("Sign-in failed: invalid credentials")
         raise HTTPException(status_code=401, detail="Incorrect email or password.")
+    _record_email_attempt(LOGIN_ATTEMPTS, email, success=True)
     if not user.is_active:
         logger.warning("Sign-in rejected: inactive account")
         raise HTTPException(status_code=403, detail="This account is disabled.")
     _set_auth_cookie(response, user)
+    if password_needs_rehash(user.password_hash):
+        user.password_hash = hash_password(payload.password)
+        db.commit()
     try:
         message = send_login_alert(user.email, None)
         send_message(message)
@@ -245,6 +269,9 @@ def login(payload: LoginRequest, response: Response, db: Session = Depends(get_d
 def forgot_password(payload: PasswordResetRequest, db: Session = Depends(get_db)) -> dict[str, str]:
     """Email a reset code without revealing whether the address is registered."""
     email = payload.email.strip().lower()
+    if _too_many_email_attempts(RESET_ATTEMPTS, email):
+        raise HTTPException(status_code=429, detail="Too many reset requests. Please wait 10 minutes before trying again.")
+    _record_email_attempt(RESET_ATTEMPTS, email)
     if "@" not in email:
         raise HTTPException(status_code=422, detail="Invalid email address.")
     _require_smtp()
@@ -267,18 +294,24 @@ def forgot_password(payload: PasswordResetRequest, db: Session = Depends(get_db)
 @router.post("/reset-password", response_model=UserOut)
 def reset_password(payload: PasswordResetVerifyRequest, response: Response, db: Session = Depends(get_db)) -> User:
     email = payload.email.strip().lower()
+    if _too_many_email_attempts(RESET_CODE_ATTEMPTS, email):
+        raise HTTPException(status_code=429, detail="Too many reset-code attempts. Please wait 10 minutes before trying again.")
     reset = db.execute(select(PasswordReset).where(PasswordReset.email == email)).scalar_one_or_none()
     if reset is None or _as_utc(reset.expires_at) < _utc_now():
+        _record_email_attempt(RESET_CODE_ATTEMPTS, email)
         if reset is not None:
             db.delete(reset)
             db.commit()
         raise HTTPException(status_code=400, detail="Invalid or expired reset code.")
     if reset.code != payload.code:
+        _record_email_attempt(RESET_CODE_ATTEMPTS, email)
         raise HTTPException(status_code=400, detail="Invalid or expired reset code.")
     user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
     if user is None:
+        _record_email_attempt(RESET_CODE_ATTEMPTS, email)
         raise HTTPException(status_code=400, detail="Invalid or expired reset code.")
     user.password_hash = hash_password(payload.new_password)
+    _record_email_attempt(RESET_CODE_ATTEMPTS, email, success=True)
     db.delete(reset)
     db.commit()
     db.refresh(user)
@@ -372,6 +405,10 @@ def change_password(
         raise HTTPException(status_code=400, detail="Current password is incorrect.")
     if payload.current_password == payload.new_password:
         raise HTTPException(status_code=400, detail="New password must be different.")
+    try:
+        validate_password_policy(payload.new_password, (user.full_name, user.email))
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     user.password_hash = hash_password(payload.new_password)
     _record_password_attempt(user.id, success=True)
     _add_profile_audit(db, user.id, "password_changed", password_changed=True)
@@ -390,3 +427,33 @@ def deactivate_account(
     _add_profile_audit(db, user.id, "account_deactivated", deleted_at=user.deleted_at.isoformat())
     db.commit()
     return {"message": "Account deactivated successfully."}
+
+
+@router.delete("/account")
+def delete_account(
+    response: Response,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict[str, str]:
+    """Permanently remove the authenticated user's personal account data."""
+    user_id = user.id
+    email = user.email
+
+    db.query(Assessment).filter(Assessment.user_id == user_id).update(
+        {Assessment.user_id: None}, synchronize_session=False
+    )
+    db.query(AnalysisReport).filter(AnalysisReport.user_id == user_id).update(
+        {AnalysisReport.user_id: None}, synchronize_session=False
+    )
+    db.query(ProfileAuditLog).filter(ProfileAuditLog.user_id == user_id).delete(
+        synchronize_session=False
+    )
+    db.query(Resident).filter(Resident.user_id == user_id).delete(synchronize_session=False)
+    db.query(MHO).filter(MHO.user_id == user_id).delete(synchronize_session=False)
+    db.query(Admin).filter(Admin.user_id == user_id).delete(synchronize_session=False)
+    db.query(PasswordReset).filter(PasswordReset.email == email).delete(synchronize_session=False)
+    db.query(EmailVerification).filter(EmailVerification.email == email).delete(synchronize_session=False)
+    db.delete(user)
+    db.commit()
+    response.delete_cookie(key=COOKIE_NAME, path="/")
+    return {"message": "Account and personal data deleted successfully."}
