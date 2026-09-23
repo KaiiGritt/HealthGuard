@@ -19,6 +19,8 @@ const MESSAGES: Record<string, string> = {
 };
 
 const RULE_TITLES: Record<string, string> = {
+  "duration-score": "Symptom duration",
+  "high-severity-score": "Total score requires urgent care",
   "moderate-severity-score": "Your symptoms need a consultation",
   "mild-severity-score": "Your symptoms are currently mild",
   "difficulty-breathing-override": "Breathing difficulty needs urgent attention",
@@ -40,6 +42,18 @@ function ruleTitle(name: string) {
 }
 
 function ruleDescription(name: string, description: string) {
+  if (name === "duration-score") {
+    const match = description.match(/lasting ([\d.]+) day\(s\) contribute (\d+) duration point/);
+    return match ? `The reported duration was ${match[1]} days and added ${match[2]} point(s) to the clinical score.` : "The symptom duration was included in the clinical score.";
+  }
+  if (name === "persistent-fever") return "Fever lasting more than three days should be reviewed by a health worker.";
+  if (name === "persistent-cough") return "A cough lasting more than 30 days needs further clinical assessment.";
+  if (name === "persistent-diarrhea") return "Diarrhea lasting 14 days or longer needs clinical assessment.";
+  if (name === "weighted-symptom-score") {
+    const score = description.match(/final score is (\d+)/)?.[1];
+    return `The recognized symptoms contributed to a combined clinical score of ${score ?? "the recorded total"}.`;
+  }
+  if (name === "high-severity-score") return "The total clinical score is 6 or higher, which is in the RED range and requires urgent medical attention.";
   if (name === "moderate-severity-score") {
     const score = description.match(/severity \((\d+)\)/)?.[1];
     return `Your combined symptom score is ${score ?? "within the consultation range"}. Scores from 3 to 5 are marked YELLOW, which means you should contact a health worker or visit the RHU.`;
@@ -154,7 +168,7 @@ export default async function ResultPage({
               </div>
               <ol className="mt-4 space-y-2.5">
                 {record.triggered_rules.map((rule) => (
-                  <li key={rule.name} className="group relative flex gap-3 overflow-hidden rounded-xl border border-[#dfe8dc] bg-white/85 px-3.5 py-3.5 shadow-[0_4px_12px_rgba(31,74,54,0.035)] transition-colors duration-200 hover:border-[#b9ceb9] sm:px-4">
+                    <li key={rule.name} className="group relative flex gap-3 overflow-hidden rounded-2xl border border-[#dfe8dc] bg-white/85 px-4 py-4 shadow-[0_4px_12px_rgba(31,74,54,0.035)] transition-colors duration-200 hover:border-[#b9ceb9] sm:px-5">
                     <span className="absolute inset-y-0 left-0 w-0.5 bg-brand/45 transition-colors duration-200 group-hover:bg-brand" aria-hidden="true" />
                     <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#dce8d8] bg-[#f4f8f0] font-mono text-xs font-semibold text-brand-dark">
                       {record.triggered_rules.indexOf(rule) + 1}
@@ -162,7 +176,6 @@ export default async function ResultPage({
                     <div className="min-w-0">
                       <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-secondary">{ruleTitle(rule.name)}</p>
                       <p className="mt-1.5 text-sm leading-6 text-ink-muted">{ruleDescription(rule.name, rule.description)}</p>
-                      <p className="mt-2 font-mono text-[10px] text-ink-faint">Rule ID: {rule.name}</p>
                     </div>
                   </li>
                 ))}
@@ -172,6 +185,7 @@ export default async function ResultPage({
             {record.risk_level !== "RED" && (
               <MedicationGuidanceCard
                 riskLevel={record.risk_level}
+                inputText={record.input_text}
                 detectedSymptoms={record.detected_symptoms}
                 guidance={
                   record.pre_medication

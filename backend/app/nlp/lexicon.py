@@ -13,6 +13,62 @@ from dataclasses import dataclass
 from .tokenizer import normalize, tokenize
 
 
+# Common Tagalog inflections reduced to the short symptom word shown to the
+# matching and explanation layers. The medical_term remains the canonical
+# English category used by triage and reporting.
+TAGALOG_ROOTS = {
+    "inuubo": "ubo",
+    "ubo nang ubo": "ubo",
+    "nag susuka": "suka",
+    "nilalagnat": "lagnat",
+    "mataas ang temperatura": "lagnat",
+    "may init": "lagnat",
+    "masakit ang ulo": "ulo",
+    "sumasakit ang ulo": "ulo",
+    "kumikirot ang ulo": "ulo",
+    "mabigat ang ulo": "ulo",
+    "kirot sa ulo": "ulo",
+    "masakit ang tiyan": "tiyan",
+    "masakit ang sikmura": "tiyan",
+    "kumikirot ang tiyan": "tiyan",
+    "kirot sa tiyan": "tiyan",
+    "kumukulo ang tiyan": "tiyan",
+    "nasusuka": "suka",
+    "sumusuka": "suka",
+    "nagsusuka": "suka",
+    "isinusuka": "suka",
+    "pagkahilo at pagsusuka": "suka",
+    "nagtatae": "tae",
+    "tubig ang dumi": "tae",
+    "madalas dumumi": "tae",
+    "hinihingal": "hingal",
+    "hirap sa paghinga": "hingal",
+    "bumibilis ang paghinga": "hingal",
+    "umuubo": "ubo",
+    "paubo-ubo": "ubo",
+}
+
+ROOT_BY_MEDICAL_TERM = {
+    "fever": "lagnat",
+    "cough": "ubo",
+    "headache": "ulo",
+    "abdominal pain": "tiyan",
+    "vomiting": "suka",
+    "diarrhea": "tae",
+    "difficulty breathing": "hingal",
+}
+
+MEDICAL_TERM_BY_ROOT = {root: term for term, root in ROOT_BY_MEDICAL_TERM.items()}
+
+
+def extract_tagalog_root(term: str, medical_term: str = "", language: str = "tl") -> str:
+    """Return one stable root word for every recognized Tagalog symptom term."""
+    normalized = normalize(term)
+    if language.lower() == "tl" and medical_term in ROOT_BY_MEDICAL_TERM:
+        return ROOT_BY_MEDICAL_TERM[medical_term]
+    return TAGALOG_ROOTS.get(normalized, normalized)
+
+
 @dataclass(frozen=True)
 class LexiconEntry:
     local_term: str
@@ -45,7 +101,7 @@ def match_text(text: str, entries: list[LexiconEntry]) -> list[Match]:
             continue
         candidate = Match(
             medical_term=entry.medical_term,
-            matched_text=entry.local_term,
+            matched_text=extract_tagalog_root(entry.local_term, entry.medical_term, entry.language),
             language=entry.language,
             category=entry.category,
             severity_weight=entry.severity_weight,
@@ -53,6 +109,28 @@ def match_text(text: str, entries: list[LexiconEntry]) -> list[Match]:
         current = best.get(entry.medical_term)
         if current is None or candidate.severity_weight > current.severity_weight:
             best[entry.medical_term] = candidate
+
+    # Keep recognition working when the database has not yet received a newly
+    # added alias. Resolve known Tagalog roots against the canonical entry.
+    canonical_entries = {
+        entry.medical_term: entry
+        for entry in entries
+        if entry.language.lower() == "en"
+    }
+    for surface, root in TAGALOG_ROOTS.items():
+        if surface not in normalized:
+            continue
+        medical_term = MEDICAL_TERM_BY_ROOT.get(root)
+        entry = canonical_entries.get(medical_term)
+        if entry is None or medical_term in best:
+            continue
+        best[medical_term] = Match(
+            medical_term=medical_term,
+            matched_text=root,
+            language="tl",
+            category=entry.category,
+            severity_weight=entry.severity_weight,
+        )
 
     return list(best.values())
 

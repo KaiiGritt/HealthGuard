@@ -94,18 +94,26 @@ def _is_negated(normalized_text: str, term: str) -> bool:
 # Each entry: (primary_symptom_keywords, optional_symptom_keywords, medicine_name)
 # Matching requires at least one primary symptom.
 OTC_SYMPTOM_MAP = [
-    # Fever / body ache → Paracetamol (acetaminophen)
+    # Fever / headache → Paracetamol (acetaminophen) or Ibuprofen
     (
-        {"fever", "lagnat"},
+        {"fever", "headache", "lagnat"},
         {"body ache", "body pain", "weakness"},
-        "Paracetamol (Biogesic / Tempra / Calpol)",
+        "Paracetamol / Acetaminophen or Ibuprofen",
     ),
-    # Cough / sore throat → Cough Relief Support (avoid in asthma without guidance)
+    # Cough subtype recommendations are selected from the submitted chip details.
     (
         {"cough", "ubo", "dry cough"},
         {"sore throat", "throat pain", "throat irritation"},
-        "Cough Relief Support",
+        "Dextromethorphan or Butamirate",
     ),
+    (
+        {"cough", "ubo", "with phlegm", "phlegm"},
+        set(),
+        "Carbocisteine, Ambroxol, or Guaifenesin",
+    ),
+    # Abdominal pain subtypes.
+    ({"abdominal pain", "heartburn", "acid", "acid heartburn"}, set(), "Antacids (Aluminum hydroxide and Magnesium hydroxide)"),
+    ({"abdominal pain", "gas", "flatulence"}, set(), "Simethicone"),
     # Nasal congestion + headache → Decongestant + Paracetamol
     (
         {"nasal congestion", "runny nose", "stuffy nose", "sneezing"},
@@ -116,8 +124,10 @@ OTC_SYMPTOM_MAP = [
     (
         {"diarrhea", "loose stool"},
         {"stomach cramps", "abdominal discomfort"},
-        "Oral Rehydration Salts + Symptom Relief",
+        "Loperamide or Oral Rehydration Solution (ORS)",
     ),
+    # Vomiting → oral rehydration solution.
+    ({"vomiting", "nausea", "pagsusuka"}, set(), "Oral Rehydration Solution (ORS)"),
     # Rash + itch → Antihistamine or topical soothing agent
     (
         {"rash", "itching", "skin itch", "allergic reaction"},
@@ -150,7 +160,11 @@ def has_red_flag_symptom(detected_symptoms: list[str]) -> bool:
     return bool(symptoms_lower & RED_FLAG_SYMPTOMS)
 
 
-def build_premedication_guide(risk_level: str, detected_symptoms: list[str] | None = None) -> MedicationGuide | None:
+def build_premedication_guide(
+    risk_level: str,
+    detected_symptoms: list[str] | None = None,
+    input_text: str = "",
+) -> MedicationGuide | None:
     """Generate a symptom-aware pre-medication record for non-red cases.
     
     Returns None if:
@@ -168,6 +182,18 @@ def build_premedication_guide(risk_level: str, detected_symptoms: list[str] | No
         return None
 
     symptoms_set = set(symptoms)
+
+    # Type chips are included in input_text by the assessment UI. Prefer the
+    # specific validated option before falling back to the broad symptom map.
+    context = f"{' '.join(symptoms)} {(input_text or '').lower()}"
+    if "dry cough" in context:
+        return _build_medication_for_match(risk_level, "Dextromethorphan or Butamirate", {"dry cough"})
+    if "phlegm" in context or "productive" in context or "with phlegm" in context:
+        return _build_medication_for_match(risk_level, "Carbocisteine, Ambroxol, or Guaifenesin", {"phlegm"})
+    if "heartburn" in context or "acid" in context or "burning pain" in context:
+        return _build_medication_for_match(risk_level, "Antacids (Aluminum hydroxide and Magnesium hydroxide)", {"heartburn"})
+    if "gas" in context or "flatulence" in context:
+        return _build_medication_for_match(risk_level, "Simethicone", {"gas"})
 
     # Try to match against the OTC symptom decision table
     # Matching requires at least one primary symptom to be present
@@ -228,6 +254,55 @@ def _build_medication_for_match(
                 "Ask a pharmacist or doctor if you are pregnant, breastfeeding, or have kidney or liver problems",
             ),
             "note": "Appropriate for fever and body aches. Do not exceed 24-hour limit.",
+        },
+        "Paracetamol / Acetaminophen or Ibuprofen": {
+            "dosage": "Use only according to the approved product label or a health professional's instructions.",
+            "contraindications": (),
+            "side_effects": ("Stomach upset", "Nausea", "Drowsiness"),
+            "precautions": ("Ask a pharmacist or doctor which option is appropriate before use.",),
+            "note": "Validated options for fever or headache. Use only as directed by a qualified health professional.",
+        },
+        "Dextromethorphan or Butamirate": {
+            "dosage": "Use only according to the approved product label or a health professional's instructions.",
+            "contraindications": (),
+            "side_effects": ("Drowsiness", "Dry mouth", "Stomach upset"),
+            "precautions": ("For dry cough only; seek review if breathing becomes difficult or symptoms worsen.",),
+            "note": "Validated options for dry cough. A pharmacist or doctor should confirm the suitable product.",
+        },
+        "Carbocisteine, Ambroxol, or Guaifenesin": {
+            "dosage": "Use only according to the approved product label or a health professional's instructions.",
+            "contraindications": (),
+            "side_effects": ("Nausea", "Stomach upset", "Dizziness"),
+            "precautions": ("For cough with phlegm; seek review if breathing becomes difficult or symptoms persist.",),
+            "note": "Validated options for cough with phlegm. A pharmacist or doctor should confirm the suitable product.",
+        },
+        "Antacids (Aluminum hydroxide and Magnesium hydroxide)": {
+            "dosage": "Use only according to the approved product label or a health professional's instructions.",
+            "contraindications": (),
+            "side_effects": ("Constipation", "Diarrhea", "Stomach discomfort"),
+            "precautions": ("For acid or heartburn symptoms; seek review if pain is severe or persistent.",),
+            "note": "Validated option for abdominal pain related to acid or heartburn.",
+        },
+        "Simethicone": {
+            "dosage": "Use only according to the approved product label or a health professional's instructions.",
+            "contraindications": (),
+            "side_effects": ("Mild stomach discomfort",),
+            "precautions": ("For gas-related discomfort; seek review if pain is severe, persistent, or worsening.",),
+            "note": "Validated option for abdominal pain related to gas.",
+        },
+        "Oral Rehydration Solution (ORS)": {
+            "dosage": "Prepare and use only according to the product instructions or a health professional's advice.",
+            "contraindications": (),
+            "side_effects": ("Nausea", "Temporary bloating"),
+            "precautions": ("Seek urgent care for signs of dehydration, persistent vomiting, or worsening diarrhea.",),
+            "note": "Validated rehydration support for diarrhea or vomiting; it does not replace medical assessment.",
+        },
+        "Loperamide or Oral Rehydration Solution (ORS)": {
+            "dosage": "Use only according to the approved product label or a health professional's instructions.",
+            "contraindications": (),
+            "side_effects": ("Constipation", "Nausea", "Stomach discomfort"),
+            "precautions": ("Ask a pharmacist or doctor before using loperamide, especially for a child or when fever or blood in stool is present.",),
+            "note": "Validated options for diarrhea. Oral rehydration is important; seek care if symptoms are severe or worsening.",
         },
         "Cough Relief Support": {
             "dosage": "Take according to the product label, usually for short-term use only, and avoid exceeding the recommended daily dose.",
@@ -332,7 +407,7 @@ def _build_medication_for_match(
     )
 
 
-# Draft score thresholds. These values are intentionally easy to revise after MHO review.
+# Total score thresholds: GREEN 1-2, YELLOW 3-5, RED 6+.
 RED_SCORE_THRESHOLD = 6
 YELLOW_SCORE_THRESHOLD = 3
 
@@ -386,7 +461,7 @@ def _apply_demographic_adjustment(score: int, age: int | None = None) -> tuple[i
 
 
 def _text_rules(input_text: str, detected_terms: set[str], duration_days: float | None = None) -> tuple[list[Rule], bool, int]:
-    """Apply duration and severity wording rules to the submitted description."""
+    """Apply wording checks and convert symptom duration into score points."""
     normalized = (input_text or "").lower()
     triggered: list[Rule] = []
     emergency = False
@@ -412,7 +487,20 @@ def _text_rules(input_text: str, detected_terms: set[str], duration_days: float 
         amount = float(duration_match.group(1))
         unit = duration_match.group(2)
         duration_days = amount / 24 if unit.startswith("hour") else amount * (7 if unit.startswith("week") else 30 if unit.startswith("month") else 1)
+    duration_score = 0
     if duration_days is not None:
+        if duration_days <= 1:
+            duration_score = 1
+        elif duration_days <= 3:
+            duration_score = 2
+        elif duration_days <= 7:
+            duration_score = 3
+        else:
+            duration_score = 4
+        triggered.append(Rule(
+            name="duration-score",
+            description=f"Symptoms lasting {duration_days:g} day(s) contribute {duration_score} duration point(s) to the total score.",
+        ))
         if "diarrhea" in detected_terms and duration_days >= 14:
             triggered.append(Rule(name="persistent-diarrhea", description="Diarrhea lasting 14 days or longer requires reassessment for persistent diarrhea."))
         if "cough" in detected_terms and duration_days > 30:
@@ -420,7 +508,7 @@ def _text_rules(input_text: str, detected_terms: set[str], duration_days: float 
         if "fever" in detected_terms and duration_days > 3:
             triggered.append(Rule(name="persistent-fever", description="Fever lasting more than 3 days needs clinical review."))
 
-    return triggered, emergency, 2 if triggered else 0
+    return triggered, emergency, duration_score
 
 
 def classify(
@@ -433,6 +521,9 @@ def classify(
     """Evaluate triage rules over detected symptom matches."""
     triggered: list[Rule] = []
     normalized_input = (input_text or "").lower()
+    has_duration_input = duration_days is not None or bool(
+        re.search(r"(?:started|for|since|lasted|lasting)?\s*\d+(?:\.\d+)?\s*(?:hour|hours|day|days|week|weeks|month|months)\b", normalized_input)
+    )
     active_matches = [
         m for m in matches
         if not _is_negated(normalized_input, m.matched_text.lower())
@@ -440,7 +531,7 @@ def classify(
     score = sum(m.severity_weight for m in active_matches)
     detected_terms = {m.medical_term for m in active_matches}
 
-    # --- Generic scoring rules ---
+    # --- Weighted symptom plus duration scoring ---
     critical_hit = detected_terms & RED_FLAG_SYMPTOMS
     breathing_hit = detected_terms & CRITICAL_SYMPTOMS
     other_red_flag_hit = critical_hit - CRITICAL_SYMPTOMS
@@ -485,7 +576,7 @@ def classify(
             )
         )
 
-    if adjusted_score >= RED_SCORE_THRESHOLD and not (breathing_hit and len(detected_terms) == 1):
+    if adjusted_score >= RED_SCORE_THRESHOLD:
         triggered.append(
             Rule(
                 name="high-severity-score",
@@ -505,7 +596,7 @@ def classify(
         triggered.append(
             Rule(
                 name="difficulty-breathing-override",
-                description="Difficulty breathing is an urgent symptom: alone it requires at least a consultation, and with any other symptom it requires immediate care.",
+                description="Difficulty breathing contributes six points, placing it in the RED range even when reported alone.",
             )
         )
     if len(detected_terms) >= 4:
@@ -516,25 +607,25 @@ def classify(
             )
         )
 
-    score_red = adjusted_score >= RED_SCORE_THRESHOLD and not (breathing_hit and len(detected_terms) == 1)
-    if other_red_flag_hit or score_red or text_emergency or len(detected_terms) >= 4 or (breathing_hit and len(detected_terms) >= 2):
+    score_red = adjusted_score >= RED_SCORE_THRESHOLD
+    if other_red_flag_hit or score_red or text_emergency:
         level = "RED"
+    elif not has_duration_input and len(detected_terms) == 1:
+        level = "GREEN"
+        triggered.append(
+            Rule(
+                name="duration-not-provided",
+                description="No symptom duration was provided, so the assessment used the symptom-only GREEN baseline. Select when symptoms started for duration-based scoring.",
+            )
+        )
     else:
         score_level = "YELLOW" if adjusted_score >= YELLOW_SCORE_THRESHOLD else "GREEN"
         if not detected_terms:
             level = "YELLOW"
-        elif len(detected_terms) >= 3:
-            level = "RED" if score_level == "YELLOW" else "YELLOW"
-            triggered.append(
-                Rule(
-                    name="symptom-count-escalation",
-                    description="Three or more reported symptoms increase the score-based urgency by one level.",
-                )
-            )
         else:
             level = score_level
 
-    if level == "YELLOW" and not any(rule.name == "symptom-count-escalation" for rule in triggered):
+    if level == "YELLOW":
         level = "YELLOW"
         triggered.append(
             Rule(
@@ -551,7 +642,7 @@ def classify(
                 description=f"Combined symptom severity ({adjusted_score}) is below the consultation threshold ({YELLOW_SCORE_THRESHOLD}).",
             )
         )
-    reason = _build_reason(active_matches, triggered)
+    reason = _build_reason(active_matches, triggered, adjusted_score, level)
     return Classification(
         risk_level=level,
         score=adjusted_score,
@@ -562,11 +653,31 @@ def classify(
     )
 
 
-def _build_reason(matches: list[Match], rules: list[Rule]) -> str:
-    if matches:
-        symptoms = ", ".join(sorted({m.medical_term for m in matches}))
-        symptom_part = f"Symptoms matched: {symptoms}."
-    else:
-        symptom_part = "No recognizable symptoms were detected."
-    rule_part = " ".join(r.description for r in rules)
-    return f"{symptom_part} {rule_part}".strip()
+def _build_reason(matches: list[Match], rules: list[Rule], score: int, risk_level: str) -> str:
+    """Build a concise clinical explanation without exposing engine internals."""
+    if not matches:
+        return "No recognizable symptoms were detected. A health worker should review the concern."
+
+    labels = {
+        "fever": "fever",
+        "headache": "headache",
+        "cough": "cough",
+        "vomiting": "vomiting",
+        "diarrhea": "diarrhea",
+        "abdominal pain": "abdominal pain",
+        "difficulty breathing": "difficulty breathing",
+    }
+    symptoms = ", ".join(labels.get(term, term) for term in sorted({m.medical_term for m in matches}))
+    duration_rule = next((rule for rule in rules if rule.name == "duration-score"), None)
+    duration_text = ""
+    if duration_rule:
+        duration_match = re.search(r"lasting ([\d.]+) day\(s\) contribute (\d+) duration point", duration_rule.description)
+        if duration_match:
+            duration_text = f" The reported duration of {duration_match.group(1)} days added {duration_match.group(2)} point(s)."
+
+    level_text = {
+        "GREEN": "This is currently in the GREEN range, so monitor symptoms and follow the care advice.",
+        "YELLOW": "This is in the YELLOW range, so arrange a consultation with a health worker or visit the RHU.",
+        "RED": "This is in the RED range, so seek urgent medical attention now.",
+    }[risk_level]
+    return f"The assessment identified {symptoms}.{duration_text} The combined clinical score is {score}. {level_text}"

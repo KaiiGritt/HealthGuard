@@ -12,7 +12,26 @@ interface MedicationInfo {
 interface MedicationGuidanceCardProps {
   riskLevel?: "GREEN" | "YELLOW" | "RED";
   detectedSymptoms?: string[];
+  inputText?: string;
   guidance?: MedicationInfo;
+}
+
+function validatedMedicationName(detectedSymptoms: string[], inputText: string): string | null {
+  const context = `${detectedSymptoms.join(" ")} ${inputText}`.toLowerCase();
+  if (context.includes("dry cough")) return "Dextromethorphan or Butamirate";
+  if (context.includes("phlegm") || context.includes("productive") || context.includes("with phlegm")) {
+    return "Carbocisteine, Ambroxol, or Guaifenesin";
+  }
+  if (context.includes("heartburn") || context.includes("acid") || context.includes("burning pain")) {
+    return "Antacids (Aluminum hydroxide and Magnesium hydroxide)";
+  }
+  if (context.includes("gas") || context.includes("flatulence")) return "Simethicone";
+  if (context.includes("diarrhea") || context.includes("pagtatae")) return "Loperamide or Oral Rehydration Solution (ORS)";
+  if (context.includes("vomiting") || context.includes("pagsusuka")) return "Oral Rehydration Solution (ORS)";
+  if (context.includes("fever") || context.includes("lagnat") || context.includes("headache") || context.includes("sakit ng ulo")) {
+    return "Paracetamol / Acetaminophen or Ibuprofen";
+  }
+  return null;
 }
 
 const buildGuidance = (riskLevel: string, detectedSymptoms: string[] = []): MedicationInfo => {
@@ -84,12 +103,9 @@ function MedicationCard({ item }: { item: MedicationInfo }) {
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand text-brand-foreground shadow-sm"><IconPill size={18} /></span>
         <div>
           <p className="font-display text-lg font-semibold text-brand-dark lg:text-xl">{item.drugName}</p>
-          <p className="mt-1 text-sm leading-relaxed text-ink-secondary lg:text-base">{item.dosage}</p>
         </div>
       </div>
-      <p className="mt-4 rounded-xl border-l-2 border-brand/50 bg-surface-alt px-4 py-3 text-sm leading-relaxed text-ink-secondary lg:text-base">{item.note}</p>
       <div className="mt-4 grid gap-3 md:grid-cols-2">
-        <SectionBlock title="Contraindications" items={item.contraindications} />
         <SectionBlock title="Side effects" items={item.sideEffects} />
       </div>
       <div className="mt-3">
@@ -102,9 +118,13 @@ function MedicationCard({ item }: { item: MedicationInfo }) {
 export default function MedicationGuidanceCard({
   riskLevel = "GREEN",
   detectedSymptoms = [],
+  inputText = "",
   guidance,
 }: MedicationGuidanceCardProps) {
-  const computedGuidance = guidance ?? buildGuidance(riskLevel, detectedSymptoms);
+  const validatedName = validatedMedicationName(detectedSymptoms, inputText);
+  const computedGuidance = validatedName
+    ? { ...(guidance ?? buildGuidance(riskLevel, detectedSymptoms)), drugName: validatedName }
+    : guidance ?? buildGuidance(riskLevel, detectedSymptoms);
 
   if ((riskLevel || "").toUpperCase() === "RED") {
     return null;
@@ -130,10 +150,12 @@ export default function MedicationGuidanceCard({
         <MedicationCard item={computedGuidance} />
       </div>
 
-      <p className="mt-4 text-xs leading-relaxed text-ink-muted lg:text-sm">
-        For medical advice, always check with a pharmacist, doctor, or qualified health worker before taking any medicine.
-        This guide is not a substitute for a proper diagnosis.
-      </p>
+      <div className="mt-4 rounded-2xl border border-[#E4C77C] bg-white/55 px-4 py-3.5 lg:px-5">
+        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-[#966719] lg:text-xs">Important note</p>
+        <p className="mt-1.5 text-xs leading-relaxed text-ink-muted lg:text-sm">
+          Check with a pharmacist, doctor, or qualified health worker before taking any medicine. This guide is not a substitute for a proper diagnosis.
+        </p>
+      </div>
     </section>
   );
 }

@@ -64,10 +64,10 @@ def test_guide_is_symptom_aware() -> None:
     assert guide is not None
     assert "Paracetamol" in guide.medication_name
 
-    # Cough → Cough Relief Support
+    # Dry cough → Dextromethorphan or Butamirate
     cough_guide = build_premedication_guide("YELLOW", ["cough", "sore throat"])
     assert cough_guide is not None
-    assert "Cough Relief Support" in cough_guide.medication_name
+    assert "Dextromethorphan" in cough_guide.medication_name
 
     # Generic symptoms → General Symptom Support (not repeated Paracetamol)
     generic_guide = build_premedication_guide("GREEN", ["dizziness", "fatigue"])
@@ -88,6 +88,18 @@ def test_otc_diarrhea_guidance() -> None:
     guide = build_premedication_guide("GREEN", ["diarrhea", "stomach cramps"])
     assert guide is not None
     assert "Oral Rehydration" in guide.medication_name
+
+
+def test_validated_subtype_medication_options() -> None:
+    phlegm = build_premedication_guide("GREEN", ["cough"], "Selected symptom types: With phlegm.")
+    heartburn = build_premedication_guide("GREEN", ["abdominal pain"], "Selected symptom types: Burning pain.")
+    gas = build_premedication_guide("GREEN", ["abdominal pain"], "Selected symptom types: Gas.")
+    vomiting = build_premedication_guide("GREEN", ["vomiting"])
+
+    assert phlegm is not None and "Guaifenesin" in phlegm.medication_name
+    assert heartburn is not None and "Antacids" in heartburn.medication_name
+    assert gas is not None and "Simethicone" in gas.medication_name
+    assert vomiting is not None and "Oral Rehydration" in vomiting.medication_name
 
 
 def test_otc_rash_guidance() -> None:

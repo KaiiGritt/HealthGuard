@@ -49,11 +49,49 @@ const DURATION_OPTIONS = [
   { key: "over_a_week", en: "More than a week", tl: "Higit sa isang linggo", days: 10 },
 ] as const;
 
+const MIN_PROCESSING_TIME_MS = 7000;
+const PROCESSING_STEP_INTERVAL_MS = 2200;
+
+const TYPE_CHIPS: Record<string, { en: string; tl: string }[]> = {
+  cough: [
+    { en: "Acute", tl: "Biglaang ubo" },
+    { en: "Chronic", tl: "Pangmatagalang ubo" },
+    { en: "Dry cough", tl: "Tuyong ubo" },
+    { en: "With phlegm", tl: "May plema" },
+  ],
+  headache: [
+    { en: "Tension-type", tl: "Dahil sa tensyon" },
+    { en: "Migraine-type", tl: "Migraine" },
+    { en: "Around one eye", tl: "Sa paligid ng isang mata" },
+  ],
+  "abdominal pain": [
+    { en: "Tummy or belly ache", tl: "Masakit ang tiyan" },
+    { en: "Cramping", tl: "Pamumulikat" },
+    { en: "Burning pain", tl: "Mahapding sakit" },
+  ],
+  vomiting: [
+    { en: "Nausea", tl: "Pagduduwal" },
+    { en: "Retching", tl: "Pag-uurong-suka" },
+    { en: "Vomiting", tl: "Pagsusuka" },
+  ],
+  diarrhea: [
+    { en: "Watery stool", tl: "Tubig ang dumi" },
+    { en: "Frequent stool", tl: "Madalas dumumi" },
+  ],
+  "difficulty breathing": [
+    { en: "Shortness of breath", tl: "Kapos sa paghinga" },
+    { en: "Wheezing", tl: "May huni ang paghinga" },
+    { en: "Chest tightness", tl: "Paninikip ng dibdib" },
+    { en: "Cannot breathe deeply", tl: "Hindi makahinga nang malalim" },
+  ],
+};
+
 export default function AssessmentPage() {
   const router = useRouter();
   const [text, setText] = useState("");
   const [showTextInput, setShowTextInput] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
+  const [selectedTypes, setSelectedTypes] = useState<Record<string, string[]>>({});
   const [durationKey, setDurationKey] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -80,7 +118,7 @@ export default function AssessmentPage() {
 
   useEffect(() => {
     if (!submitting) return;
-    const timer = window.setInterval(() => setProcessingStep((step) => Math.min(step + 1, 2)), 1800);
+    const timer = window.setInterval(() => setProcessingStep((step) => Math.min(step + 1, 2)), PROCESSING_STEP_INTERVAL_MS);
     return () => window.clearInterval(timer);
   }, [submitting]);
 
@@ -90,10 +128,29 @@ export default function AssessmentPage() {
     return () => window.clearTimeout(timer);
   }, [toast]);
 
-  const toggle = (value: string) =>
-    setSelected((prev) =>
-      prev.includes(value) ? prev.filter((x) => x !== value) : [...prev, value]
-    );
+  const toggle = (value: string) => {
+    setSelected((prev) => {
+      const isSelected = prev.includes(value);
+      return isSelected ? prev.filter((x) => x !== value) : [...prev, value];
+    });
+    if (selected.includes(value)) {
+      setSelectedTypes((prev) => {
+        const next = { ...prev };
+        delete next[value];
+        return next;
+      });
+    }
+  };
+
+  const toggleType = (symptom: string, type: string) => {
+    setSelectedTypes((prev) => {
+      const current = prev[symptom] ?? [];
+      const nextTypes = current.includes(type)
+        ? current.filter((item) => item !== type)
+        : [...current, type];
+      return { ...prev, [symptom]: nextTypes };
+    });
+  };
 
   const matchesSupportedText = (value: string) => {
     const normalized = value.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
@@ -103,18 +160,64 @@ export default function AssessmentPage() {
     const tokens = [
       "fever",
       "lagnat",
+      "may lagnat",
+      "lumagnat",
+      "nilalagnat",
+      "mainit ang katawan",
+      "mataas ang temperatura",
+      "may init",
       "cough",
       "ubo",
+      "may ubo",
+      "nakakaubo",
+      "pag-ubo",
+      "inuubo",
+      "ubo nang ubo",
+      "umuubo",
+      "paubo-ubo",
       "headache",
       "sakit ng ulo",
+      "masakit ang ulo",
+      "sakit ulo",
+      "sumasakit ang ulo",
+      "kumikirot ang ulo",
+      "mabigat ang ulo",
+      "kirot sa ulo",
       "abdominal pain",
       "sakit ng tiyan",
+      "masakit ang tiyan",
+      "sakit sa tiyan",
+      "pananakit ng tiyan",
+      "masakit ang sikmura",
+      "kumikirot ang tiyan",
+      "kirot sa tiyan",
+      "kumukulo ang tiyan",
+      "stomach ache",
       "vomiting",
       "pagsusuka",
+      "nagsusuka",
+      "nag susuka",
+      "sumusuka",
+      "sumuka",
+      "nasusuka",
+      "naduwal at nagsuka",
+      "isinusuka",
+      "pagkahilo at pagsusuka",
       "diarrhea",
       "pagtatae",
+      "may pagtatae",
+      "nagtatae",
+      "malabnaw ang dumi",
+      "malambot ang dumi",
+      "tubig ang dumi",
+      "madalas dumumi",
       "difficulty breathing",
       "hirap huminga",
+      "hingal",
+      "hinihingal",
+      "kapos sa paghinga",
+      "hirap sa paghinga",
+      "bumibilis ang paghinga",
       "shortness of breath",
       "breathless",
       "chest tightness",
@@ -138,6 +241,7 @@ export default function AssessmentPage() {
 
   const canSubmit = text.trim().length > 0 || selected.length > 0;
   const showUrgentNudge = selected.some((s) => URGENT_NUDGE_SYMPTOMS.has(s));
+  const selectedSymptomsWithTypes = selected.filter((symptom) => (TYPE_CHIPS[symptom] ?? []).length > 0);
   const selectedDuration = DURATION_OPTIONS.find((d) => d.key === durationKey) ?? null;
 
   const getSubmissionValidationError = () => {
@@ -165,10 +269,14 @@ export default function AssessmentPage() {
 
     setSubmitting(true);
     setError(null);
+    const processingStartedAt = Date.now();
     try {
       const symptomText = text.trim();
       const combinedText = [
         symptomText ? symptomText : "",
+        Object.values(selectedTypes).flat().length > 0
+          ? `Selected symptom types: ${Object.values(selectedTypes).flat().join(", ")}.`
+          : "",
         selectedDuration ? `Symptoms started ${selectedDuration.en.toLowerCase()} ago.` : "",
       ]
         .filter(Boolean)
@@ -181,6 +289,10 @@ export default function AssessmentPage() {
         duration_days: selectedDuration ? selectedDuration.days : null,
       } as const;
       const result = await analyze(payload);
+      const remainingDisplayTime = Math.max(0, MIN_PROCESSING_TIME_MS - (Date.now() - processingStartedAt));
+      if (remainingDisplayTime > 0) {
+        await new Promise<void>((resolve) => window.setTimeout(resolve, remainingDisplayTime));
+      }
       if (result.id === 0) {
         window.sessionStorage.setItem("healthguard_pending_guest_assessment", JSON.stringify(payload));
         window.sessionStorage.setItem("healthguard_guest_result", JSON.stringify(result));
@@ -200,37 +312,61 @@ export default function AssessmentPage() {
 
   return (
     <div className="premium-page min-h-screen">
-      <PageHeader />
-      <PageMain narrow>
-        <div className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
-          <Card className="relative overflow-hidden rounded-3xl border border-[#DDE7DB] bg-[linear-gradient(135deg,#FFFFFF_0%,#FBFCF9_58%,#F1F5EE_100%)] shadow-[0_24px_70px_rgba(15,23,42,0.09)]">
+      {!submitting && <PageHeader />}
+      <PageMain narrow className={submitting ? "min-h-screen pt-8 sm:pt-12 lg:flex lg:items-center" : undefined}>
+        <div className={`grid gap-6 ${submitting ? "xl:grid-cols-1" : "xl:grid-cols-[1.35fr_0.65fr]"}`}>
+          <Card className={`relative overflow-hidden rounded-3xl border border-[#DDE7DB] bg-[linear-gradient(135deg,#FFFFFF_0%,#FBFCF9_58%,#F1F5EE_100%)] shadow-[0_24px_70px_rgba(15,23,42,0.09)] ${submitting ? "mx-auto w-full max-w-4xl" : ""}`}>
             <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" aria-hidden="true" />
             {submitting ? (
               <div className="py-8 sm:py-12" aria-live="polite">
-                <p className="font-mono text-xs font-semibold uppercase tracking-[0.1em] text-brand">HealthGuard check</p>
-                <h1 className="mt-4 font-display text-4xl font-semibold leading-tight text-ink sm:text-5xl">Reading your symptoms</h1>
-                <p className="mt-4 max-w-2xl text-lg leading-relaxed text-ink-secondary">
-                  We are checking your words against the health guide. This usually takes a few seconds.
-                </p>
-                <ol className="mt-10 space-y-4">
-                  {["Reading your symptoms...", "Checking against health guidelines...", "Preparing your next step..."].map((step, index) => (
-                    <li key={step} className="flex items-center gap-4 text-base text-ink-secondary lg:text-lg">
-                      <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-mono text-sm ${index <= processingStep ? "bg-brand text-brand-foreground" : "border border-border text-ink-faint"}`}>
-                        {index < processingStep ? "✓" : index + 1}
-                      </span>
-                      <span className={index === processingStep ? "font-semibold text-ink" : ""}>{step}</span>
-                    </li>
-                  ))}
-                </ol>
-                <div className="mt-10 h-1.5 overflow-hidden rounded-full bg-brand-tint">
-                  <div className="h-full w-1/3 animate-pulse rounded-full bg-brand" />
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-brand">HealthGuard check</p>
+                    <h1 className="mt-4 font-display text-4xl font-semibold leading-tight text-ink sm:text-5xl">Reviewing your symptoms</h1>
+                  </div>
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-brand/15 bg-brand-tint text-brand" aria-hidden="true">
+                    <span className="h-5 w-5 animate-spin rounded-full border-2 border-brand/25 border-t-brand" />
+                  </span>
                 </div>
+                <p className="mt-4 max-w-2xl text-lg leading-relaxed text-ink-secondary">
+                  We are comparing the reported symptoms with the HealthGuard guidance rules. Please wait while we prepare the result.
+                </p>
+                <div className="mt-7 flex items-center justify-between text-xs font-semibold uppercase tracking-[0.12em] text-ink-faint">
+                  <span>Assessment in progress</span>
+                  <span>Step {Math.min(processingStep + 1, 3)} of 3</span>
+                </div>
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#E5EEE2]">
+                  <div className="h-full rounded-full bg-gradient-to-r from-brand-dark via-brand to-[#C7B37A] transition-all duration-700" style={{ width: `${((processingStep + 1) / 3) * 100}%` }} />
+                </div>
+                <ol className="mt-8 overflow-hidden rounded-2xl border border-[#DDE7DB] bg-white/70">
+                  {["Reading your symptoms", "Checking health guidance", "Preparing your next step"].map((step, index) => {
+                    const completed = index < processingStep;
+                    const active = index === processingStep;
+                    return (
+                      <li key={step} className={`flex items-center gap-4 border-b border-[#E8EEE5] px-4 py-4 last:border-b-0 sm:px-5 ${active ? "bg-brand-tint/65" : ""}`}>
+                        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl font-mono text-sm font-semibold ${completed ? "bg-brand text-brand-foreground" : active ? "border border-brand/35 bg-white text-brand" : "border border-border-soft bg-white text-ink-faint"}`}>
+                          {completed ? "✓" : index + 1}
+                        </span>
+                        <span className={`flex-1 text-sm sm:text-base ${active ? "font-semibold text-ink" : completed ? "text-ink-secondary" : "text-ink-faint"}`}>{step}</span>
+                        <span className={`text-xs font-semibold ${active ? "text-brand" : completed ? "text-brand-dark" : "text-ink-faint"}`}>{completed ? "Done" : active ? "Now" : "Waiting"}</span>
+                      </li>
+                    );
+                  })}
+                </ol>
               </div>
             ) : (
               <>
                 <PageTitle subtitle="Tap what you're feeling, then tap when it started.">
                   How are you feeling?
                 </PageTitle>
+                <div className="mt-4 flex justify-end">
+                  <a
+                    href="/assessment/child"
+                    className="text-sm font-semibold text-brand underline decoration-brand/35 underline-offset-4 transition hover:text-brand-dark"
+                  >
+                    Assess a child / Suriin ang bata
+                  </a>
+                </div>
 
                 <div className="mt-8 flex gap-3 rounded-2xl border border-[#D9E5D8] bg-brand-tint/55 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
                   <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand text-sm font-semibold text-brand-foreground shadow-sm" aria-hidden="true">i</span>
@@ -259,6 +395,52 @@ export default function AssessmentPage() {
                   ))}
                 </div>
 
+                {selectedSymptomsWithTypes.length > 0 && (
+                  <section className="relative mt-8 overflow-hidden rounded-2xl border border-[#D3E0D2] bg-[linear-gradient(145deg,#F9FCF8_0%,#F1F6EF_100%)] p-4 shadow-[0_14px_30px_rgba(31,74,54,0.07),inset_0_1px_0_rgba(255,255,255,0.9)] sm:p-5" aria-labelledby="type-chip-heading">
+                    <div className="absolute right-0 top-0 h-24 w-24 rounded-bl-[4rem] bg-[#E5EFE4]/70" aria-hidden="true" />
+                    <div className="flex items-start gap-3">
+                      <span className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand text-sm font-semibold text-brand-foreground shadow-[0_5px_12px_rgba(31,74,54,0.2)]">2</span>
+                      <div className="relative">
+                        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-brand">Symptom details</p>
+                        <h2 id="type-chip-heading" className="mt-1 text-base font-semibold text-ink lg:text-lg">Choose the type <span className="font-normal text-ink-faint">(optional)</span></h2>
+                        <p className="mt-1 text-sm text-ink-muted">Piliin ang uri kung alam mo.</p>
+                      </div>
+                    </div>
+                    <div className="relative mt-5 space-y-5 border-t border-[#DCE7DA] pt-4">
+                      {selectedSymptomsWithTypes.map((symptom) => {
+                        const symptomInfo = SYMPTOMS.find((item) => item.value === symptom);
+                        const typeOptions = TYPE_CHIPS[symptom] ?? [];
+                        if (typeOptions.length === 0) return null;
+                        return (
+                          <div key={symptom}>
+                            <p className="text-sm font-semibold text-ink">{symptomInfo?.en} <span className="font-normal text-ink-faint">/ {symptomInfo?.tl}</span></p>
+                            <div className="mt-2.5 flex flex-wrap gap-2">
+                              {typeOptions.map((type) => {
+                                const isSelected = selectedTypes[symptom]?.includes(type.en) ?? false;
+                                return (
+                                  <button
+                                    key={type.en}
+                                    type="button"
+                                    aria-pressed={isSelected}
+                                    onClick={() => toggleType(symptom, type.en)}
+                                    className={`group rounded-xl border px-3 py-2 text-left text-sm shadow-[0_2px_6px_rgba(24,38,25,0.035)] transition ${isSelected ? "border-brand bg-brand text-brand-foreground shadow-[0_6px_14px_rgba(31,74,54,0.18)]" : "border-[#DCE5D8] bg-white/85 text-ink-secondary hover:border-brand/50 hover:bg-white hover:shadow-[0_6px_14px_rgba(31,74,54,0.1)]"}`}
+                                  >
+                                    <span className="flex items-center gap-2 font-semibold">
+                                      <span className={`flex h-4 w-4 items-center justify-center rounded-full border text-[10px] leading-none ${isSelected ? "border-white/70 bg-white/15 text-white" : "border-[#CBD8CA] text-transparent group-hover:border-brand/50"}`} aria-hidden="true">✓</span>
+                                      {type.en}
+                                    </span>
+                                    <span className={`mt-0.5 block pl-6 text-xs ${isSelected ? "text-brand-foreground/80" : "text-ink-faint"}`}>{type.tl}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </section>
+                )}
+
                 {showUrgentNudge && (
                   <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900 lg:text-base">
                     <span className="font-semibold">If you&apos;re struggling to breathe right now, </span>
@@ -269,7 +451,7 @@ export default function AssessmentPage() {
                 {/* STEP 2 — tap-to-pick duration, no typing or format to get
                     right. Optional, so no chip needs to be pre-selected. */}
                 <label className="mt-10 flex items-center gap-2 text-base font-semibold text-ink lg:text-lg">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand text-sm text-brand-foreground">2</span>
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand text-sm text-brand-foreground">3</span>
                   When did it start? <span className="font-normal text-ink-faint">(optional)</span>
                 </label>
                 <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -343,7 +525,7 @@ export default function AssessmentPage() {
             )}
           </Card>
 
-          <aside className="space-y-6">
+          <aside className={submitting ? "hidden" : "space-y-6"}>
             <div className="relative overflow-hidden rounded-3xl border border-[#F0B5AA] bg-[radial-gradient(circle_at_top_right,_rgba(255,214,205,0.2),_transparent_34%),linear-gradient(135deg,#8E2F24_0%,#6F211C_52%,#4B1715_100%)] p-6 text-[#FFF7F3] shadow-[0_22px_60px_rgba(120,35,28,0.28)]">
               <div className="absolute -right-16 -top-20 h-48 w-48 rounded-full border border-white/10 bg-white/5" aria-hidden="true" />
               <p className="relative font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[#FFD2C8]">Irosin emergency</p>

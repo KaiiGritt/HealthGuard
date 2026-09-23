@@ -7,6 +7,7 @@ import Disclaimer from "../../components/Disclaimer";
 import MedicationGuidanceCard from "../../components/MedicationGuidanceCard";
 import PageHeader from "../../components/PageHeader";
 import RiskCard from "../../components/RiskCard";
+import { IconHistory } from "../../components/ui/icons";
 import { clearPendingGuestPayload, type AnalyzeResult } from "@/lib/api";
 
 const MESSAGES: Record<string, string> = {
@@ -16,6 +17,11 @@ const MESSAGES: Record<string, string> = {
 };
 
 const RULE_TITLES: Record<string, string> = {
+  "duration-score": "Symptom duration",
+  "persistent-fever": "Fever duration needs review",
+  "persistent-cough": "Cough duration needs review",
+  "persistent-diarrhea": "Diarrhea duration needs review",
+  "high-severity-score": "Total score requires urgent care",
   "moderate-severity-score": "Your symptoms need a consultation",
   "mild-severity-score": "Your symptoms are currently mild",
   "difficulty-breathing-override": "Breathing difficulty needs urgent attention",
@@ -33,6 +39,18 @@ function ruleTitle(name: string) {
 }
 
 function ruleDescription(name: string, description: string) {
+  if (name === "duration-score") {
+    const match = description.match(/lasting ([\d.]+) day\(s\) contribute (\d+) duration point/);
+    return match ? `The reported duration was ${match[1]} days and added ${match[2]} point(s) to the clinical score.` : "The symptom duration was included in the clinical score.";
+  }
+  if (name === "persistent-fever") return "Fever lasting more than three days should be reviewed by a health worker.";
+  if (name === "persistent-cough") return "A cough lasting more than 30 days needs further clinical assessment.";
+  if (name === "persistent-diarrhea") return "Diarrhea lasting 14 days or longer needs clinical assessment.";
+  if (name === "weighted-symptom-score") {
+    const score = description.match(/final score is (\d+)/)?.[1];
+    return `The recognized symptoms contributed to a combined clinical score of ${score ?? "the recorded total"}.`;
+  }
+  if (name === "high-severity-score") return "The total clinical score is 6 or higher, which is in the RED range and requires urgent medical attention.";
   if (name === "moderate-severity-score") {
     const score = description.match(/severity \((\d+)\)/)?.[1];
     return `Your combined symptom score is ${score ?? "within the consultation range"}. Scores from 3 to 5 are marked YELLOW, which means you should contact a health worker or visit the RHU.`;
@@ -98,18 +116,35 @@ export default function GuestResultPage() {
                 <span className="rounded-full border border-[#c9d8cb] bg-white/75 px-2.5 py-1 font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-brand-dark">{result.triggered_rules.length} applied</span>
               </div>
               <ol className="mt-4 space-y-2.5">
-                {result.triggered_rules.map((rule, index) => <li key={`${rule.name}-${index}`} className="rounded-xl border border-[#dfe8dc] bg-white/85 px-3.5 py-3.5"><p className="font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-secondary">{ruleTitle(rule.name)}</p><p className="mt-1.5 text-sm leading-6 text-ink-muted">{ruleDescription(rule.name, rule.description)}</p><p className="mt-2 font-mono text-[10px] text-ink-faint">Rule ID: {rule.name}</p></li>)}
+                {result.triggered_rules.map((rule, index) => <li key={`${rule.name}-${index}`} className="group relative rounded-2xl border border-[#dfe8dc] bg-white/85 px-4 py-4 shadow-[0_4px_12px_rgba(31,74,54,0.035)] transition hover:border-[#b9ceb9] sm:px-5"><span className="absolute inset-y-0 left-0 w-1 bg-brand/45" aria-hidden="true" /><div className="flex items-start gap-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#dce8d8] bg-[#f4f8f0] font-mono text-xs font-semibold text-brand-dark">{index + 1}</span><div><p className="font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-secondary">{ruleTitle(rule.name)}</p><p className="mt-1.5 text-sm leading-6 text-ink-muted">{ruleDescription(rule.name, rule.description)}</p></div></div></li>)}
               </ol>
             </section>
 
-            {result.risk_level !== "RED" && result.pre_medication && <MedicationGuidanceCard riskLevel={result.risk_level} detectedSymptoms={result.detected_symptoms.map((symptom) => symptom.medical_term)} guidance={{ drugName: result.pre_medication.medication_name, dosage: result.pre_medication.dosage, contraindications: result.pre_medication.contraindications, sideEffects: result.pre_medication.side_effects, precautions: result.pre_medication.precautions, note: result.pre_medication.note }} />}
+            {result.risk_level !== "RED" && result.pre_medication && <MedicationGuidanceCard riskLevel={result.risk_level} inputText={result.input_text} detectedSymptoms={result.detected_symptoms.map((symptom) => symptom.medical_term)} guidance={{ drugName: result.pre_medication.medication_name, dosage: result.pre_medication.dosage, contraindications: result.pre_medication.contraindications, sideEffects: result.pre_medication.side_effects, precautions: result.pre_medication.precautions, note: result.pre_medication.note }} />}
 
-            <section className="mt-6 rounded-2xl border border-brand/20 bg-brand-tint/50 p-5">
-              <h2 className="font-semibold text-ink">Want to save this assessment to your health history?</h2>
-              <p className="mt-2 text-sm leading-relaxed text-ink-secondary">Create an account or sign in. Your result will be attached after authentication, and you will not need to repeat the assessment.</p>
-              <div className="mt-4 flex flex-col gap-3 sm:flex-row"><Link href="/register?next=/result/guest" className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-brand px-4 font-semibold text-brand-foreground">Sign Up to Save</Link><Link href="/login?next=/result/guest" className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl border border-brand/25 bg-white px-4 font-semibold text-brand-dark">Log In to Save</Link></div>
+            <section className="relative mt-6 overflow-hidden rounded-[24px] border border-[#C9DCCB] bg-[linear-gradient(135deg,#F6FAF3_0%,#EAF4E8_100%)] p-5 shadow-[0_14px_32px_rgba(31,74,54,0.08)] sm:p-6">
+              <div className="absolute -right-10 -top-12 h-32 w-32 rounded-full border border-brand/10 bg-white/25" aria-hidden="true" />
+              <div className="relative flex items-start gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand text-brand-foreground shadow-[0_8px_16px_rgba(31,74,54,0.18)]"><IconHistory size={20} /></span>
+                <div>
+                  <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-dark">Keep your record</p>
+                  <h2 className="mt-1 font-display text-xl font-semibold leading-tight text-ink sm:text-2xl">Save this assessment</h2>
+                  <p className="mt-2 max-w-xl text-sm leading-relaxed text-ink-secondary">Create an account or sign in to keep this result in your health history.</p>
+                  <p className="mt-1 text-xs text-ink-muted">I-save ang resulta para makita muli sa iyong health history.</p>
+                </div>
+              </div>
+              <div className="relative mt-5 flex flex-col gap-3 sm:flex-row">
+                <Link href="/register?next=/result/guest" className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-brand px-4 font-semibold text-brand-foreground shadow-[0_8px_18px_rgba(31,74,54,0.16)] transition hover:bg-brand-dark">Create account</Link>
+                <Link href="/login?next=/result/guest" className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl border border-brand/25 bg-white/85 px-4 font-semibold text-brand-dark transition hover:border-brand/50 hover:bg-white">Log in</Link>
+              </div>
             </section>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row"><PrimaryLink href="/assessment" className="flex-1">New assessment</PrimaryLink><Link href="/" onClick={clearPendingGuestPayload} className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl border border-border bg-white px-4 font-semibold text-ink-secondary">Continue without saving</Link></div>
+            <div className="mt-6 rounded-2xl border border-[#DDE7DB] bg-[#F7FAF5] p-3 shadow-[0_10px_24px_rgba(31,74,54,0.05)] sm:p-4">
+              <p className="px-1 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-faint">Continue</p>
+              <div className="mt-3 flex flex-col gap-3 sm:flex-row">
+                <PrimaryLink href="/assessment" className="min-h-12 flex-1 rounded-xl bg-gradient-to-r from-brand to-brand-dark font-semibold shadow-[0_10px_20px_rgba(31,74,54,0.16)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_26px_rgba(31,74,54,0.22)]">New assessment</PrimaryLink>
+                <Link href="/" onClick={clearPendingGuestPayload} className="inline-flex min-h-12 flex-1 items-center justify-center rounded-xl border border-[#CBDACB] bg-white px-4 font-semibold text-ink-secondary transition hover:-translate-y-0.5 hover:border-brand/45 hover:text-brand-dark">Continue without saving</Link>
+              </div>
+            </div>
             <Disclaimer className="mt-6" />
           </Card>
 

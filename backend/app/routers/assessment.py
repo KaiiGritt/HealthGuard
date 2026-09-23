@@ -775,6 +775,7 @@ def analyze_symptoms(
         guide = build_premedication_guide(
             result.classification.risk_level,
             [match.medical_term for match in result.matches],
+            payload.input_text,
         )
         return AnalyzeResult(
             id=0,
@@ -827,7 +828,7 @@ def analyze_symptoms(
     db.refresh(record)
     create_assessment_premedication(db, record)
 
-    guide = build_premedication_guide(record.risk_level, _assessment_symptom_terms(db, record))
+    guide = build_premedication_guide(record.risk_level, _assessment_symptom_terms(db, record), record.input_text)
     db_guide = get_premedication_for_assessment(db, record.id)
     pre_medication = (
         PreMedicationOut(
