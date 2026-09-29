@@ -364,7 +364,7 @@ export default function AssessmentPage() {
                     href="/assessment/child"
                     className="text-sm font-semibold text-brand underline decoration-brand/35 underline-offset-4 transition hover:text-brand-dark"
                   >
-                    Assess a child / Suriin ang bata
+                    Assess someone / Suriin ang ibang tao
                   </a>
                 </div>
 

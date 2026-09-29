@@ -609,8 +609,11 @@ export default function AdminPage() {
                 <TagBadge>Transparent logic</TagBadge>
               </div>
               <div className="mt-4 rounded-md border border-border bg-surface p-4">
-                <label className="block text-sm font-medium text-ink-secondary">Sample symptom phrase</label>
+                <label htmlFor="rule-preview" className="block text-sm font-medium text-ink-secondary">Sample symptom phrase</label>
                 <input
+                  id="rule-preview"
+                  name="rule-preview"
+                  autoComplete="off"
                   value={rulePreview}
                   onChange={(event) => setRulePreview(event.target.value)}
                   className="mt-2 w-full rounded-sm border border-border bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-brand"

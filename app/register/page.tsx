@@ -11,6 +11,7 @@ import { IconEye, IconEyeOff, IconShield } from "@/app/components/ui/icons";
 import {
   AuthProField,
   ErrorAlert,
+  OtpCodeInput,
   PremiumSelect,
   authFormStackClass,
   authInputClass,
@@ -183,16 +184,9 @@ export default function RegisterPage() {
         </div>
 
         <form onSubmit={handleVerify} className={authFormStackClass}>
-          <AuthProField
-            id="verification_code"
-            label="Verification code"
-            hint="(Code sa pagpapatunay)"
-            autoComplete="one-time-code"
-            required
-            placeholder="000000"
-            value={verificationCode}
-            onChange={(e) => setVerificationCode(e.target.value)}
-          />
+          <AuthProField id="verification_code" label="Verification code" hint="(Code sa pagpapatunay)">
+            <OtpCodeInput id="verification_code" value={verificationCode} onChange={setVerificationCode} />
+          </AuthProField>
           {error && <ErrorAlert>{error}</ErrorAlert>}
           <button type="submit" disabled={submitting} className={authSubmitClass}>
             {submitting ? "Verifying…" : "Complete registration"}
@@ -302,6 +296,7 @@ export default function RegisterPage() {
             <input
               id="phone_number"
               type="tel"
+              autoComplete="tel"
               required
               placeholder="09XX XXX XXXX"
               value={form.phone_number}
@@ -312,25 +307,25 @@ export default function RegisterPage() {
 
             <div className="mt-3 grid gap-4 sm:grid-cols-2">
               <div>
-                <label htmlFor="date_of_birth" className={authLabelClass}>Date of birth</label>
+                <label htmlFor="date_of_birth-text" className={authLabelClass}>Date of birth</label>
                 <div className="mt-1.5"><PremiumDatePicker id="date_of_birth" label="Date of birth" required value={form.date_of_birth} onChange={(value) => setForm((current) => ({ ...current, date_of_birth: value }))} /></div>
               </div>
             <div>
-              <label htmlFor="sex" className={authLabelClass}>
+              <label htmlFor="register-sex" className={authLabelClass}>
                 Sex
               </label>
               <div className="relative mt-1.5">
-                <PremiumSelect value={form.sex} onChange={(value) => setForm((current) => ({ ...current, sex: value }))} ariaLabel="Sex" options={[{ value: "", label: "—" }, { value: "female", label: "Female" }, { value: "male", label: "Male" }]} />
+                <PremiumSelect id="register-sex" value={form.sex} onChange={(value) => setForm((current) => ({ ...current, sex: value }))} ariaLabel="Sex" options={[{ value: "", label: "—" }, { value: "female", label: "Female" }, { value: "male", label: "Male" }]} />
               </div>
             </div>
           </div>
 
           <div className="mt-4">
-            <label htmlFor="barangay" className={authLabelClass}>
+            <label htmlFor="register-barangay" className={authLabelClass}>
               Barangay
             </label>
             <div className="relative mt-1.5">
-              <PremiumSelect value={form.barangay} onChange={(value) => setForm((current) => ({ ...current, barangay: value }))} ariaLabel="Barangay" className="w-full" options={[{ value: "", label: "Select barangay" }, ...irosinBarangays.map((barangay) => ({ value: barangay, label: barangay }))]} />
+              <PremiumSelect id="register-barangay" value={form.barangay} onChange={(value) => setForm((current) => ({ ...current, barangay: value }))} ariaLabel="Barangay" className="w-full" options={[{ value: "", label: "Select barangay" }, ...irosinBarangays.map((barangay) => ({ value: barangay, label: barangay }))]} />
             </div>
             <p className="mt-1.5 text-xs text-ink-faint">Used to route urgent cases to the nearest health station.</p>
           </div>

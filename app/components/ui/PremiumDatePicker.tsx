@@ -106,7 +106,7 @@ export default function PremiumDatePicker({
 
   return (
     <div ref={containerRef} className="relative">
-      <input type="hidden" id={id} name={id} value={value} required={required} />
+      <input type="hidden" id={`${id}-value`} name={id} value={value} required={required} />
       <div className="premium-date-input flex h-12 w-full min-w-0 items-center gap-2 rounded-xl border border-border bg-white/90 px-3.75 text-[0.9375rem] text-ink shadow-[0_1px_2px_rgba(15,23,42,0.02),inset_0_1px_0_rgba(255,255,255,0.8)] transition hover:border-brand/50 hover:bg-white focus-within:border-brand focus-within:bg-white focus-within:ring-4 focus-within:ring-brand/10">
         <input
           id={`${id}-text`}
@@ -131,7 +131,6 @@ export default function PremiumDatePicker({
           }}
           onFocus={() => setOpen(false)}
           className="min-w-0 flex-1 bg-transparent text-[0.9375rem] text-ink outline-none placeholder:text-ink-faint"
-          aria-label={`${label}, type month day and year`}
         />
         <button
           type="button"

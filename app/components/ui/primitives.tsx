@@ -31,6 +31,7 @@ export function cn(...parts: Array<string | false | null | undefined>) {
 }
 
 export function PremiumSelect({
+  id,
   value,
   onChange,
   options,
@@ -38,6 +39,7 @@ export function PremiumSelect({
   className,
   disabled = false,
 }: {
+  id?: string;
   value: string;
   onChange: (value: string) => void;
   options: Array<{ value: string; label: string }>;
@@ -60,6 +62,7 @@ export function PremiumSelect({
   return (
     <div ref={containerRef} className={cn("relative", className)}>
       <button
+        id={id}
         type="button"
         aria-label={ariaLabel}
         aria-haspopup="listbox"
@@ -609,6 +612,55 @@ export function AuthProField({
           />
         )}
       </div>
+    </div>
+  );
+}
+
+export function OtpCodeInput({
+  id,
+  value,
+  onChange,
+  required = true,
+}: {
+  id: string;
+  value: string;
+  onChange: (value: string) => void;
+  required?: boolean;
+}) {
+  const [focused, setFocused] = useState(false);
+  const digits = value.replace(/\D/g, "").slice(0, 6);
+  const activeIndex = Math.min(digits.length, 5);
+
+  return (
+    <div className="relative grid grid-cols-6 gap-2">
+      {Array.from({ length: 6 }, (_, index) => (
+        <span
+          key={index}
+          aria-hidden="true"
+          className={cn(
+            "flex h-12 min-w-0 items-center justify-center rounded-xl border bg-white/90 font-mono text-xl font-semibold tabular-nums text-ink shadow-[0_1px_2px_rgba(15,23,42,0.02),inset_0_1px_0_rgba(255,255,255,0.8)] transition",
+            focused && activeIndex === index ? "border-brand ring-4 ring-brand/10" : "border-border",
+          )}
+        >
+          {digits[index] ?? ""}
+        </span>
+      ))}
+      <input
+        id={id}
+        name={id}
+        type="text"
+        inputMode="numeric"
+        autoComplete="one-time-code"
+        pattern="[0-9]{6}"
+        required={required}
+        maxLength={6}
+        value={digits}
+        onChange={(event) => onChange(event.currentTarget.value.replace(/\D/g, "").slice(0, 6))}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        className="absolute inset-0 z-10 h-full w-full cursor-text opacity-0"
+        style={{ caretColor: "transparent" }}
+      />
     </div>
   );
 }

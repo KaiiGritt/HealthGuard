@@ -507,10 +507,13 @@ export default function ProfilePage() {
 
               <form noValidate onSubmit={handleSubmit} className={`mt-7 ${formStackClass}`}>
                 <div>
-                  <label className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
+                  <label htmlFor="full_name" className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
                     {labels.fullName} <span className={labelHintClass}>{language === "en" ? "/ Buong pangalan" : language === "fil" ? "/ Buong pangalan" : "/ Buong pangalan"}</span>
                   </label>
                     <input
+                    id="full_name"
+                    name="full_name"
+                    autoComplete="name"
                     value={form.full_name}
                     onChange={(event) => setForm((prev) => ({ ...prev, full_name: event.target.value }))}
                     className={inputClass}
@@ -519,15 +522,16 @@ export default function ProfilePage() {
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label htmlFor="date_of_birth" className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>{labels.dateOfBirth}</label>
+                    <label htmlFor="date_of_birth-text" className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>{labels.dateOfBirth}</label>
                     <PremiumDatePicker id="date_of_birth" label={labels.dateOfBirth} required value={form.date_of_birth} onChange={(value) => setForm((prev) => ({ ...prev, date_of_birth: value }))} />
                     <p className="mt-1.5 text-xs text-ink-faint">Age is calculated automatically: {calculateAge(form.date_of_birth) ?? "—"}.</p>
                   </div>
                   <div>
-                    <label className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
+                    <label htmlFor="profile-sex" className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
                       {labels.sex} <span className={labelHintClass}>{language === "en" ? "/ Kasarian" : language === "fil" ? "/ Kasarian" : "/ Kasarian"}</span>
                     </label>
                     <PremiumSelect
+                      id="profile-sex"
                       value={form.sex}
                       onChange={(value) => setForm((prev) => ({ ...prev, sex: value }))}
                       ariaLabel={labels.sex}
@@ -537,10 +541,11 @@ export default function ProfilePage() {
                   </div>
                 </div>
                 <div>
-                  <label className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
+                  <label htmlFor="profile-barangay" className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
                     {labels.barangay} <span className={labelHintClass}>/ Barangay</span>
                   </label>
                   <PremiumSelect
+                    id="profile-barangay"
                     value={form.barangay}
                     onChange={(value) => setForm((prev) => ({ ...prev, barangay: value }))}
                     ariaLabel={labels.barangay}
@@ -551,11 +556,14 @@ export default function ProfilePage() {
                 </div>
 
                 <div>
-                  <label className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
+                  <label htmlFor="phone_number" className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
                     {labels.phone} <span className={labelHintClass}>/ Numero ng telepono</span>
                   </label>
                   <input
+                    id="phone_number"
+                    name="phone_number"
                     type="tel"
+                    autoComplete="tel"
                     required
                     value={form.phone_number}
                     onChange={(event) => setForm((prev) => ({ ...prev, phone_number: formatPhilippinePhone(event.target.value) }))}
@@ -565,10 +573,11 @@ export default function ProfilePage() {
                 </div>
 
                 <div>
-                  <label className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
+                  <label htmlFor="profile-language" className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
                     {labels.interface} <span className={labelHintClass}>/ Wika</span>
                   </label>
                   <PremiumSelect
+                    id="profile-language"
                     value={form.language_preference}
                     onChange={(value) => setForm((prev) => ({ ...prev, language_preference: value }))}
                     ariaLabel={labels.interface}
