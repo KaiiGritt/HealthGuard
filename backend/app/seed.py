@@ -89,6 +89,24 @@ LEXICON_SEED: list[dict] = [
     {"medical_term": "difficulty breathing", "local_term": "kapos sa paghinga", "language": "tl", "severity_weight": 6, "category": "respiratory"},
     {"medical_term": "difficulty breathing", "local_term": "hirap sa paghinga", "language": "tl", "severity_weight": 6, "category": "respiratory"},
     {"medical_term": "difficulty breathing", "local_term": "bumibilis ang paghinga", "language": "tl", "severity_weight": 6, "category": "respiratory"},
+    # --- additional extractor-supported text symptoms ---
+    {"medical_term": "colds / rhinitis", "local_term": "colds / rhinitis", "language": "en", "severity_weight": 1, "category": "respiratory"},
+    {"medical_term": "colds / rhinitis", "local_term": "sinisipon", "language": "tl", "severity_weight": 1, "category": "respiratory"},
+    {"medical_term": "colds / rhinitis", "local_term": "sipon", "language": "tl", "severity_weight": 1, "category": "respiratory"},
+    {"medical_term": "chest pain", "local_term": "chest pain", "language": "en", "severity_weight": 3, "category": "cardiopulmonary"},
+    {"medical_term": "chest pain", "local_term": "sakit sa dibdib", "language": "tl", "severity_weight": 3, "category": "cardiopulmonary"},
+    {"medical_term": "chest pain", "local_term": "sakit sa daghan", "language": "bcl", "severity_weight": 3, "category": "cardiopulmonary"},
+    {"medical_term": "chest pain", "local_term": "masakit an daghan", "language": "bcl", "severity_weight": 3, "category": "cardiopulmonary"},
+    {"medical_term": "chest tightness", "local_term": "chest tightness", "language": "en", "severity_weight": 3, "category": "cardiopulmonary"},
+    {"medical_term": "chest tightness", "local_term": "paninikip ng dibdib", "language": "tl", "severity_weight": 3, "category": "cardiopulmonary"},
+    {"medical_term": "muscle ache / body soreness", "local_term": "muscle ache / body soreness", "language": "en", "severity_weight": 1, "category": "pain"},
+    {"medical_term": "muscle ache / body soreness", "local_term": "nangangalay", "language": "tl", "severity_weight": 1, "category": "pain"},
+    {"medical_term": "generalized weakness", "local_term": "generalized weakness", "language": "en", "severity_weight": 2, "category": "systemic"},
+    {"medical_term": "generalized weakness", "local_term": "panghihina", "language": "tl", "severity_weight": 2, "category": "systemic"},
+    {"medical_term": "generalized weakness", "local_term": "nanlalambot ang katawan", "language": "tl", "severity_weight": 2, "category": "systemic"},
+    {"medical_term": "dizziness", "local_term": "dizziness", "language": "en", "severity_weight": 2, "category": "neuro"},
+    {"medical_term": "dizziness", "local_term": "nahihilo", "language": "tl", "severity_weight": 2, "category": "neuro"},
+    {"medical_term": "dizziness", "local_term": "hinihilo", "language": "tl", "severity_weight": 2, "category": "neuro"},
 ]
 
 # The canonical symptom list surfaced as selectable chips in the UI.

@@ -91,12 +91,28 @@ export default function GuestResultPage() {
 
             <section className="mt-6 rounded-[20px] border border-[#dfe7dc] bg-[linear-gradient(180deg,#ffffff_0%,#f7faf4_100%)] p-4 sm:p-5">
               <div className="flex items-center justify-between gap-3 border-b border-[#e6eee1] pb-3">
-                <h3 className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint sm:text-xs">Condition summary</h3>
+                <div>
+                  <h3 className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint sm:text-xs">Condition summary</h3>
+                  <p className="mt-1 text-xs text-ink-muted">Text-match confidence is not medical certainty.</p>
+                </div>
                 <span className="rounded-full border border-[#dfeadf] bg-[#f4faef] px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-brand-dark">{result.detected_symptoms.length} noted</span>
               </div>
               {result.detected_symptoms.length > 0 ? (
                 <ul className="mt-4 flex flex-wrap gap-2.5">
-                  {result.detected_symptoms.map((symptom) => <li key={symptom.medical_term} className="rounded-full border border-[#cfe0cf] bg-[#eaf5ea] px-3.5 py-2 text-sm font-semibold capitalize text-[#1f4b3d]">{symptom.medical_term}</li>)}
+                  {result.detected_symptoms.map((symptom) => {
+                    const confidence = symptom.confidence;
+                    const level = confidence === undefined ? null : confidence >= 0.85 ? "High" : confidence >= 0.65 ? "Medium" : "Low";
+                    return (
+                      <li key={symptom.medical_term} className="inline-flex max-w-full flex-wrap items-center gap-2 rounded-2xl border border-[#cfe0cf] bg-[#eaf5ea] px-3.5 py-2 text-sm font-semibold capitalize text-[#1f4b3d]">
+                        <span>{symptom.medical_term}</span>
+                        {confidence !== undefined && level && (
+                          <span aria-label={`Text-match confidence: ${level}, ${Math.round(confidence * 100)} percent`} className="rounded-full border border-[#d6e3d3] bg-white/75 px-2 py-0.5 font-mono text-[9px] font-semibold normal-case tracking-normal text-[#51664F]">
+                            Text match · {level} · {Math.round(confidence * 100)}%
+                          </span>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               ) : <p className="mt-3 text-sm leading-relaxed text-ink-muted">No recognizable symptoms were detected.</p>}
             </section>

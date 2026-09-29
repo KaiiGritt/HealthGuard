@@ -94,6 +94,7 @@ CREATE TABLE IF NOT EXISTS assessments (
     input_text TEXT NOT NULL DEFAULT '',
     method VARCHAR(16) NOT NULL DEFAULT 'text',
     detected_symptoms JSONB NOT NULL DEFAULT '[]'::jsonb,
+    symptom_confidence JSONB NOT NULL DEFAULT '{}'::jsonb,
     risk_level VARCHAR(8) NOT NULL,
     reason TEXT NOT NULL DEFAULT '',
     recommendation TEXT NOT NULL DEFAULT '',

@@ -98,7 +98,7 @@ def _add_profile_audit(db: Session, user_id: int, action: str, **details: object
         ProfileAuditLog(
             user_id=user_id,
             action=action,
-            details=json.dumps(details, ensure_ascii=False),
+            details=json.dumps(details, ensure_ascii=False, default=str),
         )
     )
 

@@ -186,7 +186,7 @@ export default function Home() {
       <PageHeader />
       <main className="premium-page flex-1 text-ink">
         <section className="border-b border-border">
-          <div className="mx-auto grid w-full max-w-[1600px] gap-8 px-5 pb-14 pt-20 sm:px-7 sm:py-18 md:grid-cols-[1.12fr_0.88fr] md:items-center lg:gap-12 lg:px-10 lg:py-24 xl:px-14 xl:py-28 2xl:px-20">
+          <div className="mx-auto grid w-full max-w-[1600px] gap-8 px-5 pb-14 pt-20 sm:px-7 sm:py-18 md:grid-cols-[2fr_1fr] md:items-center lg:gap-12 lg:px-10 lg:py-24 xl:px-14 xl:py-28 2xl:px-20">
             <div className="relative overflow-hidden rounded-[28px] border border-[#DDE7DB] bg-[linear-gradient(135deg,rgba(255,255,255,0.94)_0%,rgba(251,252,249,0.9)_62%,rgba(241,245,238,0.88)_100%)] p-5 shadow-[0_24px_56px_rgba(24,38,25,0.09)] backdrop-blur-sm sm:p-7 lg:p-9 xl:p-10">
               <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" aria-hidden="true" />
               <TagBadge>{strings.tag}</TagBadge>

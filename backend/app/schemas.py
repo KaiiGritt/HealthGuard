@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import re
 from datetime import date, datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -30,12 +31,55 @@ class AnalyzeRequest(BaseModel):
     user_id: int | None = None
 
 
+class SymptomExtractionRequest(BaseModel):
+    input_text: str = Field(default="", max_length=5000)
+    message_timestamp: datetime | None = None
+
+
+class ExtractedSymptom(BaseModel):
+    raw_phrase: str
+    canonical_term: str
+    body_location: str | None = None
+    source: Literal["lexicon", "inferred"]
+    confidence: float = Field(ge=0, le=1)
+    hedged: bool
+
+
+class NegatedSymptom(BaseModel):
+    raw_phrase: str
+    canonical_term: str
+
+
+class SymptomOnset(BaseModel):
+    raw_phrase: str | None = None
+    days_since_onset: float | None = None
+    approximate: bool
+
+
+class UnmappedSymptomTerm(BaseModel):
+    raw_phrase: str
+    best_guess_term: str
+    note: str
+
+
+class SymptomExtractionResult(BaseModel):
+    language_detected: Literal["tl", "bcl", "en", "mixed"]
+    detected_symptoms: list[ExtractedSymptom]
+    negated_symptoms: list[NegatedSymptom]
+    onset: SymptomOnset
+    severity_modifiers: list[str]
+    red_flags: list[str]
+    unmapped_terms: list[UnmappedSymptomTerm]
+    reviewer_note: str
+
+
 class DetectedSymptom(BaseModel):
     medical_term: str
     matched_text: str
     language: str
     category: str
     severity_weight: int
+    confidence: float = Field(default=0.5, ge=0, le=1)
 
 
 class TriggeredRule(BaseModel):
@@ -84,6 +128,7 @@ class AssessmentOut(BaseModel):
     input_text: str
     method: str
     detected_symptoms: list
+    symptom_confidence: dict[str, float] = Field(default_factory=dict)
     risk_level: str
     reason: str
     recommendation: str

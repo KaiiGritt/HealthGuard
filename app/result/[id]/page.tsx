@@ -121,24 +121,39 @@ export default async function ResultPage({
 
             <section className="mt-6 rounded-[20px] border border-[#dfe7dc] bg-[linear-gradient(180deg,#ffffff_0%,#f7faf4_100%)] p-4 shadow-[0_18px_38px_rgba(15,23,42,0.04)] ring-1 ring-[#eef3eb] sm:p-5">
               <div className="flex items-center justify-between gap-3 border-b border-[#e6eee1] pb-3">
-                <h3 className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint sm:text-xs lg:text-sm">Condition summary</h3>
+                <div>
+                  <h3 className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint sm:text-xs lg:text-sm">Condition summary</h3>
+                  <p className="mt-1 text-xs text-ink-muted">Text-match confidence is not medical certainty.</p>
+                </div>
                 <span className="rounded-full border border-[#dfeadf] bg-[#f4faef] px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-brand-dark shadow-[0_2px_8px_rgba(47,107,79,0.06)]">
                   {record.detected_symptoms.length} noted
                 </span>
               </div>
               {record.detected_symptoms.length > 0 ? (
                 <ul className="mt-4 flex flex-wrap gap-2.5">
-                  {record.detected_symptoms.map((s) => (
-                    <li
-                      key={s}
-                      className="inline-flex items-center gap-2 rounded-full border border-[#cfe0cf] bg-[linear-gradient(180deg,#f2faef_0%,#eaf5ea_100%)] px-3.5 py-2 text-sm font-semibold capitalize text-[#1f4b3d] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]"
-                    >
-                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#e1f1e3] text-[#1d6b4d]">
-                        <IconCheck size={12} />
-                      </span>
-                      {s}
-                    </li>
-                  ))}
+                  {record.detected_symptoms.map((s) => {
+                    const confidence = record.symptom_confidence?.[s];
+                    const level = confidence === undefined ? null : confidence >= 0.85 ? "High" : confidence >= 0.65 ? "Medium" : "Low";
+                    return (
+                      <li
+                        key={s}
+                        className="inline-flex max-w-full flex-wrap items-center gap-2 rounded-2xl border border-[#cfe0cf] bg-[linear-gradient(180deg,#f2faef_0%,#eaf5ea_100%)] px-3.5 py-2 text-sm font-semibold capitalize text-[#1f4b3d] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]"
+                      >
+                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#e1f1e3] text-[#1d6b4d]">
+                          <IconCheck size={12} />
+                        </span>
+                        <span>{s}</span>
+                        {confidence !== undefined && level && (
+                          <span
+                            aria-label={`Text-match confidence: ${level}, ${Math.round(confidence * 100)} percent`}
+                            className="rounded-full border border-[#d6e3d3] bg-white/75 px-2 py-0.5 font-mono text-[9px] font-semibold normal-case tracking-normal text-[#51664F]"
+                          >
+                            Text match · {level} · {Math.round(confidence * 100)}%
+                          </span>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               ) : (
                 <p className="mt-3 text-sm leading-relaxed text-ink-muted">No recognized symptoms were found in the information provided.</p>

@@ -202,6 +202,20 @@ def migrate_assessment_rules_schema() -> None:
             conn.execute(text("ALTER TABLE assessments ADD COLUMN triggered_rules JSON"))
 
 
+def migrate_assessment_confidence_schema() -> None:
+    """Add persisted symptom-match confidence to existing assessment records."""
+    from sqlalchemy import inspect, text
+
+    insp = inspect(engine)
+    if "assessments" not in insp.get_table_names():
+        return
+
+    columns = {column["name"] for column in insp.get_columns("assessments")}
+    if "symptom_confidence" not in columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE assessments ADD COLUMN symptom_confidence JSON"))
+
+
 def migrate_lexicon_rule_base_schema() -> None:
     """Add rule_base_id to legacy lexicon_rules tables created before the diagram refactor."""
     from sqlalchemy import inspect, text

@@ -12,6 +12,7 @@ from ..database import get_db
 from ..deps import get_current_user, get_current_user_optional, require_role
 from ..models import Assessment, AssessmentSymptom, Symptom, SymptomLexicon, User
 from ..nlp.engine import analyze
+from ..nlp.extractor import extract_symptoms as extract_symptom_signals
 from ..nlp.lexicon import LexiconEntry
 from ..nlp.rules import Rule, build_premedication_guide, has_supported_symptom_input
 from ..premedication_service import create_assessment_premedication, get_premedication_for_assessment
@@ -39,13 +40,15 @@ from ..schemas import (
     MethodBreakdownItem,
     PreMedicationOut,
     SymptomStatItem,
+    SymptomExtractionRequest,
+    SymptomExtractionResult,
     TriageBreakdownItem,
     TriggeredRule,
     UserRoleUpdate,
     UserStatusUpdate,
     WeeklyTrendItem,
 )
-from ..seed import SELECTABLE_SYMPTOMS
+from ..seed import LEXICON_SEED, SELECTABLE_SYMPTOMS
 
 router = APIRouter(prefix="/assessment", tags=["assessment"])
 
@@ -737,6 +740,34 @@ def list_selectable_symptoms(db: Session = Depends(get_db)) -> list[str]:
     return SELECTABLE_SYMPTOMS
 
 
+def _load_extraction_entries(db: Session) -> list[LexiconEntry]:
+    approved_rows = db.execute(
+        select(SymptomLexicon).where(SymptomLexicon.review_status == "approved")
+    ).scalars().all()
+    entries = [LexiconEntry(**entry) for entry in LEXICON_SEED]
+    entries.extend(
+        LexiconEntry(
+            local_term=row.local_term,
+            language=row.language,
+            medical_term=row.medical_term,
+            severity_weight=row.severity_weight,
+            category=row.category,
+        )
+        for row in approved_rows
+    )
+    return entries
+
+
+@router.post("/extract", response_model=SymptomExtractionResult)
+def extract_symptom_text(
+    payload: SymptomExtractionRequest,
+    db: Session = Depends(get_db),
+) -> SymptomExtractionResult:
+    """Return structured symptom signals without assigning triage classification."""
+    result = extract_symptom_signals(payload.input_text, _load_extraction_entries(db), payload.message_timestamp)
+    return SymptomExtractionResult.model_validate(result)
+
+
 @router.post("/analyze", response_model=AnalyzeResult)
 def analyze_symptoms(
     payload: AnalyzeRequest,
@@ -758,7 +789,31 @@ def analyze_symptoms(
         sex=payload.sex,
         duration_days=payload.duration_days,
     )
+    if not result.matches:
+        if result.symptom_extraction["detected_symptoms"]:
+            recognized_terms = ", ".join(dict.fromkeys(
+                item["canonical_term"] for item in result.symptom_extraction["detected_symptoms"]
+            ))
+            detail = f"Recognized {recognized_terms}, but it is not yet supported by the triage rules. Please contact a health worker for review."
+        elif result.symptom_extraction["negated_symptoms"]:
+            detail = "The message only reports symptoms as absent. Please describe a symptom that is currently present."
+        else:
+            detail = "No recognized symptom was detected. Please select a supported symptom or describe one of the supported symptoms."
+        raise HTTPException(status_code=422, detail=detail)
     _apply_repeat_assessment_rule(db, user, result)
+
+    extracted_confidence = {
+        item["canonical_term"]: item["confidence"]
+        for item in result.symptom_extraction["detected_symptoms"]
+    }
+    selected_terms = {term.strip().lower() for term in payload.selected_symptoms}
+    symptom_confidence = {
+        match.medical_term: extracted_confidence.get(
+            match.medical_term,
+            0.99 if match.medical_term.lower() in selected_terms else 0.5,
+        )
+        for match in result.matches
+    }
 
     detected = [
         DetectedSymptom(
@@ -767,6 +822,7 @@ def analyze_symptoms(
             language=m.language,
             category=m.category,
             severity_weight=m.severity_weight,
+            confidence=symptom_confidence[m.medical_term],
         )
         for m in result.matches
     ]
@@ -812,6 +868,7 @@ def analyze_symptoms(
         input_text=payload.input_text,
         method=payload.method,
         detected_symptoms=[m.medical_term for m in result.matches],
+        symptom_confidence=symptom_confidence,
         risk_level=result.classification.risk_level,
         reason=result.classification.reason,
         recommendation=result.classification.recommendation,
@@ -902,6 +959,7 @@ def history(
                 input_text=record.input_text,
                 method=record.method,
                 detected_symptoms=record.detected_symptoms,
+                symptom_confidence=record.symptom_confidence or {},
                 risk_level=record.risk_level,
                 reason=record.reason,
                 recommendation=record.recommendation,
@@ -1000,6 +1058,7 @@ def get_assessment(
         input_text=record.input_text,
         method=record.method,
         detected_symptoms=record.detected_symptoms,
+        symptom_confidence=record.symptom_confidence or {},
         risk_level=record.risk_level,
         reason=record.reason,
         recommendation=record.recommendation,

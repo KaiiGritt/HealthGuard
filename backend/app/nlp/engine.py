@@ -11,6 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from . import scispacy_adapter
+from .extractor import extract_symptoms
 from .lexicon import LexiconEntry, Match, match_selected, match_text
 from .rules import Classification, classify
 
@@ -20,6 +21,7 @@ class EngineResult:
     matches: list[Match]
     classification: Classification
     scispacy_active: bool
+    symptom_extraction: dict
 
 
 def analyze(
@@ -33,6 +35,12 @@ def analyze(
     """Run the full pipeline and return matches + classification."""
     matches: list[Match] = []
     seen: set[str] = set()
+    symptom_extraction = extract_symptoms(input_text, entries)
+    negated_terms = {item["canonical_term"] for item in symptom_extraction["negated_symptoms"]}
+    entries_by_term: dict[str, LexiconEntry] = {}
+    for entry in entries:
+        if entry.medical_term not in entries_by_term or entry.language.lower() == "en":
+            entries_by_term[entry.medical_term] = entry
 
     def add(new: list[Match]) -> None:
         for m in new:
@@ -41,7 +49,22 @@ def analyze(
                 matches.append(m)
 
     if input_text:
-        add(match_text(input_text, entries))
+        add([match for match in match_text(input_text, entries) if match.medical_term not in negated_terms])
+        extracted_matches = []
+        for symptom in symptom_extraction["detected_symptoms"]:
+            entry = entries_by_term.get(symptom["canonical_term"])
+            if entry is None:
+                continue
+            extracted_matches.append(
+                Match(
+                    medical_term=entry.medical_term,
+                    matched_text=symptom["raw_phrase"],
+                    language=symptom_extraction["language_detected"],
+                    category=entry.category,
+                    severity_weight=entry.severity_weight,
+                )
+            )
+        add(extracted_matches)
     if selected_symptoms:
         add(match_selected(selected_symptoms, entries))
 
@@ -51,11 +74,22 @@ def analyze(
     if active and matches:
         _ = scispacy_adapter.normalize_terms([m.medical_term for m in matches])
 
+    effective_duration_days = duration_days
+    if effective_duration_days is None:
+        extracted_days = symptom_extraction["onset"]["days_since_onset"]
+        if extracted_days is not None:
+            effective_duration_days = extracted_days
+
     classification = classify(
         matches,
         age=age,
         sex=sex,
         input_text=input_text,
-        duration_days=duration_days,
+        duration_days=effective_duration_days,
     )
-    return EngineResult(matches=matches, classification=classification, scispacy_active=active)
+    return EngineResult(
+        matches=matches,
+        classification=classification,
+        scispacy_active=active,
+        symptom_extraction=symptom_extraction,
+    )

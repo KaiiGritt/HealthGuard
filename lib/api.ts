@@ -9,6 +9,7 @@ export interface DetectedSymptom {
   language: string;
   category: string;
   severity_weight: number;
+  confidence?: number;
 }
 
 export interface TriggeredRule {
@@ -49,6 +50,7 @@ export interface AssessmentOut {
   input_text: string;
   method: string;
   detected_symptoms: string[];
+  symptom_confidence?: Record<string, number>;
   risk_level: RiskLevel;
   reason: string;
   recommendation: string;

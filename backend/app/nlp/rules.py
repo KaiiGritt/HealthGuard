@@ -70,11 +70,11 @@ class MedicationGuide:
     note: str
 
 
-# The only supported red-flag symptom is difficulty breathing, one of the seven
-# approved resident symptoms and the sole emergency override in this scope.
 RED_FLAG_SYMPTOMS = {
     "difficulty breathing",
     "shortness of breath",
+    "chest pain",
+    "chest tightness",
 }
 
 NEGATION_PREFIXES = re.compile(

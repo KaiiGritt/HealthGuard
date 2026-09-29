@@ -36,10 +36,16 @@ const TYPE_CHIPS: Record<string, { en: string; tl: string }[]> = {
   headache: [
     { en: "Tension-type", tl: "Dahil sa tensyon" },
     { en: "Migraine-type", tl: "Migraine" },
-    { en: "Around one eye", tl: "Sa paligid ng isang mata" },
+    { en: "Cluster headache", tl: "Kumpol-kumpol na sakit ng ulo" },
+    { en: "Sinus headache", tl: "Sakit ng ulo dahil sa sinus" },
   ],
   "abdominal pain": [
     { en: "Tummy ache", tl: "Masakit ang tiyan" },
+    { en: "Upper right abdomen", tl: "Itaas na kanan ng tiyan" },
+    { en: "Upper left abdomen", tl: "Itaas na kaliwa ng tiyan" },
+    { en: "Lower right abdomen", tl: "Ibabang kanan ng tiyan" },
+    { en: "Lower left abdomen", tl: "Ibabang kaliwa ng tiyan" },
+    { en: "Lower abdomen", tl: "Ibabang bahagi ng tiyan" },
     { en: "Cramping", tl: "Pamumulikat" },
     { en: "Burning pain", tl: "Mahapding sakit" },
   ],
@@ -153,27 +159,32 @@ export default function PersonAssessmentPage() {
               </p>
             </div>
 
-            <div className="mt-10 max-w-sm">
-              <label htmlFor="patient-age" className="flex items-center gap-2 text-base font-semibold text-ink lg:text-lg">
+            <fieldset className="mt-10">
+              <legend className="flex items-center gap-2 text-base font-semibold text-ink lg:text-lg">
                 <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand text-sm text-brand-foreground">1</span>
                 Age of the person <span className="font-normal text-ink-faint">/ Edad</span>
-              </label>
-              <input
-                id="patient-age"
-                name="patient-age"
-                type="number"
-                min={0}
-                max={150}
-                step={1}
-                inputMode="numeric"
-                required
-                value={patientAge}
-                onChange={(event) => setPatientAge(event.currentTarget.value)}
-                className={`${inputClass} mt-4`}
-                placeholder="Age in years"
-              />
-              <p className="mt-1.5 text-xs text-ink-muted">Use the person&apos;s age for age-related risk guidance.</p>
-            </div>
+              </legend>
+              <div className="mt-10 max-w-sm">
+                <label htmlFor="patient-age" className="flex items-center gap-2 text-base font-semibold text-ink lg:text-lg">
+                  Age of the person <span className="font-normal text-ink-faint">/ Edad</span>
+                </label>
+                <input
+                  id="patient-age"
+                  name="patient-age"
+                  type="number"
+                  min={0}
+                  max={150}
+                  step={1}
+                  inputMode="numeric"
+                  required
+                  value={patientAge}
+                  onChange={(event) => setPatientAge(event.currentTarget.value)}
+                  className={`${inputClass} mt-4`}
+                  placeholder="Age in years"
+                />
+                <p className="mt-1.5 text-xs text-ink-muted">Use the person&apos;s age for age-related risk guidance.</p>
+              </div>
+            </fieldset>
 
             <label className="mt-10 flex items-center gap-2 text-base font-semibold text-ink lg:text-lg">
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand text-sm text-brand-foreground">2</span>

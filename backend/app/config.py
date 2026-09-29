@@ -55,7 +55,7 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("SENDGRID_FROM_EMAIL", "sendgrid_from_email"),
     )
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(env_file=BACKEND_DIR / ".env", env_file_encoding="utf-8")
 
     @property
     def cors_origin_list(self) -> list[str]:

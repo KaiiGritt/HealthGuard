@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
-import { IconCamera, IconCheck, IconEye, IconEyeOff, IconFolder, IconLock, IconPlus, IconProfile } from "@/app/components/ui/icons";
+import { IconCamera, IconCheck, IconClose, IconEye, IconEyeOff, IconFolder, IconLock, IconPlus, IconProfile } from "@/app/components/ui/icons";
 import {
   ErrorAlert,
   formStackClass,
@@ -132,10 +132,27 @@ export default function ProfilePage() {
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [changingPassword, setChangingPassword] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [toast, setToast] = useState<{ message: string; tone: "success" | "error" } | null>(null);
   const [auditLog, setAuditLog] = useState<ProfileAuditEntry[]>([]);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const cancelDeleteButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (!showDeleteConfirmation) return;
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !deletingAccount) setShowDeleteConfirmation(false);
+    };
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", closeOnEscape);
+    cancelDeleteButtonRef.current?.focus();
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [showDeleteConfirmation, deletingAccount]);
 
   useEffect(() => {
     async function loadUser() {
@@ -276,9 +293,6 @@ export default function ProfilePage() {
 
   async function handleDeleteAccount() {
     if (!user || deletingAccount) return;
-    const confirmed = window.confirm("Delete your account and personal data permanently? This cannot be undone.");
-    if (!confirmed) return;
-
     setDeletingAccount(true);
     setError(null);
     try {
@@ -289,6 +303,7 @@ export default function ProfilePage() {
     } catch (err) {
       setToast({ message: err instanceof Error ? err.message : "Unable to delete your account.", tone: "error" });
       setDeletingAccount(false);
+      setShowDeleteConfirmation(false);
     }
   }
 
@@ -507,13 +522,10 @@ export default function ProfilePage() {
 
               <form noValidate onSubmit={handleSubmit} className={`mt-7 ${formStackClass}`}>
                 <div>
-                  <label htmlFor="full_name" className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
+                  <label className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
                     {labels.fullName} <span className={labelHintClass}>{language === "en" ? "/ Buong pangalan" : language === "fil" ? "/ Buong pangalan" : "/ Buong pangalan"}</span>
                   </label>
                     <input
-                    id="full_name"
-                    name="full_name"
-                    autoComplete="name"
                     value={form.full_name}
                     onChange={(event) => setForm((prev) => ({ ...prev, full_name: event.target.value }))}
                     className={inputClass}
@@ -522,16 +534,15 @@ export default function ProfilePage() {
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label htmlFor="date_of_birth-text" className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>{labels.dateOfBirth}</label>
+                    <label htmlFor="date_of_birth" className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>{labels.dateOfBirth}</label>
                     <PremiumDatePicker id="date_of_birth" label={labels.dateOfBirth} required value={form.date_of_birth} onChange={(value) => setForm((prev) => ({ ...prev, date_of_birth: value }))} />
                     <p className="mt-1.5 text-xs text-ink-faint">Age is calculated automatically: {calculateAge(form.date_of_birth) ?? "—"}.</p>
                   </div>
                   <div>
-                    <label htmlFor="profile-sex" className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
+                    <label className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
                       {labels.sex} <span className={labelHintClass}>{language === "en" ? "/ Kasarian" : language === "fil" ? "/ Kasarian" : "/ Kasarian"}</span>
                     </label>
                     <PremiumSelect
-                      id="profile-sex"
                       value={form.sex}
                       onChange={(value) => setForm((prev) => ({ ...prev, sex: value }))}
                       ariaLabel={labels.sex}
@@ -541,11 +552,10 @@ export default function ProfilePage() {
                   </div>
                 </div>
                 <div>
-                  <label htmlFor="profile-barangay" className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
+                  <label className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
                     {labels.barangay} <span className={labelHintClass}>/ Barangay</span>
                   </label>
                   <PremiumSelect
-                    id="profile-barangay"
                     value={form.barangay}
                     onChange={(value) => setForm((prev) => ({ ...prev, barangay: value }))}
                     ariaLabel={labels.barangay}
@@ -556,14 +566,11 @@ export default function ProfilePage() {
                 </div>
 
                 <div>
-                  <label htmlFor="phone_number" className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
+                  <label className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
                     {labels.phone} <span className={labelHintClass}>/ Numero ng telepono</span>
                   </label>
                   <input
-                    id="phone_number"
-                    name="phone_number"
                     type="tel"
-                    autoComplete="tel"
                     required
                     value={form.phone_number}
                     onChange={(event) => setForm((prev) => ({ ...prev, phone_number: formatPhilippinePhone(event.target.value) }))}
@@ -573,11 +580,10 @@ export default function ProfilePage() {
                 </div>
 
                 <div>
-                  <label htmlFor="profile-language" className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
+                  <label className={`mb-1.5 flex items-baseline gap-2 ${labelClass}`}>
                     {labels.interface} <span className={labelHintClass}>/ Wika</span>
                   </label>
                   <PremiumSelect
-                    id="profile-language"
                     value={form.language_preference}
                     onChange={(value) => setForm((prev) => ({ ...prev, language_preference: value }))}
                     ariaLabel={labels.interface}
@@ -656,11 +662,11 @@ export default function ProfilePage() {
               </p>
               <button
                 type="button"
-                onClick={handleDeleteAccount}
+                onClick={() => setShowDeleteConfirmation(true)}
                 disabled={deletingAccount}
                 className="mt-5 min-h-11 rounded-xl border border-red-300 bg-white px-4 font-semibold text-red-800 transition hover:border-red-500 hover:bg-red-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-red-200 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {deletingAccount ? "Deleting account..." : "Delete my account"}
+                Delete my account
               </button>
             </div>
           </div>
@@ -764,6 +770,66 @@ export default function ProfilePage() {
           </aside>
         </div>
       </PageMain>
+      {showDeleteConfirmation && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-[#102319]/55 p-4 backdrop-blur-sm"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !deletingAccount) setShowDeleteConfirmation(false);
+          }}
+        >
+          <section
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-account-title"
+            aria-describedby="delete-account-description"
+            className="relative w-full max-w-lg overflow-hidden rounded-[24px] border border-[#E7C9C2] bg-[linear-gradient(145deg,#FFFFFF_0%,#FFFDFC_58%,#FFF5F2_100%)] shadow-[0_32px_90px_rgba(10,25,17,0.32)] ring-1 ring-white/80 animate-[premium-toast-in_0.22s_ease-out]"
+          >
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#7F241C] via-[#C0432B] to-[#D99A72]" aria-hidden="true" />
+            <div className="p-6 sm:p-8">
+              <div className="flex items-start gap-4">
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[#F0CBC2] bg-[#FFF0EC] text-[#A93426] shadow-sm" aria-hidden="true">
+                  <IconLock size={22} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[#A93426]">Permanent action</p>
+                  <h2 id="delete-account-title" className="mt-1 font-display text-2xl font-semibold leading-tight text-[#451B17]">Delete your account?</h2>
+                  <p id="delete-account-description" className="mt-3 text-sm leading-relaxed text-[#68413B]">
+                    Your account and personal profile data will be permanently deleted. Completed assessments will be detached from your account. This cannot be undone.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirmation(false)}
+                  disabled={deletingAccount}
+                  aria-label="Close confirmation"
+                  className="-mr-2 -mt-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[#806C68] transition hover:bg-[#F8E8E4] hover:text-[#7F241C] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-red-200 disabled:opacity-50"
+                >
+                  <IconClose size={18} />
+                </button>
+              </div>
+              <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <button
+                  ref={cancelDeleteButtonRef}
+                  type="button"
+                  onClick={() => setShowDeleteConfirmation(false)}
+                  disabled={deletingAccount}
+                  className="min-h-11 rounded-xl border border-[#D8DFD5] bg-white px-5 text-sm font-semibold text-ink-secondary shadow-sm transition hover:border-[#AEBEAA] hover:bg-[#F7FAF5] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15 disabled:opacity-50"
+                >
+                  Keep my account
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleDeleteAccount()}
+                  disabled={deletingAccount}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#9F3024] bg-gradient-to-r from-[#A93426] to-[#7F241C] px-5 text-sm font-semibold text-white shadow-[0_10px_22px_rgba(127,36,28,0.22)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_28px_rgba(127,36,28,0.28)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-red-200 disabled:cursor-wait disabled:opacity-60"
+                >
+                  {deletingAccount ? "Deleting account…" : "Delete permanently"}
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
       {toast && <Toast message={toast.message} tone={toast.tone} onDismiss={() => setToast(null)} />}
     </div>
   );

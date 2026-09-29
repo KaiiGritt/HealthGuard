@@ -45,7 +45,8 @@ def test_red_does_not_generate_premedication() -> None:
 def test_red_flag_detection() -> None:
     """Verify red-flag symptoms are correctly identified."""
     assert has_red_flag_symptom(["difficulty breathing"]) is True
-    assert has_red_flag_symptom(["chest pain"]) is False
+    assert has_red_flag_symptom(["chest pain"]) is True
+    assert has_red_flag_symptom(["chest tightness"]) is True
     assert has_red_flag_symptom(["bloody stool"]) is False
     assert has_red_flag_symptom(["fever", "body ache"]) is False
     assert has_red_flag_symptom(["cough"]) is False
@@ -54,7 +55,8 @@ def test_red_flag_detection() -> None:
 def test_red_flag_blocks_otc_recommendation() -> None:
     """Verify that red-flag symptoms block OTC medication guidance."""
     assert build_premedication_guide("GREEN", ["difficulty breathing"]) is None
-    assert build_premedication_guide("YELLOW", ["chest pain"]) is not None
+    assert build_premedication_guide("YELLOW", ["chest pain"]) is None
+    assert build_premedication_guide("YELLOW", ["chest tightness"]) is None
 
 
 def test_guide_is_symptom_aware() -> None:

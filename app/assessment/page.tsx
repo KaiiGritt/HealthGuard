@@ -62,10 +62,16 @@ const TYPE_CHIPS: Record<string, { en: string; tl: string }[]> = {
   headache: [
     { en: "Tension-type", tl: "Dahil sa tensyon" },
     { en: "Migraine-type", tl: "Migraine" },
-    { en: "Around one eye", tl: "Sa paligid ng isang mata" },
+    { en: "Cluster headache", tl: "Kumpol-kumpol na sakit ng ulo" },
+    { en: "Sinus headache", tl: "Sakit ng ulo dahil sa sinus" },
   ],
   "abdominal pain": [
     { en: "Tummy or belly ache", tl: "Masakit ang tiyan" },
+    { en: "Upper right abdomen", tl: "Itaas na kanan ng tiyan" },
+    { en: "Upper left abdomen", tl: "Itaas na kaliwa ng tiyan" },
+    { en: "Lower right abdomen", tl: "Ibabang kanan ng tiyan" },
+    { en: "Lower left abdomen", tl: "Ibabang kaliwa ng tiyan" },
+    { en: "Lower abdomen", tl: "Ibabang bahagi ng tiyan" },
     { en: "Cramping", tl: "Pamumulikat" },
     { en: "Burning pain", tl: "Mahapding sakit" },
   ],
@@ -152,88 +158,6 @@ export default function AssessmentPage() {
     });
   };
 
-  const matchesSupportedText = (value: string) => {
-    const normalized = value.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
-    if (/\b(no|without|don't have|do not have|wala akong)\s+(any\s+)?symptoms?\b/.test(normalized)) {
-      return false;
-    }
-    const tokens = [
-      "fever",
-      "lagnat",
-      "may lagnat",
-      "lumagnat",
-      "nilalagnat",
-      "mainit ang katawan",
-      "mataas ang temperatura",
-      "may init",
-      "cough",
-      "ubo",
-      "may ubo",
-      "nakakaubo",
-      "pag-ubo",
-      "inuubo",
-      "ubo nang ubo",
-      "umuubo",
-      "paubo-ubo",
-      "headache",
-      "sakit ng ulo",
-      "masakit ang ulo",
-      "sakit ulo",
-      "sumasakit ang ulo",
-      "kumikirot ang ulo",
-      "mabigat ang ulo",
-      "kirot sa ulo",
-      "abdominal pain",
-      "sakit ng tiyan",
-      "masakit ang tiyan",
-      "sakit sa tiyan",
-      "pananakit ng tiyan",
-      "masakit ang sikmura",
-      "kumikirot ang tiyan",
-      "kirot sa tiyan",
-      "kumukulo ang tiyan",
-      "stomach ache",
-      "vomiting",
-      "pagsusuka",
-      "nagsusuka",
-      "nag susuka",
-      "sumusuka",
-      "sumuka",
-      "nasusuka",
-      "naduwal at nagsuka",
-      "isinusuka",
-      "pagkahilo at pagsusuka",
-      "diarrhea",
-      "pagtatae",
-      "may pagtatae",
-      "nagtatae",
-      "malabnaw ang dumi",
-      "malambot ang dumi",
-      "tubig ang dumi",
-      "madalas dumumi",
-      "difficulty breathing",
-      "hirap huminga",
-      "hingal",
-      "hinihingal",
-      "kapos sa paghinga",
-      "hirap sa paghinga",
-      "bumibilis ang paghinga",
-      "shortness of breath",
-      "breathless",
-      "chest tightness",
-      "weakness",
-      "kahinaan",
-      "rash",
-      "buni",
-      "sore throat",
-      "sakit ng lalamunan",
-      "nasal congestion",
-      "stuffy nose",
-      "runny nose",
-    ];
-    return tokens.some((token) => normalized.includes(token));
-  };
-
   const hasExplicitNoSymptoms = (value: string) => {
     const normalized = value.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
     return /\b(no|without|don't have|do not have|wala akong)\s+(any\s+)?symptoms?\b/.test(normalized);
@@ -249,7 +173,7 @@ export default function AssessmentPage() {
     if (!trimmedText && selected.length === 0) {
       return "Please tap what you're feeling, or type it in your own words.";
     }
-    if (trimmedText && (hasExplicitNoSymptoms(trimmedText) || !matchesSupportedText(trimmedText))) {
+    if (trimmedText && hasExplicitNoSymptoms(trimmedText)) {
       return "We could not recognize a symptom in your message. Please check the spelling and describe a symptom such as fever, cough, headache, or difficulty breathing.";
     }
     return null;
@@ -315,7 +239,7 @@ export default function AssessmentPage() {
       {!submitting && <PageHeader />}
       <PageMain narrow className={submitting ? "min-h-screen pt-8 sm:pt-12 lg:flex lg:items-center" : undefined}>
         <div className={`grid gap-6 ${submitting ? "xl:grid-cols-1" : "xl:grid-cols-[1.35fr_0.65fr]"}`}>
-          <Card className={`relative overflow-hidden rounded-3xl border border-[#DDE7DB] bg-[linear-gradient(135deg,#FFFFFF_0%,#FBFCF9_58%,#F1F5EE_100%)] shadow-[0_24px_70px_rgba(15,23,42,0.09)] ${submitting ? "mx-auto w-full max-w-4xl" : ""}`}>
+          <Card className={`!p-4 sm:!p-7 lg:!p-11 xl:!p-12 relative overflow-hidden rounded-3xl border border-[#DDE7DB] bg-[linear-gradient(135deg,#FFFFFF_0%,#FBFCF9_58%,#F1F5EE_100%)] shadow-[0_24px_70px_rgba(15,23,42,0.09)] ${submitting ? "mx-auto w-full max-w-4xl" : ""}`}>
             <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" aria-hidden="true" />
             {submitting ? (
               <div className="py-8 sm:py-12" aria-live="polite">
@@ -370,7 +294,7 @@ export default function AssessmentPage() {
 
                 <div className="mt-8 flex gap-3 rounded-2xl border border-[#D9E5D8] bg-brand-tint/55 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
                   <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand text-sm font-semibold text-brand-foreground shadow-sm" aria-hidden="true">i</span>
-                  <p className="text-base leading-relaxed text-ink-secondary">
+                  <p className="min-w-0 flex-1 text-base leading-relaxed text-ink-secondary">
                     Struggling to breathe right now? Don&apos;t wait — go to the nearest clinic or hospital.
                   </p>
                 </div>
@@ -396,25 +320,25 @@ export default function AssessmentPage() {
                 </div>
 
                 {selectedSymptomsWithTypes.length > 0 && (
-                  <section className="relative mt-8 overflow-hidden rounded-2xl border border-[#D3E0D2] bg-[linear-gradient(145deg,#F9FCF8_0%,#F1F6EF_100%)] p-4 shadow-[0_14px_30px_rgba(31,74,54,0.07),inset_0_1px_0_rgba(255,255,255,0.9)] sm:p-5" aria-labelledby="type-chip-heading">
-                    <div className="absolute right-0 top-0 h-24 w-24 rounded-bl-[4rem] bg-[#E5EFE4]/70" aria-hidden="true" />
-                    <div className="flex items-start gap-3">
-                      <span className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand text-sm font-semibold text-brand-foreground shadow-[0_5px_12px_rgba(31,74,54,0.2)]">2</span>
-                      <div className="relative">
-                        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-brand">Symptom details</p>
-                        <h2 id="type-chip-heading" className="mt-1 text-base font-semibold text-ink lg:text-lg">Choose the type <span className="font-normal text-ink-faint">(optional)</span></h2>
-                        <p className="mt-1 text-sm text-ink-muted">Piliin ang uri kung alam mo.</p>
+                  <section className="relative mt-8 overflow-hidden rounded-[20px] border border-[#D7E2D5] bg-[linear-gradient(145deg,#FFFFFF_0%,#F6F9F4_100%)] p-4 shadow-[0_16px_34px_rgba(31,74,54,0.07)] sm:p-6" aria-labelledby="type-chip-heading">
+                    <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#183D2D] via-[#4D8061] to-[#C7B37A]" aria-hidden="true" />
+                    <div className="flex flex-wrap items-center gap-3">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#1F4A36] font-mono text-xs font-semibold text-white shadow-[0_6px_14px_rgba(31,74,54,0.2)]">02</span>
+                      <div>
+                        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-brand">Optional detail</p>
+                        <h2 id="type-chip-heading" className="mt-0.5 text-base font-semibold text-ink lg:text-lg">Choose the type</h2>
                       </div>
+                      <span className="ml-12 w-fit rounded-full border border-[#D9E3D6] bg-white/80 px-2.5 py-1 font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-ink-muted sm:ml-auto">Piliin kung alam</span>
                     </div>
-                    <div className="relative mt-5 space-y-5 border-t border-[#DCE7DA] pt-4">
+                    <div className="mt-5 space-y-5 border-t border-[#DCE7DA] pt-4">
                       {selectedSymptomsWithTypes.map((symptom) => {
                         const symptomInfo = SYMPTOMS.find((item) => item.value === symptom);
                         const typeOptions = TYPE_CHIPS[symptom] ?? [];
                         if (typeOptions.length === 0) return null;
                         return (
-                          <div key={symptom}>
-                            <p className="text-sm font-semibold text-ink">{symptomInfo?.en} <span className="font-normal text-ink-faint">/ {symptomInfo?.tl}</span></p>
-                            <div className="mt-2.5 flex flex-wrap gap-2">
+                          <div key={symptom} className="border-t border-[#E4EBE1] pt-4 first:border-t-0 first:pt-0">
+                            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-ink-muted">{symptomInfo?.en} <span className="font-normal normal-case tracking-normal text-ink-faint">/ {symptomInfo?.tl}</span></p>
+                            <div className="mt-2.5 grid grid-cols-1 gap-2 min-[400px]:grid-cols-2 sm:gap-2.5 lg:grid-cols-4">
                               {typeOptions.map((type) => {
                                 const isSelected = selectedTypes[symptom]?.includes(type.en) ?? false;
                                 return (
@@ -423,13 +347,13 @@ export default function AssessmentPage() {
                                     type="button"
                                     aria-pressed={isSelected}
                                     onClick={() => toggleType(symptom, type.en)}
-                                    className={`group rounded-xl border px-3 py-2 text-left text-sm shadow-[0_2px_6px_rgba(24,38,25,0.035)] transition ${isSelected ? "border-brand bg-brand text-brand-foreground shadow-[0_6px_14px_rgba(31,74,54,0.18)]" : "border-[#DCE5D8] bg-white/85 text-ink-secondary hover:border-brand/50 hover:bg-white hover:shadow-[0_6px_14px_rgba(31,74,54,0.1)]"}`}
+                                    className={`group flex min-h-[76px] w-full flex-col justify-center rounded-xl border px-3 py-2.5 text-left transition duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15 ${isSelected ? "border-[#1F4A36] bg-[linear-gradient(145deg,#2F6B4F_0%,#1F4A36_100%)] text-white shadow-[0_8px_18px_rgba(31,74,54,0.2)]" : "border-[#DCE5D8] bg-white/90 text-ink-secondary shadow-[0_3px_10px_rgba(24,38,25,0.035)] hover:-translate-y-0.5 hover:border-brand/45 hover:bg-white hover:shadow-[0_8px_16px_rgba(31,74,54,0.09)]"}`}
                                   >
-                                    <span className="flex items-center gap-2 font-semibold">
-                                      <span className={`flex h-4 w-4 items-center justify-center rounded-full border text-[10px] leading-none ${isSelected ? "border-white/70 bg-white/15 text-white" : "border-[#CBD8CA] text-transparent group-hover:border-brand/50"}`} aria-hidden="true">✓</span>
-                                      {type.en}
+                                    <span className="flex w-full items-center justify-between gap-2 font-semibold">
+                                      <span>{type.en}</span>
+                                      <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-[10px] leading-none transition ${isSelected ? "border-white/55 bg-white/15 text-white" : "border-[#CBD8CA] text-transparent group-hover:border-brand/50"}`} aria-hidden="true">✓</span>
                                     </span>
-                                    <span className={`mt-0.5 block pl-6 text-xs ${isSelected ? "text-brand-foreground/80" : "text-ink-faint"}`}>{type.tl}</span>
+                                    <span className={`mt-1 block text-xs ${isSelected ? "text-white/75" : "text-ink-faint"}`}>{type.tl}</span>
                                   </button>
                                 );
                               })}
@@ -462,7 +386,7 @@ export default function AssessmentPage() {
                         key={d.key}
                         type="button"
                         onClick={() => setDurationKey(isSelected ? null : d.key)}
-                        className={`rounded-2xl border px-3 py-3 text-center text-sm font-medium transition ${
+                        className={`flex min-h-[68px] flex-col justify-center rounded-2xl border px-2 py-3 text-center text-sm font-medium transition sm:px-3 ${
                           isSelected
                             ? "border-brand bg-brand text-brand-foreground shadow-sm"
                             : "border-border-soft bg-white/80 text-ink-secondary hover:border-brand/50"
@@ -510,7 +434,7 @@ export default function AssessmentPage() {
                 )}
 
                 <div className="mt-10 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <button type="button" onClick={() => router.back()} className="min-h-11 rounded-xl border border-border bg-white px-5 font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark">
+                  <button type="button" onClick={() => router.back()} className="min-h-11 w-full rounded-xl border border-border bg-white px-5 font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark sm:w-auto">
                     Back
                   </button>
                   <button type="button" onClick={handleSubmit} disabled={!canSubmit || submitting} className={`bg-gradient-to-r from-brand to-brand-dark shadow-[0_14px_28px_rgba(31,74,54,0.2)] sm:min-w-56 ${submitButtonClass}`}>

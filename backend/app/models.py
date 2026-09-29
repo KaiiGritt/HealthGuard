@@ -246,6 +246,7 @@ class Assessment(Base):
     method: Mapped[str] = mapped_column(String(16), default="text")
     # Legacy compatibility: this remains for current API usage while the diagram-aligned relation is added.
     detected_symptoms: Mapped[list] = mapped_column(JSON, default=list)
+    symptom_confidence: Mapped[dict] = mapped_column(JSON, default=dict)
     # 'GREEN' | 'YELLOW' | 'RED'.
     risk_level: Mapped[str] = mapped_column(String(8), index=True)
     reason: Mapped[str] = mapped_column(Text, default="")
