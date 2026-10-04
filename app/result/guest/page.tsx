@@ -18,6 +18,8 @@ const MESSAGES: Record<string, string> = {
 
 const RULE_TITLES: Record<string, string> = {
   "duration-score": "Symptom duration",
+  "headache-triggered-by-activity-review": "Headache Triggered by Activity Needs Review",
+  "first-cluster-like-headache-review": "First Cluster-Like Headache Needs Review",
   "persistent-fever": "Fever duration needs review",
   "persistent-cough": "Cough duration needs review",
   "persistent-diarrhea": "Diarrhea duration needs review",
@@ -63,13 +65,26 @@ function ruleDescription(name: string, description: string) {
 
 export default function GuestResultPage() {
   const [result, setResult] = useState<AnalyzeResult | null>(null);
+  const [sessionChecked, setSessionChecked] = useState(false);
 
   useEffect(() => {
     const stored = window.sessionStorage.getItem("healthguard_guest_result");
-    if (!stored) return;
-    const timer = window.setTimeout(() => setResult(JSON.parse(stored) as AnalyzeResult), 0);
+    const timer = window.setTimeout(() => {
+      if (stored) {
+        try {
+          setResult(JSON.parse(stored) as AnalyzeResult);
+        } catch {
+          window.sessionStorage.removeItem("healthguard_guest_result");
+        }
+      }
+      setSessionChecked(true);
+    }, 0);
     return () => window.clearTimeout(timer);
   }, []);
+
+  if (!sessionChecked) {
+    return <PageMain narrow><h1 className="sr-only">Loading assessment summary</h1><p role="status" className="text-sm text-ink-muted">Loading assessment summary…</p></PageMain>;
+  }
 
   if (!result) {
     return <PageMain narrow><PageTitle>Assessment summary unavailable</PageTitle><PrimaryLink href="/assessment" className="mt-6">Start a new assessment</PrimaryLink></PageMain>;
@@ -145,8 +160,8 @@ export default function GuestResultPage() {
                 <div>
                   <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-dark">Keep your record</p>
                   <h2 className="mt-1 font-display text-xl font-semibold leading-tight text-ink sm:text-2xl">Save this assessment</h2>
-                  <p className="mt-2 max-w-xl text-sm leading-relaxed text-ink-secondary">Create an account or sign in to keep this result in your health history.</p>
-                  <p className="mt-1 text-xs text-ink-muted">I-save ang resulta para makita muli sa iyong health history.</p>
+                  <p className="mt-2 max-w-xl text-sm leading-relaxed text-ink-secondary">Guest results stay in this browser tab. Create an account or sign in to save this result in your health history.</p>
+                  <p className="mt-1 text-xs text-ink-muted">Pansamantala ang resulta ng bisita. Mag-sign in o gumawa ng account para i-save sa history.</p>
                 </div>
               </div>
               <div className="relative mt-5 flex flex-col gap-3 sm:flex-row">
@@ -168,7 +183,7 @@ export default function GuestResultPage() {
             <div className="relative overflow-hidden rounded-[28px] border border-[#F0B5AA] bg-[linear-gradient(135deg,#8E2F24_0%,#6F211C_52%,#4B1715_100%)] p-6 text-[#FFF7F3] shadow-[0_22px_60px_rgba(120,35,28,0.28)]">
               <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[#FFD2C8]">Irosin emergency</p>
               <h2 className="mt-3 font-display text-2xl font-semibold leading-tight text-white">Call if symptoms worsen</h2>
-              <div className="mt-5 space-y-3"><div className="rounded-2xl border border-white/25 bg-white/10 p-3.5"><p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-[#FFD2C8]">Emergency hotline</p><p className="mt-1 text-2xl font-semibold tracking-wide text-white">911</p></div><div className="rounded-2xl border border-white/25 bg-white/10 p-3.5"><p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-[#FFD2C8]">Ambulance / rescue</p><p className="mt-1 text-2xl font-semibold tracking-wide text-white">117</p></div></div>
+              <div className="mt-5 space-y-3"><div className="rounded-2xl border border-white/25 bg-white/10 p-3.5"><p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-[#FFD2C8]">Emergency hotline</p><p className="mt-1 text-2xl font-semibold tracking-wide text-white">911</p></div></div>
             </div>
             <div className="rounded-[28px] border border-[#dfe7dc] bg-[linear-gradient(180deg,#ffffff_0%,#f8faf5_100%)] p-6 shadow-[0_18px_40px_rgba(15,23,42,0.04)]"><p className="font-mono text-[11px] uppercase tracking-[0.12em] text-ink-faint">What to do now</p><ul className="mt-4 space-y-3 text-sm leading-relaxed text-ink-secondary"><li>Rest, hydrate, and monitor your symptoms closely.</li><li>Follow up with a barangay health worker or clinic if symptoms remain active.</li><li>If breathing is difficult, chest pain is severe, or you feel faint, call emergency services immediately.</li></ul></div>
           </aside>

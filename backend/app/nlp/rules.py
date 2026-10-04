@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import re
 
+from .extractor import is_age_duration, is_negated_prefix
 from .lexicon import LexiconEntry, Match, match_selected, match_text
 
 
@@ -75,10 +76,37 @@ RED_FLAG_SYMPTOMS = {
     "shortness of breath",
     "chest pain",
     "chest tightness",
+    "blood in vomit",
+    "green vomit",
+    "black stool",
+    "active bleeding",
+    "neurologic emergency",
+    "thunderclap headache",
+    "pregnancy warning sign",
+    "unable to drink",
+    "vomits everything",
+    "altered consciousness",
 }
 
 NEGATION_PREFIXES = re.compile(
     r"\b(?:no|without|don't have|do not have|not having|not|hindi(?: na)?|wala akong)\s+(?:any\s+)?$"
+)
+
+_DURATION_TEXT_PATTERN = re.compile(
+    r"(?:started|for|since|lasted|lasting)?\s*(?P<count>\d+(?:\.\d+)?)\s*(?P<unit>hours?|days?|weeks?|months?|oras?|araw|aldaw|linggo|buwan)\b"
+)
+_DEHYDRATION_PATTERNS = (
+    r"\bdehydrat(?:ed|ion)\b",
+    r"\bdry mouth\b",
+    r"\bdark urine\b",
+    r"\b(?:urinating|urination|urine output|peeing)\s+(?:much\s+)?less(?:\s+than\s+usual)?\b",
+    r"\bless\s+(?:urination|urine|peeing)\b",
+    r"\b(?:no|fewer)\s+wet\s+(?:diapers?|nappies?)\b",
+    r"\b(?:walang ihi|kaunti ang ihi|tuyong bibig)\b",
+)
+_CANNOT_RETAIN_FLUIDS_PATTERNS = (
+    r"\b(?:cannot|can't|can not|unable to|not able to)\s+(?:keep|hold)\s+(?:any\s+)?(?:fluids?|water|liquids?)\s+down\b",
+    r"\b(?:cannot|can't|unable to)\s+(?:keep|retain)\s+(?:any\s+)?(?:fluids?|water|liquids?)\b",
 )
 
 
@@ -86,9 +114,99 @@ def _is_negated(normalized_text: str, term: str) -> bool:
     """Reject a term when a short negation immediately precedes it."""
     for match in re.finditer(re.escape(term), normalized_text):
         prefix = normalized_text[max(0, match.start() - 24):match.start()]
-        if NEGATION_PREFIXES.search(prefix):
+        if NEGATION_PREFIXES.search(prefix) and is_negated_prefix(prefix):
             return True
     return False
+
+
+_EMERGENCY_TEXT_PATTERNS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("blood in vomit", (r"(?:nagsusuka|sumusuka|isinusuka|vomit(?:ing)?)\b.{0,24}\bdugo\b", r"\bblood\b.{0,24}\b(?:vomit|vomiting)\b")),
+    ("green vomit", (r"\b(?:yellow[- ]?green|green)\s+(?:vomit(?:ing)?|emesis)\b", r"\b(?:vomit(?:ing)?|emesis)\b.{0,24}\b(?:yellow[- ]?green|green)\b", r"\b(?:dilaw[- ]?)?berde(?:ng)?\s+suka\b", r"\b(?:suka|isinuka|sinuka)\b.{0,24}\bberde(?:ng)?\b")),
+    ("black stool", (r"\bitim\s+(?:ang\s+)?dumi\b", r"\bblack\s+stool\b", r"\bmelena\b")),
+    ("active bleeding", (r"\bdumudugo\s+(?:ang\s+)?(?:gilagid|ilong)\b", r"\bbleeding\s+gums?\b", r"\bnosebleed\b", r"\bmay\s+pasa\b")),
+    ("neurologic emergency", (r"\bseizure\b", r"\bconvuls(?:ion|ions)?\b", r"\bkombulsyon\b", r"\bstiff\s+neck\b", r"\bmatigas\s+(?:ang\s+)?(?:leeg|leyg)\b", r"\b(?:nalilito|confused)\b")),
+    ("chest pain", (r"\b(?:sakit|masakit|sumasakit)\s+(?:sa|ang)?\s*dibdib\b", r"\bchest\s+pain\b")),
+)
+
+
+def emergency_terms_from_text(input_text: str) -> list[str]:
+    """Return context-specific emergency terms before ordinary extraction."""
+    normalized = (input_text or "").lower()
+    terms = []
+    for canonical, patterns in _EMERGENCY_TEXT_PATTERNS:
+        for pattern in patterns:
+            match = re.search(pattern, normalized, re.IGNORECASE)
+            if match and not is_negated_prefix(normalized[max(0, match.start() - 48):match.start()]):
+                terms.append(canonical)
+                break
+    if re.search(r"\b(?:pinakamasakit|worst\s+headache|thunderclap\s+headache)\b", normalized) or (
+        re.search(r"\b(?:biglaan|sudden)\b", normalized)
+        and re.search(r"\b(?:ulo|headache|head)\b", normalized)
+    ):
+        terms.append("thunderclap headache")
+    if re.search(r"\bbuntis\b|\bpregnan(?:t|cy)\b", normalized) and re.search(
+        r"\b(?:nanlalabo|malabo ang paningin|blurred vision|sakit ng ulo|headache)\b", normalized
+    ):
+        terms.append("pregnancy warning sign")
+    return list(dict.fromkeys(terms))
+
+
+def _has_unnegated_pattern(input_text: str, patterns: tuple[str, ...]) -> bool:
+    normalized = (input_text or "").lower()
+    for pattern in patterns:
+        for match in re.finditer(pattern, normalized, re.IGNORECASE):
+            prefix = normalized[max(0, match.start() - 48):match.start()]
+            if not is_negated_prefix(prefix):
+                return True
+    return False
+
+
+def _gastrointestinal_review_rules(
+    input_text: str,
+    detected_terms: set[str],
+    age: int | None,
+) -> list[Rule]:
+    if not detected_terms & {"diarrhea", "vomiting"}:
+        return []
+
+    rules: list[Rule] = []
+    if _has_unnegated_pattern(input_text, _DEHYDRATION_PATTERNS):
+        rules.append(
+            Rule(
+                name="dehydration-risk-review",
+                description="Possible dehydration signs were reported. Contact a health worker promptly; this assessment cannot determine dehydration severity.",
+            )
+        )
+    if _has_unnegated_pattern(input_text, _CANNOT_RETAIN_FLUIDS_PATTERNS):
+        rules.append(
+            Rule(
+                name="cannot-retain-fluids-review",
+                description="Inability to keep fluids down was reported. Seek prompt health-worker advice and take small sips only if tolerated.",
+            )
+        )
+
+    stool_count_patterns = (
+        r"\b(?:6|[7-9]|\d{2,})\s+(?:or\s+more\s+)?(?:loose\s+)?stools?\b",
+        r"\bsix\s+or\s+more\s+(?:loose\s+)?stools?\b",
+    )
+    if age is not None and age >= 18 and "diarrhea" in detected_terms:
+        normalized = (input_text or "").lower()
+        high_stool_count = False
+        for pattern in stool_count_patterns:
+            match = re.search(pattern, normalized)
+            if match:
+                prefix = normalized[max(0, match.start() - 24):match.start()]
+                if not is_negated_prefix(prefix) and not re.search(r"\b(?:less|fewer)\s+than\s*$", prefix):
+                    high_stool_count = True
+                    break
+        if high_stool_count:
+            rules.append(
+                Rule(
+                    name="high-stool-frequency-review",
+                    description="Six or more loose stools in a day were reported. Contact a health worker for clinical advice.",
+                )
+            )
+    return rules
 
 # OTC decision table: symptom patterns → safe recommendation.
 # Each entry: (primary_symptom_keywords, optional_symptom_keywords, medicine_name)
@@ -98,7 +216,7 @@ OTC_SYMPTOM_MAP = [
     (
         {"fever", "headache", "lagnat"},
         {"body ache", "body pain", "weakness"},
-        "Paracetamol / Acetaminophen or Ibuprofen",
+        "Paracetamol",
     ),
     # Cough subtype recommendations are selected from the submitted chip details.
     (
@@ -164,6 +282,7 @@ def build_premedication_guide(
     risk_level: str,
     detected_symptoms: list[str] | None = None,
     input_text: str = "",
+    age: int | None = None,
 ) -> MedicationGuide | None:
     """Generate a symptom-aware pre-medication record for non-red cases.
     
@@ -183,9 +302,32 @@ def build_premedication_guide(
 
     symptoms_set = set(symptoms)
 
+    if "blood in stool" in symptoms_set:
+        if "diarrhea" in symptoms_set:
+            return _build_medication_for_match(risk_level, "Oral Rehydration Solution (ORS)", {"diarrhea"})
+        return None
+
     # Type chips are included in input_text by the assessment UI. Prefer the
     # specific validated option before falling back to the broad symptom map.
     context = f"{' '.join(symptoms)} {(input_text or '').lower()}"
+    if "diarrhea" in symptoms_set and ((age is not None and age < 12) or "fever" in symptoms_set or "blood" in context):
+        return _build_medication_for_match(risk_level, "Oral Rehydration Solution (ORS)", {"diarrhea"})
+    if symptoms_set & {"diarrhea", "vomiting"} and (
+        _has_unnegated_pattern(context, _DEHYDRATION_PATTERNS)
+        or _has_unnegated_pattern(context, _CANNOT_RETAIN_FLUIDS_PATTERNS)
+    ):
+        return _build_medication_for_match(
+            risk_level,
+            "Oral Rehydration Solution (ORS)",
+            symptoms_set & {"diarrhea", "vomiting"},
+        )
+    if "cough" in symptoms_set and age is not None and age < 6:
+        return None
+    if "cough" in symptoms_set and re.search(
+        r"\b(?:14|1[5-9]|[2-9]\d+)\s*days?\b|\b(?:2|[3-9]|\d{2,})\s*weeks?\b",
+        context,
+    ):
+        return None
     if "dry cough" in context:
         return _build_medication_for_match(risk_level, "Dextromethorphan or Butamirate", {"dry cough"})
     if "phlegm" in context or "productive" in context or "with phlegm" in context:
@@ -255,7 +397,7 @@ def _build_medication_for_match(
             ),
             "note": "Appropriate for fever and body aches. Do not exceed 24-hour limit.",
         },
-        "Paracetamol / Acetaminophen or Ibuprofen": {
+        "Paracetamol": {
             "dosage": "Use only according to the approved product label or a health professional's instructions.",
             "contraindications": (),
             "side_effects": ("Stomach upset", "Nausea", "Drowsiness"),
@@ -407,8 +549,9 @@ def _build_medication_for_match(
     )
 
 
-# Total score thresholds: GREEN 1-2, YELLOW 3-5, RED 6+.
-RED_SCORE_THRESHOLD = 6
+# Total score thresholds: GREEN 1-2, YELLOW 3-7, RED 8+.
+# Emergency text flags and difficulty breathing remain independent overrides.
+RED_SCORE_THRESHOLD = 8
 YELLOW_SCORE_THRESHOLD = 3
 
 # Difficulty breathing has a special minimum and combination override.
@@ -443,7 +586,12 @@ _RECOMMENDATIONS = {
 }
 
 
-def _apply_demographic_adjustment(score: int, age: int | None = None) -> tuple[int, list[Rule]]:
+def _apply_demographic_adjustment(
+    score: int,
+    age: int | None = None,
+    pregnancy_status: str | None = None,
+    detected_terms: set[str] | None = None,
+) -> tuple[int, list[Rule]]:
     """Increase urgency for higher-risk age contexts without diagnosing conditions."""
     adjusted_score = score
     triggered: list[Rule] = []
@@ -454,6 +602,15 @@ def _apply_demographic_adjustment(score: int, age: int | None = None) -> tuple[i
             Rule(
                 name="age-risk-modifier",
                 description="Age is outside the typical low-risk adult range, which increases urgency for symptom review.",
+            )
+        )
+
+    if pregnancy_status == "yes" and "fever" in (detected_terms or set()):
+        adjusted_score += 1
+        triggered.append(
+            Rule(
+                name="pregnancy-fever-review",
+                description="Reported pregnancy with fever requires health-worker review.",
             )
         )
 
@@ -482,17 +639,32 @@ def _text_rules(input_text: str, detected_terms: set[str], duration_days: float 
             description="Worsening symptoms require prompt health-worker review.",
         ))
 
-    duration_match = re.search(r"(?:started|for|since|lasted|lasting)?\s*(\d+(?:\.\d+)?)\s*(hour|hours|day|days|week|weeks|month|months)\b", normalized)
+    duration_match = None
+    for candidate in _DURATION_TEXT_PATTERN.finditer(normalized):
+        if is_age_duration(normalized, candidate):
+            continue
+        prefix = normalized[max(0, candidate.start() - 36):candidate.start()]
+        if re.search(r"\b(?:buntis|pregnant|pregnancy)\b", prefix) and not re.search(
+            r"\b(?:fever|lagnat|cough|ubo|pain|sakit|symptom)\b", prefix
+        ):
+            continue
+        duration_match = candidate
+        break
     if duration_days is None and duration_match:
-        amount = float(duration_match.group(1))
-        unit = duration_match.group(2)
+        amount = float(duration_match.group("count"))
+        unit = duration_match.group("unit")
         duration_days = amount / 24 if unit.startswith("hour") else amount * (7 if unit.startswith("week") else 30 if unit.startswith("month") else 1)
     duration_score = 0
     if duration_days is not None:
         if duration_days <= 1:
             duration_score = 1
         elif duration_days <= 3:
-            duration_score = 2
+            duration_score = 1 if detected_terms == {"cough"} else 2
+            if detected_terms == {"cough"}:
+                triggered.append(Rule(
+                    name="short-cough-duration-cap",
+                    description="An isolated cough lasting three days or less does not reach consultation urgency from duration alone.",
+                ))
         elif duration_days <= 7:
             duration_score = 3
         else:
@@ -507,29 +679,114 @@ def _text_rules(input_text: str, detected_terms: set[str], duration_days: float 
             triggered.append(Rule(name="persistent-cough", description="Cough lasting more than 30 days requires referral for further assessment."))
         if "fever" in detected_terms and duration_days > 3:
             triggered.append(Rule(name="persistent-fever", description="Fever lasting more than 3 days needs clinical review."))
+        if "fever" in detected_terms and duration_days >= 5:
+            triggered.append(Rule(name="prolonged-fever-emergency", description="Fever lasting five days or longer requires urgent assessment."))
 
     return triggered, emergency, duration_score
+
+
+def _headache_review_rules(input_text: str, detected_terms: set[str]) -> list[Rule]:
+    if "headache" not in detected_terms:
+        return []
+
+    normalized = (input_text or "").lower()
+    activity = r"(?:cough(?:ing)?|sneez(?:e|ing)|valsalva|strain(?:ing)?|exercis(?:e|ing))"
+    headache_before_activity = re.search(
+        rf"\b(?:headache|head pain|sakit ng ulo)\b.{{0,48}}\b(?:triggered by|brought on by|caused by|when|while|during)\b.{{0,24}}\b{activity}\b",
+        normalized,
+    )
+    activity_before_headache = re.search(
+        rf"\b{activity}\b.{{0,32}}\b(?:triggers|causes|brings on)\b.{{0,24}}\b(?:headache|head pain|sakit ng ulo)\b",
+        normalized,
+    )
+    negated_trigger = re.search(
+        r"\b(?:not|never|isn't|is not|doesn't|does not)\s+(?:triggered|brought on|caused|worsened)\s+by\b",
+        normalized,
+    )
+    rules: list[Rule] = []
+    if (
+        not _is_negated(normalized, "headache")
+        and not negated_trigger
+        and (headache_before_activity or activity_before_headache)
+    ):
+        rules.append(
+            Rule(
+                name="headache-triggered-by-activity-review",
+                description="A headache triggered by coughing, straining, sneezing, or exercise was reported. Contact a health worker for clinical evaluation; this guide cannot determine the cause or urgency.",
+            )
+        )
+
+    cluster_headache = re.search(r"\bcluster(?:-like)?\s+headache\b", normalized)
+    first_episode = re.search(
+        r"\b(?:first(?:[- ]ever)?|first\s+time|new(?:ly)?\s+(?:onset|started))\b.{0,48}\b(?:bout|attack|episode|headache)\b",
+        normalized,
+    )
+    if cluster_headache and first_episode:
+        rules.append(
+            Rule(
+                name="first-cluster-like-headache-review",
+                description="A first or new cluster-like headache was reported. Arrange clinician evaluation; NICE advises discussing further assessment for a first cluster bout. This is not a confirmed diagnosis.",
+            )
+        )
+    return rules
 
 
 def classify(
     matches: list[Match],
     age: int | None = None,
+    age_months: int | None = None,
     sex: str | None = None,
     input_text: str = "",
     duration_days: float | None = None,
+    pregnancy_status: str | None = None,
 ) -> Classification:
     """Evaluate triage rules over detected symptom matches."""
     triggered: list[Rule] = []
     normalized_input = (input_text or "").lower()
-    has_duration_input = duration_days is not None or bool(
-        re.search(r"(?:started|for|since|lasted|lasting)?\s*\d+(?:\.\d+)?\s*(?:hour|hours|day|days|week|weeks|month|months)\b", normalized_input)
+    has_duration_input = duration_days is not None or any(
+        not is_age_duration(normalized_input, match)
+        for match in _DURATION_TEXT_PATTERN.finditer(normalized_input)
     )
     active_matches = [
         m for m in matches
         if not _is_negated(normalized_input, m.matched_text.lower())
     ]
+    relative_weekday_onset = bool(
+        re.search(
+            r"\b(?:mula\s+(?:pa\s+)?noong|since|from)\s+(?:lunes|monday|martes|tuesday|miercoles|wednesday|jueves|thursday|viernes|friday|sabado|saturday|domingo|sunday)\b",
+            normalized_input,
+        )
+    )
     score = sum(m.severity_weight for m in active_matches)
     detected_terms = {m.medical_term for m in active_matches}
+    young_infant_fever = age_months is not None and age_months <= 2 and "fever" in detected_terms
+    if young_infant_fever:
+        triggered.append(
+            Rule(
+                name="young-infant-fever-referral",
+                description="Fever in an infant up to 2 months requires urgent hospital referral.",
+            )
+        )
+    older_adult_fever_weakness = (
+        age is not None
+        and age > 65
+        and {"fever", "generalized weakness"}.issubset(detected_terms)
+    )
+    blood_in_stool = "blood in stool" in detected_terms
+    if blood_in_stool:
+        triggered.append(
+            Rule(
+                name="blood-in-stool-health-worker-review",
+                description="Blood in stool was reported; the result requires health-worker review.",
+            )
+        )
+    if older_adult_fever_weakness:
+        triggered.append(
+            Rule(
+                name="older-adult-fever-weakness-override",
+                description="Fever with generalized weakness in an adult over 65 requires urgent medical assessment.",
+            )
+        )
 
     # --- Weighted symptom plus duration scoring ---
     critical_hit = detected_terms & RED_FLAG_SYMPTOMS
@@ -544,10 +801,23 @@ def classify(
         )
 
     text_rules, text_emergency, text_score = _text_rules(input_text, detected_terms, duration_days=duration_days)
+    headache_review_rules = _headache_review_rules(input_text, detected_terms)
+    gastrointestinal_review_rules = _gastrointestinal_review_rules(input_text, detected_terms, age)
+    triggered.extend(headache_review_rules)
+    triggered.extend(gastrointestinal_review_rules)
+    if relative_weekday_onset:
+        text_rules.append(
+            Rule(
+                name="relative-onset-needs-review",
+                description="A weekday onset was reported, but the exact elapsed duration could not be determined.",
+            )
+        )
     triggered.extend(text_rules)
     adjusted_score, demographic_rules = _apply_demographic_adjustment(
         score + text_score,
         age=age,
+        pregnancy_status=pregnancy_status,
+        detected_terms=detected_terms,
     )
     triggered.extend(demographic_rules)
 
@@ -608,8 +878,16 @@ def classify(
         )
 
     score_red = adjusted_score >= RED_SCORE_THRESHOLD
-    if other_red_flag_hit or score_red or text_emergency:
+    if other_red_flag_hit or breathing_hit or score_red or text_emergency or older_adult_fever_weakness or young_infant_fever or ("fever" in detected_terms and duration_days is not None and duration_days >= 5) or (age == 0 and "fever" in detected_terms):
         level = "RED"
+    elif blood_in_stool:
+        level = "YELLOW"
+    elif headache_review_rules or gastrointestinal_review_rules:
+        level = "YELLOW"
+    elif relative_weekday_onset and detected_terms:
+        level = "YELLOW"
+    elif pregnancy_status == "yes" and "fever" in detected_terms:
+        level = "YELLOW"
     elif not has_duration_input and len(detected_terms) == 1:
         level = "GREEN"
         triggered.append(
@@ -625,8 +903,7 @@ def classify(
         else:
             level = score_level
 
-    if level == "YELLOW":
-        level = "YELLOW"
+    if level == "YELLOW" and adjusted_score >= YELLOW_SCORE_THRESHOLD:
         triggered.append(
             Rule(
                 name="moderate-severity-score",

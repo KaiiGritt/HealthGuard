@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from . import scispacy_adapter
 from .extractor import extract_symptoms
 from .lexicon import LexiconEntry, Match, match_selected, match_text
-from .rules import Classification, classify
+from .rules import Classification, classify, emergency_terms_from_text
 
 
 @dataclass
@@ -29,8 +29,10 @@ def analyze(
     selected_symptoms: list[str],
     entries: list[LexiconEntry],
     age: int | None = None,
+    age_months: int | None = None,
     sex: str | None = None,
     duration_days: float | None = None,
+    pregnancy_status: str | None = None,
 ) -> EngineResult:
     """Run the full pipeline and return matches + classification."""
     matches: list[Match] = []
@@ -49,6 +51,16 @@ def analyze(
                 matches.append(m)
 
     if input_text:
+        add([
+            Match(
+                medical_term=term,
+                matched_text=term,
+                language="en",
+                category="emergency",
+                severity_weight=6,
+            )
+            for term in emergency_terms_from_text(input_text)
+        ])
         add([match for match in match_text(input_text, entries) if match.medical_term not in negated_terms])
         extracted_matches = []
         for symptom in symptom_extraction["detected_symptoms"]:
@@ -83,9 +95,11 @@ def analyze(
     classification = classify(
         matches,
         age=age,
+        age_months=age_months,
         sex=sex,
         input_text=input_text,
         duration_days=effective_duration_days,
+        pregnancy_status=pregnancy_status,
     )
     return EngineResult(
         matches=matches,

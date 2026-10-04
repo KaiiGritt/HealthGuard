@@ -12,7 +12,11 @@ from ..database import get_db
 from ..deps import get_current_user, get_current_user_optional, require_role
 from ..models import Assessment, AssessmentSymptom, Symptom, SymptomLexicon, User
 from ..nlp.engine import analyze
-from ..nlp.extractor import extract_symptoms as extract_symptom_signals
+from ..nlp.extractor import (
+    extract_patient_age,
+    extract_symptoms as extract_symptom_signals,
+    is_non_symptom_question,
+)
 from ..nlp.lexicon import LexiconEntry
 from ..nlp.rules import Rule, build_premedication_guide, has_supported_symptom_input
 from ..premedication_service import create_assessment_premedication, get_premedication_for_assessment
@@ -774,6 +778,11 @@ def analyze_symptoms(
     db: Session = Depends(get_db),
     user: User | None = Depends(get_current_user_optional),
 ) -> AnalyzeResult:
+    if not payload.selected_symptoms and is_non_symptom_question(payload.input_text):
+        raise HTTPException(
+            status_code=422,
+            detail="This appears to be a question rather than a report of current symptoms. Please describe the symptoms happening now.",
+        )
     if not payload.input_text.strip() and not payload.selected_symptoms:
         raise HTTPException(
             status_code=422,
@@ -781,13 +790,19 @@ def analyze_symptoms(
         )
 
     entries = _load_entries(db)
+    text_age = extract_patient_age(payload.input_text)
+    patient_age = text_age if text_age is not None else payload.age
+    if patient_age is None and payload.age_months is not None:
+        patient_age = payload.age_months // 12
     result = analyze(
         payload.input_text,
         payload.selected_symptoms,
         entries,
-        age=payload.age,
+        age=patient_age,
+        age_months=payload.age_months,
         sex=payload.sex,
         duration_days=payload.duration_days,
+        pregnancy_status=payload.pregnancy_status,
     )
     if not result.matches:
         if result.symptom_extraction["detected_symptoms"]:
@@ -832,6 +847,7 @@ def analyze_symptoms(
             result.classification.risk_level,
             [match.medical_term for match in result.matches],
             payload.input_text,
+            patient_age,
         )
         return AnalyzeResult(
             id=0,
@@ -885,7 +901,7 @@ def analyze_symptoms(
     db.refresh(record)
     create_assessment_premedication(db, record)
 
-    guide = build_premedication_guide(record.risk_level, _assessment_symptom_terms(db, record), record.input_text)
+    guide = build_premedication_guide(record.risk_level, _assessment_symptom_terms(db, record), record.input_text, payload.age)
     db_guide = get_premedication_for_assessment(db, record.id)
     pre_medication = (
         PreMedicationOut(

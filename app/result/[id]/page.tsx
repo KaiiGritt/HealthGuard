@@ -242,10 +242,6 @@ export default async function ResultPage({
                   <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-[#FFD2C8]">Emergency hotline</p>
                   <p className="mt-1 text-2xl font-semibold tracking-wide text-white">911</p>
                 </div>
-                <div className="rounded-2xl border border-white/25 bg-white/10 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">
-                  <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-[#FFD2C8]">Ambulance / rescue</p>
-                  <p className="mt-1 text-2xl font-semibold tracking-wide text-white">117</p>
-                </div>
               </div>
               <p className="relative mt-4 text-sm leading-relaxed text-[#FFE4DD]">
                 For Irosin residents, these available response channels are the fastest route for urgent transfer and emergency assistance.

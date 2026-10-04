@@ -29,7 +29,7 @@ function validatedMedicationName(detectedSymptoms: string[], inputText: string):
   if (context.includes("diarrhea") || context.includes("pagtatae")) return "Loperamide or Oral Rehydration Solution (ORS)";
   if (context.includes("vomiting") || context.includes("pagsusuka")) return "Oral Rehydration Solution (ORS)";
   if (context.includes("fever") || context.includes("lagnat") || context.includes("headache") || context.includes("sakit ng ulo")) {
-    return "Paracetamol / Acetaminophen or Ibuprofen";
+    return "Paracetamol";
   }
   return null;
 }
@@ -121,10 +121,7 @@ export default function MedicationGuidanceCard({
   inputText = "",
   guidance,
 }: MedicationGuidanceCardProps) {
-  const validatedName = validatedMedicationName(detectedSymptoms, inputText);
-  const computedGuidance = validatedName
-    ? { ...(guidance ?? buildGuidance(riskLevel, detectedSymptoms)), drugName: validatedName }
-    : guidance ?? buildGuidance(riskLevel, detectedSymptoms);
+  const computedGuidance = guidance ?? buildGuidance(riskLevel, detectedSymptoms);
 
   if ((riskLevel || "").toUpperCase() === "RED") {
     return null;

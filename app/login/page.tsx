@@ -38,19 +38,27 @@ function LoginForm() {
     setError(null);
     try {
       await login(email.trim(), password);
-      const pending = getPendingGuestPayload();
-      if (pending) {
-        const saved = await saveGuestAssessment(pending);
-        clearPendingGuestPayload();
-        router.push(`/result/${saved.id}`);
-      } else {
-        router.push(next);
-      }
-      router.refresh();
     } catch {
       setError("Incorrect email or password.");
       setSubmitting(false);
+      return;
     }
+
+    const pending = getPendingGuestPayload();
+    if (pending) {
+      try {
+        const saved = await saveGuestAssessment(pending);
+        clearPendingGuestPayload();
+        router.push(`/result/${saved.id}`);
+      } catch {
+        setError("You are signed in, but this assessment could not be saved. It remains in this browser tab; try saving again.");
+        setSubmitting(false);
+        return;
+      }
+    } else {
+      router.push(next);
+    }
+    router.refresh();
   }
 
   return (

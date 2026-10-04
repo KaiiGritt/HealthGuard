@@ -145,15 +145,6 @@ export default function RegisterPage() {
     setError(null);
     try {
       await verifyEmail({ email: form.email.trim(), code: verificationCode.trim() });
-      const pending = getPendingGuestPayload();
-      if (pending) {
-        const saved = await saveGuestAssessment(pending);
-        clearPendingGuestPayload();
-        router.push(`/result/${saved.id}`);
-      } else {
-        router.push("/assessment");
-      }
-      router.refresh();
     } catch (err) {
       const msg =
         err instanceof Error && err.message.includes("410")
@@ -161,7 +152,24 @@ export default function RegisterPage() {
           : "The verification code is incorrect. Please try again.";
       setError(msg);
       setSubmitting(false);
+      return;
     }
+
+    const pending = getPendingGuestPayload();
+    if (pending) {
+      try {
+        const saved = await saveGuestAssessment(pending);
+        clearPendingGuestPayload();
+        router.push(`/result/${saved.id}`);
+      } catch {
+        setError("Your account was verified, but this assessment could not be saved. It remains in this browser tab; sign in again to retry saving it.");
+        setSubmitting(false);
+        return;
+      }
+    } else {
+      router.push("/assessment");
+    }
+    router.refresh();
   }
 
   if (isVerificationStage) {

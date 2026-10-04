@@ -27,7 +27,9 @@ class AnalyzeRequest(BaseModel):
     method: str = Field(default="text", description="'text' or 'select'.")
     duration_days: float | None = Field(default=None, ge=0, le=365, description="How many days symptoms have been present.")
     age: int | None = Field(default=None, ge=0, le=150, description="Patient age for risk weighting.")
+    age_months: int | None = Field(default=None, ge=0, le=1800, description="Patient age in months for infant and toddler risk weighting.")
     sex: str | None = Field(default=None, max_length=16, description="Patient sex for contextual risk weighting.")
+    pregnancy_status: Literal["yes", "no", "not_sure", "prefer_not_to_say"] | None = None
     user_id: int | None = None
 
 

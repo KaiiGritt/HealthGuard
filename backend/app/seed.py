@@ -25,6 +25,7 @@ LEXICON_SEED: list[dict] = [
     {"medical_term": "fever", "local_term": "mainit ang katawan", "language": "tl", "severity_weight": 2, "category": "general"},
     {"medical_term": "fever", "local_term": "mataas ang temperatura", "language": "tl", "severity_weight": 2, "category": "general"},
     {"medical_term": "fever", "local_term": "may init", "language": "tl", "severity_weight": 2, "category": "general"},
+    {"medical_term": "fever", "local_term": "lagnt", "language": "tl", "severity_weight": 2, "category": "general"},
     # --- cough ---
     {"medical_term": "cough", "local_term": "cough", "language": "en", "severity_weight": 1, "category": "respiratory"},
     {"medical_term": "cough", "local_term": "ubo", "language": "tl", "severity_weight": 1, "category": "respiratory"},
@@ -35,6 +36,7 @@ LEXICON_SEED: list[dict] = [
     {"medical_term": "cough", "local_term": "ubo nang ubo", "language": "tl", "severity_weight": 1, "category": "respiratory"},
     {"medical_term": "cough", "local_term": "umuubo", "language": "tl", "severity_weight": 1, "category": "respiratory"},
     {"medical_term": "cough", "local_term": "paubo-ubo", "language": "tl", "severity_weight": 1, "category": "respiratory"},
+    {"medical_term": "cough", "local_term": "ubu", "language": "tl", "severity_weight": 1, "category": "respiratory"},
     # --- headache ---
     {"medical_term": "headache", "local_term": "headache", "language": "en", "severity_weight": 2, "category": "neurological"},
     {"medical_term": "headache", "local_term": "sakit ng ulo", "language": "tl", "severity_weight": 2, "category": "neurological"},
@@ -77,6 +79,7 @@ LEXICON_SEED: list[dict] = [
     {"medical_term": "diarrhea", "local_term": "malambot ang dumi", "language": "tl", "severity_weight": 4, "category": "gastrointestinal"},
     {"medical_term": "diarrhea", "local_term": "tubig ang dumi", "language": "tl", "severity_weight": 4, "category": "gastrointestinal"},
     {"medical_term": "diarrhea", "local_term": "madalas dumumi", "language": "tl", "severity_weight": 4, "category": "gastrointestinal"},
+    {"medical_term": "diarrhea", "local_term": "lbm", "language": "tl", "severity_weight": 4, "category": "gastrointestinal"},
     # --- difficulty breathing (high severity) ---
     {"medical_term": "difficulty breathing", "local_term": "difficulty breathing", "language": "en", "severity_weight": 6, "category": "respiratory"},
     {"medical_term": "difficulty breathing", "local_term": "shortness of breath", "language": "en", "severity_weight": 6, "category": "respiratory"},
@@ -104,9 +107,21 @@ LEXICON_SEED: list[dict] = [
     {"medical_term": "generalized weakness", "local_term": "generalized weakness", "language": "en", "severity_weight": 2, "category": "systemic"},
     {"medical_term": "generalized weakness", "local_term": "panghihina", "language": "tl", "severity_weight": 2, "category": "systemic"},
     {"medical_term": "generalized weakness", "local_term": "nanlalambot ang katawan", "language": "tl", "severity_weight": 2, "category": "systemic"},
+    {"medical_term": "generalized weakness", "local_term": "matamlay", "language": "tl", "severity_weight": 2, "category": "systemic"},
     {"medical_term": "dizziness", "local_term": "dizziness", "language": "en", "severity_weight": 2, "category": "neuro"},
     {"medical_term": "dizziness", "local_term": "nahihilo", "language": "tl", "severity_weight": 2, "category": "neuro"},
     {"medical_term": "dizziness", "local_term": "hinihilo", "language": "tl", "severity_weight": 2, "category": "neuro"},
+    {"medical_term": "blood in stool", "local_term": "blood in stool", "language": "en", "severity_weight": 1, "category": "gastrointestinal"},
+    {"medical_term": "blood in stool", "local_term": "dugo sa dumi", "language": "tl", "severity_weight": 1, "category": "gastrointestinal"},
+    {"medical_term": "blood in stool", "local_term": "dugo sa tae", "language": "tl", "severity_weight": 1, "category": "gastrointestinal"},
+    {"medical_term": "unable to drink", "local_term": "unable to drink", "language": "en", "severity_weight": 6, "category": "emergency"},
+    {"medical_term": "unable to drink", "local_term": "ayaw uminom", "language": "tl", "severity_weight": 6, "category": "emergency"},
+    {"medical_term": "vomits everything", "local_term": "vomits everything", "language": "en", "severity_weight": 6, "category": "emergency"},
+    {"medical_term": "vomits everything", "local_term": "cannot keep anything down", "language": "en", "severity_weight": 6, "category": "emergency"},
+    {"medical_term": "vomits everything", "local_term": "isinusuka ang lahat", "language": "tl", "severity_weight": 6, "category": "emergency"},
+    {"medical_term": "altered consciousness", "local_term": "very sleepy", "language": "en", "severity_weight": 6, "category": "emergency"},
+    {"medical_term": "neurologic emergency", "local_term": "convulsions", "language": "en", "severity_weight": 6, "category": "emergency"},
+    {"medical_term": "neurologic emergency", "local_term": "kombulsyon", "language": "tl", "severity_weight": 6, "category": "emergency"},
 ]
 
 # The canonical symptom list surfaced as selectable chips in the UI.
@@ -117,6 +132,11 @@ SELECTABLE_SYMPTOMS: list[str] = [
     "abdominal pain",
     "vomiting",
     "diarrhea",
+    "blood in stool",
+    "chest pain",
+    "muscle ache / body soreness",
+    "dizziness",
+    "generalized weakness",
     "difficulty breathing",
 ]
 

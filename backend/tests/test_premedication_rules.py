@@ -92,6 +92,40 @@ def test_otc_diarrhea_guidance() -> None:
     assert "Oral Rehydration" in guide.medication_name
 
 
+def test_dehydration_or_unable_to_keep_fluids_uses_ors_only() -> None:
+    dehydration = build_premedication_guide(
+        "YELLOW",
+        ["diarrhea", "vomiting"],
+        "dark urine and urinating less than usual",
+        age=36,
+    )
+    unable_to_keep_fluids = build_premedication_guide(
+        "YELLOW",
+        ["diarrhea", "vomiting"],
+        "cannot keep fluids down",
+        age=36,
+    )
+
+    assert dehydration is not None
+    assert dehydration.medication_name == "Oral Rehydration Solution (ORS)"
+    assert unable_to_keep_fluids is not None
+    assert unable_to_keep_fluids.medication_name == "Oral Rehydration Solution (ORS)"
+
+
+def test_medication_safety_gates() -> None:
+    fever = build_premedication_guide("YELLOW", ["fever"])
+    child_diarrhea = build_premedication_guide("GREEN", ["diarrhea"], age=2)
+    child_cough = build_premedication_guide("GREEN", ["cough"], age=4)
+
+    assert fever is not None and fever.medication_name == "Paracetamol"
+    assert child_diarrhea is not None and child_diarrhea.medication_name == "Oral Rehydration Solution (ORS)"
+    assert child_cough is None
+
+
+def test_persistent_cough_has_no_suppressant_guidance() -> None:
+    assert build_premedication_guide("YELLOW", ["cough"], "Cough for 2 weeks") is None
+
+
 def test_validated_subtype_medication_options() -> None:
     phlegm = build_premedication_guide("GREEN", ["cough"], "Selected symptom types: With phlegm.")
     heartburn = build_premedication_guide("GREEN", ["abdominal pain"], "Selected symptom types: Burning pain.")

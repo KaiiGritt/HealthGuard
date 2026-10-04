@@ -205,7 +205,9 @@ export interface AnalyzePayload {
   method: "text" | "select";
   duration_days?: number | null;
   age?: number | null;
+  age_months?: number | null;
   sex?: string | null;
+  pregnancy_status?: "yes" | "no" | "not_sure" | "prefer_not_to_say" | null;
 }
 
 export type Role = "resident" | "mho" | "admin";
@@ -259,6 +261,9 @@ async function serverCookieHeader(): Promise<Record<string, string>> {
   }
 }
 
+export const ASSESSMENT_FALLBACK_MESSAGE =
+  "Hindi namin naintindihan ang sintomas. Pumili sa listahan o kumonsulta sa BHW. Kung may hirap huminga, sakit ng dibdib, o matinding pagdurugo, pumunta agad sa ospital o tumawag sa 911/117.";
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const cookieHeader = await serverCookieHeader();
   const res = await fetch(`${baseUrl()}${path}`, {
@@ -269,6 +274,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     cache: "no-store",
   });
   if (!res.ok) {
+    if (path === "/assessment/analyze" && res.status === 422) {
+      throw new Error(ASSESSMENT_FALLBACK_MESSAGE);
+    }
     const detail = await res.text().catch(() => "");
     let message = detail || res.statusText || "The request could not be completed.";
 
@@ -298,10 +306,18 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export function analyze(payload: AnalyzePayload): Promise<AnalyzeResult> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
   return request<AnalyzeResult>("/assessment/analyze", {
     method: "POST",
     body: JSON.stringify(payload),
-  });
+    signal: controller.signal,
+  }).catch((error) => {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error(ASSESSMENT_FALLBACK_MESSAGE);
+    }
+    throw error;
+  }).finally(() => clearTimeout(timeout));
 }
 
 export function saveGuestAssessment(payload: AnalyzePayload): Promise<AnalyzeResult> {

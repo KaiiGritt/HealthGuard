@@ -37,6 +37,7 @@ export function PremiumSelect({
   options,
   ariaLabel,
   className,
+  buttonClassName,
   disabled = false,
 }: {
   id?: string;
@@ -45,6 +46,7 @@ export function PremiumSelect({
   options: Array<{ value: string; label: string }>;
   ariaLabel: string;
   className?: string;
+  buttonClassName?: string;
   disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -69,7 +71,7 @@ export function PremiumSelect({
         aria-expanded={open}
         disabled={disabled}
         onClick={() => setOpen((current) => !current)}
-        className="premium-select flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-border bg-card px-3.5 py-2.5 text-left text-sm text-ink shadow-[0_4px_12px_rgba(24,38,25,0.04)] outline-none transition hover:border-brand/60 hover:bg-white focus:border-brand focus:ring-4 focus:ring-brand/10 disabled:cursor-not-allowed disabled:opacity-60"
+        className={cn("premium-select flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-border bg-card px-3.5 py-2.5 text-left text-sm text-ink shadow-[0_4px_12px_rgba(24,38,25,0.04)] outline-none transition hover:border-brand/60 hover:bg-white focus:border-brand focus:ring-4 focus:ring-brand/10 disabled:cursor-not-allowed disabled:opacity-60", buttonClassName)}
       >
         <span className="truncate">{activeOption?.label ?? "Select"}</span>
         <IconChevronDown size={17} className={cn("shrink-0 text-brand transition-transform duration-200", open && "rotate-180")} aria-hidden="true" />

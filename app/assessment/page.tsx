@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { analyze, getMe } from "@/lib/api";
+import Link from "next/link";
+import { analyze, getMe, type User } from "@/lib/api";
 import {
   Card,
   ErrorAlert,
@@ -16,6 +17,8 @@ import Disclaimer from "../components/Disclaimer";
 import PageHeader from "../components/PageHeader";
 import SymptomChip from "../components/SymptomChip";
 import { IconBrain, IconDroplets, IconLungs, IconStomach, IconThermometer } from "../components/ui/icons";
+import { AssessmentTargetProvider } from "./AssessmentTargetContext";
+import PersonAssessmentPage from "./child/page";
 
 // value = the exact term sent to the API / matched against the lexicon.
 // en / tl = display labels. icon is a visual aid so recognition doesn't
@@ -64,6 +67,7 @@ const TYPE_CHIPS: Record<string, { en: string; tl: string }[]> = {
     { en: "Migraine-type", tl: "Migraine" },
     { en: "Cluster headache", tl: "Kumpol-kumpol na sakit ng ulo" },
     { en: "Sinus headache", tl: "Sakit ng ulo dahil sa sinus" },
+    { en: "Thunderclap headache", tl: "Biglaang matinding sakit ng ulo" },
   ],
   "abdominal pain": [
     { en: "Tummy or belly ache", tl: "Masakit ang tiyan" },
@@ -83,11 +87,13 @@ const TYPE_CHIPS: Record<string, { en: string; tl: string }[]> = {
   diarrhea: [
     { en: "Watery stool", tl: "Tubig ang dumi" },
     { en: "Frequent stool", tl: "Madalas dumumi" },
+    { en: "Blood in stool", tl: "Dugo sa dumi" },
   ],
   "difficulty breathing": [
     { en: "Shortness of breath", tl: "Kapos sa paghinga" },
     { en: "Wheezing", tl: "May huni ang paghinga" },
     { en: "Chest tightness", tl: "Paninikip ng dibdib" },
+    { en: "Chest pain", tl: "Sakit sa dibdib" },
     { en: "Cannot breathe deeply", tl: "Hindi makahinga nang malalim" },
   ],
 };
@@ -103,12 +109,14 @@ export default function AssessmentPage() {
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; tone: "success" | "error" } | null>(null);
   const [authChecking, setAuthChecking] = useState(true);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [processingStep, setProcessingStep] = useState(0);
 
   useEffect(() => {
     let active = true;
     getMe().then((user) => {
       if (!active) return;
+      setCurrentUser(user);
       if (user && user.role !== "resident") {
         router.replace(user.role === "admin" ? "/admin" : "/dashboard");
         return;
@@ -180,6 +188,18 @@ export default function AssessmentPage() {
   };
 
   if (authChecking) return null;
+  if (!currentUser) {
+    return (
+      <div className="premium-page min-h-screen">
+        <PageHeader />
+        <PageMain narrow>
+          <AssessmentTargetProvider mode="self">
+            <PersonAssessmentPage />
+          </AssessmentTargetProvider>
+        </PageMain>
+      </div>
+    );
+  }
 
   async function handleSubmit() {
     if (!canSubmit || submitting) return;
@@ -283,14 +303,14 @@ export default function AssessmentPage() {
                 <PageTitle subtitle="Tap what you're feeling, then tap when it started.">
                   How are you feeling?
                 </PageTitle>
-                <div className="mt-4 flex justify-end">
-                  <a
-                    href="/assessment/child"
-                    className="text-sm font-semibold text-brand underline decoration-brand/35 underline-offset-4 transition hover:text-brand-dark"
-                  >
-                    Assess someone / Suriin ang ibang tao
-                  </a>
-                </div>
+                {currentUser && (
+                  <div className="mt-5 flex justify-end">
+                    <div className="inline-flex rounded-xl border border-[#D8E2D3] bg-white/80 p-1" role="group" aria-label="Assessment type">
+                      <span aria-current="page" className="inline-flex min-h-10 items-center rounded-lg bg-brand px-4 text-sm font-semibold text-brand-foreground">For myself / Sarili</span>
+                      <Link href="/assessment/child" className="inline-flex min-h-10 items-center rounded-lg px-4 text-sm font-semibold text-ink-secondary transition hover:bg-brand-tint hover:text-brand-dark">Assess someone / Ibang tao</Link>
+                    </div>
+                  </div>
+                )}
 
                 <div className="mt-8 flex gap-3 rounded-2xl border border-[#D9E5D8] bg-brand-tint/55 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
                   <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand text-sm font-semibold text-brand-foreground shadow-sm" aria-hidden="true">i</span>
