@@ -18,7 +18,7 @@ export default function SymptomChip({ label, icon, subLabel, selected, urgent = 
       onClick={onToggle}
       aria-pressed={selected}
       className={[
-        "group relative flex min-h-[76px] flex-col items-start gap-0.5 rounded-xl border px-4 py-3 text-left outline-none transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_18px_rgba(24,38,25,0.09)] focus-visible:ring-4 focus-visible:ring-brand/15",
+        "group relative flex min-h-[68px] min-w-0 flex-col items-start gap-0.5 rounded-xl border px-3 py-2.5 text-left outline-none transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_18px_rgba(24,38,25,0.09)] focus-visible:ring-4 focus-visible:ring-brand/15 sm:min-h-[76px] sm:px-4 sm:py-3",
         selected
           ? urgent
             ? "border-emergency-red/45 bg-red-tint text-ink shadow-[0_8px_18px_rgba(192,67,43,0.12)]"
@@ -29,11 +29,11 @@ export default function SymptomChip({ label, icon, subLabel, selected, urgent = 
       ].join(" ")}
     >
       {selected && <span className={`absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold text-white ${urgent ? "bg-emergency-red" : "bg-brand"}`} aria-hidden="true">✓</span>}
-      <span className="flex items-center gap-2 pr-6 text-sm font-semibold lg:text-base">
+      <span className="flex min-w-0 items-center gap-2 pr-6 text-sm font-semibold lg:text-base">
         {icon ? <span className="text-brand" aria-hidden="true">{icon}</span> : null}
         {label}
       </span>
-      {subLabel && <span className="pr-6 text-xs text-ink-faint lg:text-sm">{subLabel}</span>}
+      {subLabel && <span className="break-words pr-6 text-xs text-ink-faint lg:text-sm">{subLabel}</span>}
     </button>
   );
 }

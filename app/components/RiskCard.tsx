@@ -43,13 +43,13 @@ export default function RiskCard({
   return (
     <div className={`${level === "RED" ? "relative overflow-hidden rounded-2xl border-2 border-triage-red bg-[linear-gradient(135deg,#B53B2A_0%,#8E2F24_58%,#6F211C_100%)] p-5 text-white shadow-[0_16px_34px_rgba(142,47,36,0.2)] sm:p-7" : `relative overflow-hidden rounded-2xl border-2 ${s.border} ${s.bg} p-5 shadow-[0_12px_28px_rgba(24,38,25,0.06)] sm:p-7`}`}>
       <div className={`absolute inset-x-0 top-0 h-1 ${level === "RED" ? "bg-[#FFD2C8]" : level === "YELLOW" ? "bg-[#D98A2B]" : "bg-[#3E8E41]"}`} aria-hidden="true" />
-      <div className="flex items-start gap-4">
-        <span className={level === "RED" ? "rounded-xl bg-white px-3 py-2 font-mono text-lg font-bold tracking-wide text-triage-red shadow-sm" : "shrink-0"}>
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:gap-4">
+        <span className={level === "RED" ? "shrink-0 rounded-xl bg-white px-3 py-2 font-mono text-lg font-bold tracking-wide text-triage-red shadow-sm" : "shrink-0"}>
           <TriageBadge level={level} />
         </span>
         <div className="min-w-0 flex-1">
           <p className={`font-mono text-xs font-semibold uppercase tracking-[0.12em] ${level === "RED" ? "text-red-100" : s.text}`}>{s.label}</p>
-          <h2 className={`mt-2 font-display text-2xl font-semibold leading-tight sm:text-3xl ${level === "RED" ? "text-white" : "text-ink"}`}>{message}</h2>
+          <h2 className={`mt-2 font-display text-xl font-semibold leading-tight sm:text-2xl lg:text-3xl ${level === "RED" ? "text-white" : "text-ink"}`}>{message}</h2>
         </div>
       </div>
       <div className={`mt-6 rounded-2xl px-4 py-4 sm:px-5 ${level === "RED" ? "border border-white/30 bg-black/10" : "border border-border/60 bg-white/75"}`}>

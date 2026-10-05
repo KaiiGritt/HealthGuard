@@ -132,7 +132,7 @@ export function PageMain({
 
 export function Card({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <section className={cn("rounded-md border border-border bg-card p-7 sm:p-9 lg:p-11 xl:p-12", className)}>
+    <section className={cn("rounded-md border border-border p-4 sm:p-7 lg:p-11 xl:p-12 bg-card", className)}>
       {children}
     </section>
   );
@@ -172,7 +172,7 @@ export function Eyebrow({ children }: { children: ReactNode }) {
 export function PageTitle({ children, subtitle }: { children: ReactNode; subtitle?: ReactNode }) {
   return (
     <div>
-      <h1 className="font-display text-4xl font-semibold leading-tight text-ink sm:text-5xl xl:text-[3.25rem]">{children}</h1>
+      <h1 className="font-display text-3xl font-semibold leading-tight text-ink sm:text-5xl xl:text-[3.25rem]">{children}</h1>
       {subtitle ? (
         <p className="mt-4 max-w-3xl text-lg leading-relaxed text-ink-secondary lg:text-xl xl:max-w-4xl xl:text-[1.35rem]">
           {subtitle}

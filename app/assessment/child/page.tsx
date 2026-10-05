@@ -19,13 +19,24 @@ import { IconBrain, IconChevronDown, IconDroplets, IconLungs, IconProfile, IconS
 import { useAssessmentMode } from "../AssessmentTargetContext";
 
 const SYMPTOMS = [
-  { value: "fever", en: "Fever", tl: "Lagnat", icon: <IconThermometer size={18} /> },
-  { value: "cough", en: "Cough", tl: "Ubo", icon: <IconLungs size={18} /> },
-  { value: "headache", en: "Headache", tl: "Sakit ng ulo", icon: <IconBrain size={18} /> },
-  { value: "abdominal pain", en: "Tummy pain", tl: "Masakit ang tiyan", icon: <IconStomach size={18} /> },
-  { value: "vomiting", en: "Vomiting", tl: "Pagsusuka", icon: <IconDroplets size={18} /> },
-  { value: "diarrhea", en: "Diarrhea", tl: "Pagtatae", icon: <IconDroplets size={18} /> },
-  { value: "difficulty breathing", en: "Breathing difficulty", tl: "Hirap huminga", icon: <IconLungs size={18} /> },
+  { value: "fever", category: "general", en: "Fever", tl: "Lagnat", icon: <IconThermometer size={18} /> },
+  { value: "cough", category: "respiratory", en: "Cough", tl: "Ubo", icon: <IconLungs size={18} /> },
+  { value: "headache", category: "pain", en: "Headache", tl: "Sakit ng ulo", icon: <IconBrain size={18} /> },
+  { value: "abdominal pain", category: "digestive", en: "Stomach ache", tl: "Masakit ang tiyan", icon: <IconStomach size={18} /> },
+  { value: "vomiting", category: "digestive", en: "Vomiting", tl: "Pagsusuka", icon: <IconDroplets size={18} /> },
+  { value: "diarrhea", category: "digestive", en: "Diarrhea", tl: "Pagtatae", icon: <IconDroplets size={18} /> },
+  { value: "rash", category: "skin", en: "Rashes", tl: "Pantal", icon: <IconDroplets size={18} /> },
+  { value: "colds / rhinitis", category: "respiratory", en: "Cold", tl: "Sipon", icon: <IconLungs size={18} /> },
+  { value: "muscle ache / body soreness", category: "pain", en: "Body aches", tl: "Pananakit ng katawan", icon: <IconStomach size={18} /> },
+  { value: "difficulty breathing", category: "respiratory", en: "Breathing difficulty", tl: "Hirap huminga", icon: <IconLungs size={18} /> },
+] as const;
+
+const SYMPTOM_CATEGORIES = [
+  { key: "general", en: "General", tl: "Pangkalahatan" },
+  { key: "respiratory", en: "Respiratory", tl: "Paghinga" },
+  { key: "digestive", en: "Digestive", tl: "Pantunaw" },
+  { key: "pain", en: "Pain", tl: "Pananakit" },
+  { key: "skin", en: "Skin", tl: "Balat" },
 ] as const;
 
 const DANGER_SIGNS = [
@@ -33,6 +44,24 @@ const DANGER_SIGNS = [
   { value: "vomits everything", en: "Vomits everything / cannot keep anything down", tl: "Isinusuka ang lahat / hindi mapanatili ang kinain o ininom" },
   { value: "altered consciousness", en: "Very sleepy or difficult to wake", tl: "Sobrang antok o mahirap gisingin" },
   { value: "neurologic emergency", en: "Convulsions", tl: "Kombulsyon" },
+] as const;
+
+const ABDOMINAL_LOCATION_OPTIONS = [
+  { en: "Upper right", tl: "Itaas na kanan" },
+  { en: "Upper left", tl: "Itaas na kaliwa" },
+  { en: "Upper middle", tl: "Gitnang itaas" },
+  { en: "Lower right", tl: "Ibabang kanan" },
+  { en: "Lower left", tl: "Ibabang kaliwa" },
+  { en: "Lower/general", tl: "Ibaba / pangkalahatan" },
+  { en: "Around the navel", tl: "Palibot ng pusod" },
+  { en: "Not sure", tl: "Hindi sigurado" },
+] as const;
+
+const ABDOMINAL_QUALITY_OPTIONS = [
+  { en: "Cramping / wave-like", tl: "Pamumulikat / parang alon" },
+  { en: "Burning", tl: "Nagkakaroon ng hapdi" },
+  { en: "Dull / achy", tl: "Pahingang masakit" },
+  { en: "Sharp / stabbing", tl: "Matulis / tumutusok" },
 ] as const;
 
 const TYPE_CHIPS: Record<string, { en: string; tl: string }[]> = {
@@ -49,16 +78,7 @@ const TYPE_CHIPS: Record<string, { en: string; tl: string }[]> = {
     { en: "Sinus headache", tl: "Sakit ng ulo dahil sa sinus" },
     { en: "Thunderclap headache", tl: "Biglaang matinding sakit ng ulo" },
   ],
-  "abdominal pain": [
-    { en: "Tummy ache", tl: "Masakit ang tiyan" },
-    { en: "Upper right abdomen", tl: "Itaas na kanan ng tiyan" },
-    { en: "Upper left abdomen", tl: "Itaas na kaliwa ng tiyan" },
-    { en: "Lower right abdomen", tl: "Ibabang kanan ng tiyan" },
-    { en: "Lower left abdomen", tl: "Ibabang kaliwa ng tiyan" },
-    { en: "Lower abdomen", tl: "Ibabang bahagi ng tiyan" },
-    { en: "Cramping", tl: "Pamumulikat" },
-    { en: "Burning pain", tl: "Mahapding sakit" },
-  ],
+  "abdominal pain": ABDOMINAL_LOCATION_OPTIONS.map((item) => ({ ...item })).concat(ABDOMINAL_QUALITY_OPTIONS.map((item) => ({ ...item }))),
   vomiting: [
     { en: "Nausea", tl: "Pagduduwal" },
     { en: "Retching", tl: "Pag-uurong-suka" },
@@ -68,6 +88,15 @@ const TYPE_CHIPS: Record<string, { en: string; tl: string }[]> = {
     { en: "Watery stool", tl: "Tubig ang dumi" },
     { en: "Frequent stool", tl: "Madalas dumumi" },
     { en: "Blood in stool", tl: "Dugo sa dumi" },
+  ],
+  rash: [
+    { en: "Skin rash", tl: "Pantal sa balat" },
+    { en: "Redness of skin", tl: "Pula ng balat" },
+    { en: "Itchiness", tl: "Kati" },
+  ],
+  "colds / rhinitis": [
+    { en: "Runny nose", tl: "Tulo ng ilong" },
+    { en: "Sneezing", tl: "Pagbahing / pag-ubo ng ilong" },
   ],
   "difficulty breathing": [
     { en: "Shortness of breath", tl: "Kapos sa paghinga" },
@@ -168,7 +197,7 @@ export default function PersonAssessmentPage() {
   }
 
   const content = (
-        <div className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
+        <div className="assessment-route-enter grid items-start gap-6">
           <Card className="relative overflow-hidden rounded-3xl border border-[#DDE7DB] bg-[linear-gradient(135deg,#FFFFFF_0%,#FBFCF9_58%,#F1F5EE_100%)] shadow-[0_24px_70px_rgba(15,23,42,0.09)]">
             <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" aria-hidden="true" />
             <p className="mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-brand">HealthGuard | Personal health check</p>
@@ -177,9 +206,9 @@ export default function PersonAssessmentPage() {
             </PageTitle>
             {!embedded && (
               <div className="mt-5 flex justify-end">
-                <div className="inline-flex rounded-xl border border-[#D8E2D3] bg-white/80 p-1" role="group" aria-label="Assessment type">
-                  <Link href="/assessment" className="inline-flex min-h-10 items-center rounded-lg px-4 text-sm font-semibold text-ink-secondary transition hover:bg-brand-tint hover:text-brand-dark">For myself / Sarili</Link>
-                  <span aria-current="page" className="inline-flex min-h-10 items-center rounded-lg bg-brand px-4 text-sm font-semibold text-brand-foreground">Assess someone / Ibang tao</span>
+                <div className="inline-flex max-w-full rounded-xl border border-[#D8E2D3] bg-white/80 p-1 shadow-[0_4px_14px_rgba(24,38,25,0.06)]" role="group" aria-label="Assessment type">
+                  <Link href="/assessment" className="group inline-flex min-h-10 items-center justify-center rounded-lg px-3 text-center text-xs font-semibold text-ink-secondary transition duration-200 ease-out hover:-translate-y-0.5 hover:bg-brand-tint hover:text-brand-dark hover:shadow-[0_6px_14px_rgba(47,107,79,0.12)] active:translate-y-0 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30 sm:px-4 sm:text-sm">For myself / Sarili</Link>
+                  <span aria-current="page" className="inline-flex min-h-10 items-center rounded-lg bg-gradient-to-r from-brand to-brand-dark px-3 text-center text-xs font-semibold text-brand-foreground shadow-[0_3px_8px_rgba(31,74,54,0.2)] sm:px-4 sm:text-sm">Assess someone / Ibang tao</span>
                 </div>
               </div>
             )}
@@ -280,10 +309,22 @@ export default function PersonAssessmentPage() {
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand text-sm text-brand-foreground">2</span>
               {selfAssessment ? "What do you feel?" : "What do you notice?"} <span className="font-normal text-ink-faint">/ {selfAssessment ? "Ano ang nararamdaman mo?" : "Ano ang napapansin mo?"}</span>
             </label>
-            <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
-              {SYMPTOMS.map((symptom) => (
-                <SymptomChip key={symptom.value} label={symptom.en} subLabel={symptom.tl} icon={symptom.icon} selected={selected.includes(symptom.value)} urgent={symptom.value === "difficulty breathing"} onToggle={() => toggleSymptom(symptom.value)} />
-              ))}
+            <div className="mt-4 space-y-5">
+              {SYMPTOM_CATEGORIES.map((category) => {
+                const categorySymptoms = SYMPTOMS.filter((symptom) => symptom.category === category.key);
+                return (
+                  <section key={category.key} aria-labelledby={`symptom-category-${category.key}`}>
+                    <h3 id={`symptom-category-${category.key}`} className="text-sm font-semibold text-ink-secondary">
+                      {category.en} <span className="font-normal text-ink-faint">/ {category.tl}</span>
+                    </h3>
+                    <div className="mt-2.5 grid grid-cols-1 gap-2.5 min-[420px]:grid-cols-2 sm:gap-4 sm:grid-cols-3">
+                      {categorySymptoms.map((symptom) => (
+                        <SymptomChip key={symptom.value} label={symptom.en} subLabel={symptom.tl} icon={symptom.icon} selected={selected.includes(symptom.value)} urgent={symptom.value === "difficulty breathing"} onToggle={() => toggleSymptom(symptom.value)} />
+                      ))}
+                    </div>
+                  </section>
+                );
+              })}
             </div>
             <div className="mt-6">
               <button
@@ -356,9 +397,9 @@ export default function PersonAssessmentPage() {
                 <div className="relative flex items-start gap-3">
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand text-sm font-semibold text-brand-foreground">3</span>
                   <div>
-                    <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-brand">Optional details</p>
-                    <h2 id="person-type-heading" className="mt-1 text-base font-semibold text-ink lg:text-lg">What kind of symptom is it?</h2>
-                    <p className="mt-1 text-sm text-ink-muted">Anong uri ng sintomas ito?</p>
+                    <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-brand">Optional classification</p>
+                    <h2 id="person-type-heading" className="mt-1 text-base font-semibold text-ink lg:text-lg">What classification is it?</h2>
+                    <p className="mt-1 text-sm text-ink-muted">Anong uri o klasipikasyon ng sintomas ito?</p>
                   </div>
                 </div>
                 <div className="relative mt-4 space-y-4 border-t border-[#DCE7DA] pt-4">
@@ -366,6 +407,45 @@ export default function PersonAssessmentPage() {
                     const options = TYPE_CHIPS[symptom] ?? [];
                     if (!options.length) return null;
                     const label = SYMPTOMS.find((item) => item.value === symptom);
+
+                    if (symptom === "abdominal pain") {
+                      return (
+                        <div key={symptom}>
+                          <p className="text-sm font-semibold text-ink">{label?.en} <span className="font-normal text-ink-faint">/ {label?.tl}</span></p>
+
+                          <div className="mt-3">
+                            <p className="text-sm font-semibold text-ink">Where exactly? <span className="font-normal text-ink-faint">/ Saan eksakto?</span></p>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {ABDOMINAL_LOCATION_OPTIONS.map((type) => {
+                                const active = selectedTypes[symptom]?.includes(type.en) ?? false;
+                                return (
+                                  <button key={type.en} type="button" aria-pressed={active} onClick={() => toggleType(symptom, type.en)} className={`rounded-xl border px-3 py-2 text-left text-sm transition ${active ? "border-brand bg-brand text-brand-foreground shadow-sm" : "border-[#DCE5D8] bg-white/85 text-ink-secondary hover:border-brand/50"}`}>
+                                    <span className="block font-semibold">{type.en}</span>
+                                    <span className={`block text-xs ${active ? "text-brand-foreground/80" : "text-ink-faint"}`}>{type.tl}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          <div className="mt-4">
+                            <p className="text-sm font-semibold text-ink">What does it feel like? <span className="font-normal text-ink-faint">/ Ano ang klase ng sakit?</span></p>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {ABDOMINAL_QUALITY_OPTIONS.map((type) => {
+                                const active = selectedTypes[symptom]?.includes(type.en) ?? false;
+                                return (
+                                  <button key={type.en} type="button" aria-pressed={active} onClick={() => toggleType(symptom, type.en)} className={`rounded-xl border px-3 py-2 text-left text-sm transition ${active ? "border-brand bg-brand text-brand-foreground shadow-sm" : "border-[#DCE5D8] bg-white/85 text-ink-secondary hover:border-brand/50"}`}>
+                                    <span className="block font-semibold">{type.en}</span>
+                                    <span className={`block text-xs ${active ? "text-brand-foreground/80" : "text-ink-faint"}`}>{type.tl}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+
                     return (
                       <div key={symptom}>
                         <p className="text-sm font-semibold text-ink">{label?.en} <span className="font-normal text-ink-faint">/ {label?.tl}</span></p>
@@ -413,7 +493,7 @@ export default function PersonAssessmentPage() {
             {toast && <Toast message={toast} tone="error" onDismiss={() => setToast(null)} />}
           </Card>
 
-          <aside className="space-y-6">
+          <aside className="grid gap-6 lg:grid-cols-2">
             <div className="relative overflow-hidden rounded-3xl border border-[#D9E5D8] bg-[linear-gradient(145deg,#1F4A36_0%,#2F6B4F_100%)] p-6 text-[#F4F8F0] shadow-[0_22px_60px_rgba(31,74,54,0.22)]">
               <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[#CFE3D6]">{selfAssessment ? "Personal health reminder" : "For family and caregivers"}</p>
               <h2 className="mt-3 font-display text-2xl font-semibold leading-tight text-white">{selfAssessment ? "Describe, don't diagnose." : "Observe, don't diagnose."}</h2>

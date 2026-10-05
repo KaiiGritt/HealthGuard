@@ -92,7 +92,7 @@ export default async function ResultPage({
     <>
       <PageHeader />
       <div className="premium-page min-h-screen">
-      <PageMain narrow className="max-w-5xl">
+      <PageMain wide>
         <div className="relative mb-6 border-b border-[#D8E2D3] pb-6">
           <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" />
           <div className="flex flex-wrap items-end justify-between gap-3">
@@ -109,9 +109,9 @@ export default async function ResultPage({
           </div>
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
-          <Card className="overflow-hidden rounded-[24px] border border-[#dfe7dc] bg-[linear-gradient(180deg,#ffffff_0%,#f8faf5_100%)] p-4 shadow-[0_20px_55px_rgba(15,23,42,0.06)] sm:p-6 lg:p-7">
-            <div className="mt-0">
+        <div className="space-y-6">
+          <Card className="!p-4 sm:!p-6 lg:!p-7 overflow-hidden rounded-[24px] border border-[#dfe7dc] bg-[linear-gradient(180deg,#ffffff_0%,#f8faf5_100%)] shadow-[0_20px_55px_rgba(15,23,42,0.06)] xl:grid xl:grid-cols-2 xl:items-start xl:gap-4">
+            <div className="mt-0 xl:col-span-2">
               <RiskCard
                 level={record.risk_level}
                 message={MESSAGES[record.risk_level] ?? ""}
@@ -119,7 +119,7 @@ export default async function ResultPage({
               />
             </div>
 
-            <section className="mt-6 rounded-[20px] border border-[#dfe7dc] bg-[linear-gradient(180deg,#ffffff_0%,#f7faf4_100%)] p-4 shadow-[0_18px_38px_rgba(15,23,42,0.04)] ring-1 ring-[#eef3eb] sm:p-5">
+            <section className="mt-6 rounded-[20px] border border-[#dfe7dc] bg-[linear-gradient(180deg,#ffffff_0%,#f7faf4_100%)] p-4 shadow-[0_18px_38px_rgba(15,23,42,0.04)] ring-1 ring-[#eef3eb] sm:p-5 xl:mt-0">
               <div className="flex items-center justify-between gap-3 border-b border-[#e6eee1] pb-3">
                 <div>
                   <h3 className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint sm:text-xs lg:text-sm">Condition summary</h3>
@@ -160,64 +160,73 @@ export default async function ResultPage({
               )}
             </section>
 
-            <section className="mt-4 rounded-[18px] border border-[#e2e8db] bg-white/80 p-4 sm:p-5">
-              <h3 className="font-mono text-xs font-semibold uppercase tracking-[0.1em] text-ink-faint lg:text-sm">Clinical explanation</h3>
-              <p className="mt-3 text-base leading-7 text-ink-secondary">{record.reason}</p>
+            <details className="group mt-4 min-w-0 rounded-[18px] border border-[#e2e8db] bg-white/80 p-3 sm:p-5 xl:mt-0">
+              <summary className="cursor-pointer list-none">
+                <span className="font-mono text-xs font-semibold uppercase tracking-[0.1em] text-ink-faint lg:text-sm">Clinical explanation</span>
+                <span className="mt-1 block text-xs leading-5 text-ink-muted sm:text-sm">View assessment reasoning</span>
+              </summary>
+              <p className="mt-3 text-sm leading-6 text-ink-secondary sm:text-base sm:leading-7">{record.reason}</p>
               {record.input_text && (
-                <p className="mt-4 border-t border-border/70 pt-3 text-sm leading-relaxed text-ink-faint">
+                <p className="mt-3 border-t border-border/70 pt-3 text-xs leading-5 text-ink-faint sm:text-sm sm:leading-relaxed">
                   Reported information: <span className="italic text-ink-muted">“{record.input_text}”</span>
                 </p>
               )}
-            </section>
+            </details>
 
-            <section className="mt-4 overflow-hidden rounded-[18px] border border-[#d8e2d3] bg-[linear-gradient(145deg,#fbfcf8_0%,#f2f7ef_100%)] p-4 shadow-[0_12px_28px_rgba(31,74,54,0.05)] sm:p-5">
-              <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#d8e2d3]/80 pb-4">
-                <div>
-                  <div className="flex items-center gap-2.5">
+            <details className="group mt-4 overflow-hidden rounded-[18px] border border-[#d8e2d3] bg-[linear-gradient(145deg,#fbfcf8_0%,#f2f7ef_100%)] p-3 shadow-[0_12px_28px_rgba(31,74,54,0.05)] sm:p-5 xl:col-span-2 xl:mt-0">
+              <summary className="flex cursor-pointer list-none flex-wrap items-start justify-between gap-2 border-b border-[#d8e2d3]/80 pb-3 sm:gap-3 sm:pb-4">
+                <span>
+                  <span className="flex items-center gap-2.5">
                     <span className="h-5 w-1 rounded-full bg-gradient-to-b from-brand-dark to-brand-light" aria-hidden="true" />
-                    <h3 className="font-mono text-xs font-semibold uppercase tracking-[0.12em] text-brand-dark lg:text-sm">Rules used</h3>
-                  </div>
-                  <p className="mt-2 pl-3.5 text-sm leading-relaxed text-ink-muted">Here is why HealthGuard gave you this guidance.</p>
-                </div>
-                <span className="rounded-full border border-[#c9d8cb] bg-white/75 px-2.5 py-1 font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-brand-dark shadow-[0_2px_8px_rgba(31,74,54,0.05)]">{record.triggered_rules.length} applied</span>
-              </div>
-              <ol className="mt-4 space-y-2.5">
+                    <span className="font-mono text-xs font-semibold uppercase tracking-[0.12em] text-brand-dark lg:text-sm">Rules used</span>
+                  </span>
+                  <span className="mt-1 block pl-3.5 text-xs leading-5 text-ink-muted sm:text-sm">View applied rules</span>
+                </span>
+                <span className="rounded-full border border-[#c9d8cb] bg-white/75 px-2 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-dark shadow-[0_2px_8px_rgba(31,74,54,0.05)] sm:px-2.5 sm:text-[11px]">{record.triggered_rules.length} applied</span>
+              </summary>
+              <ol className="mt-3 space-y-2 sm:mt-4 sm:space-y-2.5">
                 {record.triggered_rules.map((rule) => (
-                    <li key={rule.name} className="group relative flex gap-3 overflow-hidden rounded-2xl border border-[#dfe8dc] bg-white/85 px-4 py-4 shadow-[0_4px_12px_rgba(31,74,54,0.035)] transition-colors duration-200 hover:border-[#b9ceb9] sm:px-5">
+                    <li key={rule.name} className="group relative flex gap-2.5 overflow-hidden rounded-2xl border border-[#dfe8dc] bg-white/85 px-3 py-3 shadow-[0_4px_12px_rgba(31,74,54,0.035)] transition-colors duration-200 hover:border-[#b9ceb9] sm:gap-3 sm:px-5 sm:py-4">
                     <span className="absolute inset-y-0 left-0 w-0.5 bg-brand/45 transition-colors duration-200 group-hover:bg-brand" aria-hidden="true" />
                     <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#dce8d8] bg-[#f4f8f0] font-mono text-xs font-semibold text-brand-dark">
                       {record.triggered_rules.indexOf(rule) + 1}
                     </span>
                     <div className="min-w-0">
-                      <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-secondary">{ruleTitle(rule.name)}</p>
-                      <p className="mt-1.5 text-sm leading-6 text-ink-muted">{ruleDescription(rule.name, rule.description)}</p>
+                      <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.06em] text-ink-secondary sm:text-[11px] sm:tracking-[0.08em]">{ruleTitle(rule.name)}</p>
+                      <p className="mt-1 text-[13px] leading-5 text-ink-muted sm:mt-1.5 sm:text-sm sm:leading-6">{ruleDescription(rule.name, rule.description)}</p>
                     </div>
                   </li>
                 ))}
               </ol>
-            </section>
+            </details>
 
             {record.risk_level !== "RED" && (
-              <MedicationGuidanceCard
-                riskLevel={record.risk_level}
-                inputText={record.input_text}
-                detectedSymptoms={record.detected_symptoms}
-                guidance={
-                  record.pre_medication
-                    ? {
-                        drugName: record.pre_medication.medication_name,
-                        dosage: record.pre_medication.dosage,
-                        contraindications: record.pre_medication.contraindications,
-                        sideEffects: record.pre_medication.side_effects,
-                        precautions: record.pre_medication.precautions,
-                        note: record.pre_medication.note,
-                      }
-                    : undefined
-                }
-              />
+              <details className="mt-4 rounded-[18px] border border-[#E4C77C] bg-[linear-gradient(135deg,#FFFDF2_0%,#FFF8DC_58%,#FFF4C8_100%)] p-3 sm:p-5 xl:col-span-2 xl:mt-0">
+                <summary className="cursor-pointer list-none">
+                  <span className="font-mono text-xs font-semibold uppercase tracking-[0.12em] text-[#966719]">Pre-medication guidance</span>
+                  <span className="mt-1 block text-xs leading-5 text-ink-secondary sm:text-sm">View safety information</span>
+                </summary>
+                <MedicationGuidanceCard
+                  riskLevel={record.risk_level}
+                  inputText={record.input_text}
+                  detectedSymptoms={record.detected_symptoms}
+                  guidance={
+                    record.pre_medication
+                      ? {
+                          drugName: record.pre_medication.medication_name,
+                          dosage: record.pre_medication.dosage,
+                          contraindications: record.pre_medication.contraindications,
+                          sideEffects: record.pre_medication.side_effects,
+                          precautions: record.pre_medication.precautions,
+                          note: record.pre_medication.note,
+                        }
+                      : undefined
+                  }
+                />
+              </details>
             )}
 
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row xl:col-span-2 xl:mt-0">
               <PrimaryLink href="/assessment" className="min-h-12 flex-1 rounded-xl bg-gradient-to-r from-brand to-brand-dark font-semibold shadow-[0_12px_28px_rgba(47,107,79,0.15)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_32px_rgba(31,74,54,0.22)]">
                 New assessment
               </PrimaryLink>
@@ -229,18 +238,27 @@ export default async function ResultPage({
               </Link>
             </div>
 
-            <Disclaimer className="mt-6" />
+            <Disclaimer className="mt-6 xl:col-span-2 xl:mt-0" />
           </Card>
 
-          <aside className="space-y-6">
-            <div className="relative overflow-hidden rounded-[28px] border border-[#F0B5AA] bg-[radial-gradient(circle_at_top_right,_rgba(255,214,205,0.2),_transparent_34%),linear-gradient(135deg,#8E2F24_0%,#6F211C_52%,#4B1715_100%)] p-6 text-[#FFF7F3] shadow-[0_22px_60px_rgba(120,35,28,0.28)]">
+          <aside className="grid gap-6 lg:grid-cols-2">
+            <div className="relative overflow-hidden rounded-[28px] border border-[#F0B5AA] bg-[radial-gradient(circle_at_top_right,_rgba(255,214,205,0.2),_transparent_34%),linear-gradient(135deg,#8E2F24_0%,#6F211C_52%,#4B1715_100%)] p-4 text-[#FFF7F3] shadow-[0_22px_60px_rgba(120,35,28,0.28)] sm:p-6">
               <div className="absolute -right-16 -top-20 h-48 w-48 rounded-full border border-white/10 bg-white/5" aria-hidden="true" />
               <p className="relative font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[#FFD2C8]">Irosin emergency</p>
-              <h2 className="relative mt-3 font-display text-2xl font-semibold leading-tight text-white">Call if symptoms worsen</h2>
-              <div className="relative mt-5 space-y-3">
-                <div className="rounded-2xl border border-white/25 bg-white/10 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">
-                  <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-[#FFD2C8]">Emergency hotline</p>
-                  <p className="mt-1 text-2xl font-semibold tracking-wide text-white">911</p>
+              <h2 className="relative mt-2 font-display text-xl font-semibold leading-tight text-white sm:mt-3 sm:text-2xl">Call if symptoms worsen</h2>
+              <div className="relative mt-4 grid grid-cols-2 gap-2.5 sm:mt-5 sm:grid-cols-3 sm:gap-3">
+                <div className="col-span-2 rounded-2xl border border-white/25 bg-white/10 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] sm:col-span-1 sm:p-3.5">
+                  <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-[#FFD2C8] sm:text-[10px] sm:tracking-[0.12em]">EMERGENCY HOTLINE</p>
+                  <p className="mt-1 text-xl font-semibold tracking-wide text-white sm:text-2xl">911</p>
+                </div>
+                <div className="rounded-2xl border border-white/25 bg-white/10 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] sm:p-3.5">
+                  <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-[#FFD2C8] sm:text-[10px] sm:tracking-[0.12em]">RHU CONTACT</p>
+                  <p className="mt-1 whitespace-nowrap text-base font-semibold tracking-tight text-white sm:text-lg sm:tracking-normal">09702480983</p>
+                  <p className="text-sm text-[#FFE4DD]">Lying In</p>
+                </div>
+                <div className="rounded-2xl border border-white/25 bg-white/10 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] sm:p-3.5">
+                  <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-[#FFD2C8] sm:text-[10px] sm:tracking-[0.12em]">PDO</p>
+                  <p className="mt-1 whitespace-nowrap text-base font-semibold tracking-tight text-white sm:text-lg sm:tracking-normal">0902576740</p>
                 </div>
               </div>
               <p className="relative mt-4 text-sm leading-relaxed text-[#FFE4DD]">

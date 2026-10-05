@@ -362,8 +362,8 @@ export default function ProfilePage() {
       <div className="premium-page min-h-screen">
         <PageHeader />
         <PageMain>
-          <section className="premium-skeleton relative overflow-hidden rounded-[30px] p-6 sm:p-9">
-            <div className="grid gap-8 md:grid-cols-[auto_1fr_auto] md:items-center md:gap-10">
+          <section className="premium-skeleton relative overflow-hidden rounded-[30px] p-4 sm:p-9">
+            <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-4 sm:gap-6 md:grid-cols-[auto_1fr_auto] md:gap-10">
               <div className="h-16 w-16 flex-none rounded-2xl bg-white/45" />
               
               <div className="min-w-0 space-y-3">
@@ -375,7 +375,7 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              <div className="h-20 w-48 rounded-2xl bg-white/45" />
+              <div className="col-span-2 h-20 w-full rounded-2xl bg-white/45 md:col-span-1 md:w-48" />
             </div>
           </section>
 
@@ -441,12 +441,12 @@ export default function ProfilePage() {
         {/* Record card */}
         <section className="motion-safe:animate-[recordReveal_0.6s_ease-out] relative overflow-hidden rounded-[30px] border border-[#D1D9CF] bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.28),_transparent_30%),linear-gradient(135deg,#183D2D_0%,#1F4A36_42%,#2E6A52_100%)] text-brand-foreground shadow-[0_28px_60px_rgba(23,63,45,0.18)]">
           <div className="absolute inset-x-0 top-0 h-1.5 bg-[#F4D58D]" />
-          <div className="grid gap-8 p-6 sm:p-9 md:grid-cols-[auto_1fr_auto] md:items-center md:gap-10 lg:p-10">
+          <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-4 p-4 sm:gap-6 sm:p-7 md:grid-cols-[auto_1fr_auto] md:gap-10 lg:p-10">
             <div className="relative flex w-fit flex-none">
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="group relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-[28px] border border-white/35 bg-white/10 font-display text-3xl font-semibold shadow-[0_16px_34px_rgba(8,35,22,0.22)] ring-4 ring-white/10 transition duration-200 hover:scale-[1.03] hover:ring-white/25 sm:h-28 sm:w-28"
+                className="group relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-[24px] border border-white/35 bg-white/10 font-display text-2xl font-semibold shadow-[0_16px_34px_rgba(8,35,22,0.22)] ring-4 ring-white/10 transition duration-200 hover:scale-[1.03] hover:ring-white/25 sm:h-28 sm:w-28 sm:rounded-[28px] sm:text-3xl"
                 aria-label="Upload profile photo"
               >
                 {photoUrl ? (
@@ -465,26 +465,26 @@ export default function ProfilePage() {
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoSelect} />
 
             <div className="min-w-0">
-              <h1 className="mt-1 truncate font-display text-3xl font-semibold sm:text-4xl">
+              <h1 className="mt-1 break-words font-display text-xl font-semibold leading-tight sm:text-4xl">
                 {user.full_name}
               </h1>
-              <p className="mt-3 max-w-md text-sm leading-relaxed text-brand-foreground/80">
+              <p className="mt-2 max-w-md text-xs leading-relaxed text-brand-foreground/80 sm:mt-3 sm:text-sm">
                 These details travel with every assessment you run, so a case can be traced back
                 to the right patient and barangay.
               </p>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 border-t border-white/20 pt-6 text-sm md:grid-cols-1 md:border-t-0 md:border-l md:pl-8 md:pt-0">
-              <div className="rounded-2xl border border-white/15 bg-white/10 px-3 py-2.5 backdrop-blur-sm">
-                <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-brand-foreground/60">Role</p>
+            <div className="col-span-2 grid grid-cols-2 gap-2 border-t border-white/20 pt-4 text-sm min-[420px]:grid-cols-3 sm:pt-6 md:col-span-1 md:grid-cols-1 md:border-t-0 md:border-l md:pl-8 md:pt-0">
+              <div className="min-w-0 rounded-2xl border border-white/15 bg-white/10 px-2.5 py-2.5 backdrop-blur-sm sm:px-3">
+                <p className="font-mono text-[8px] uppercase tracking-[0.08em] text-brand-foreground/60 sm:text-[9px] sm:tracking-[0.1em]">Role</p>
                 <p className="mt-1 font-semibold capitalize text-white">{user.role}</p>
               </div>
-              <div className="rounded-2xl border border-white/15 bg-white/10 px-3 py-2.5 backdrop-blur-sm">
-                <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-brand-foreground/60">Record no.</p>
-                <p className="mt-1 font-mono text-xs font-semibold tracking-tight text-white">{recordNo}</p>
+              <div className="min-w-0 rounded-2xl border border-white/15 bg-white/10 px-2.5 py-2.5 backdrop-blur-sm sm:px-3">
+                <p className="font-mono text-[8px] uppercase tracking-[0.08em] text-brand-foreground/60 sm:text-[9px] sm:tracking-[0.1em]">Record no.</p>
+                <p className="mt-1 break-all font-mono text-[11px] font-semibold tracking-tight text-white sm:text-xs">{recordNo}</p>
               </div>
-              <div className="rounded-2xl border border-white/15 bg-white/10 px-3 py-2.5 backdrop-blur-sm">
-                <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-brand-foreground/60">Joined</p>
+              <div className="min-w-0 rounded-2xl border border-white/15 bg-white/10 px-2.5 py-2.5 backdrop-blur-sm sm:px-3">
+                <p className="font-mono text-[8px] uppercase tracking-[0.08em] text-brand-foreground/60 sm:text-[9px] sm:tracking-[0.1em]">Joined</p>
                 <p className="mt-1 font-semibold text-white">{joinedDate}</p>
               </div>
             </div>

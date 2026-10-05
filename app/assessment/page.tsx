@@ -26,13 +26,24 @@ import PersonAssessmentPage from "./child/page";
 // preserves the existing backend contract (selected_symptoms still arrives
 // as ["fever", "cough", ...]).
 const SYMPTOMS = [
-  { value: "fever", en: "Fever", tl: "Lagnat", icon: <IconThermometer size={18} /> },
-  { value: "cough", en: "Cough", tl: "Ubo", icon: <IconLungs size={18} /> },
-  { value: "headache", en: "Headache", tl: "Sakit ng ulo", icon: <IconBrain size={18} /> },
-  { value: "abdominal pain", en: "Abdominal pain", tl: "Sakit ng tiyan", icon: <IconStomach size={18} /> },
-  { value: "vomiting", en: "Vomiting", tl: "Pagsusuka", icon: <IconDroplets size={18} /> },
-  { value: "diarrhea", en: "Diarrhea", tl: "Pagtatae", icon: <IconDroplets size={18} /> },
-  { value: "difficulty breathing", en: "Difficulty breathing", tl: "Hirap huminga", icon: <IconLungs size={18} /> },
+  { value: "fever", category: "general", en: "Fever", tl: "Lagnat", icon: <IconThermometer size={18} /> },
+  { value: "cough", category: "respiratory", en: "Cough", tl: "Ubo", icon: <IconLungs size={18} /> },
+  { value: "headache", category: "pain", en: "Headache", tl: "Sakit ng ulo", icon: <IconBrain size={18} /> },
+  { value: "abdominal pain", category: "digestive", en: "Stomach ache", tl: "Masakit ang tiyan", icon: <IconStomach size={18} /> },
+  { value: "vomiting", category: "digestive", en: "Vomiting", tl: "Pagsusuka", icon: <IconDroplets size={18} /> },
+  { value: "diarrhea", category: "digestive", en: "Diarrhea", tl: "Pagtatae", icon: <IconDroplets size={18} /> },
+  { value: "rash", category: "skin", en: "Rashes", tl: "Pantal", icon: <IconDroplets size={18} /> },
+  { value: "colds / rhinitis", category: "respiratory", en: "Cold", tl: "Sipon", icon: <IconLungs size={18} /> },
+  { value: "muscle ache / body soreness", category: "pain", en: "Body aches", tl: "Pananakit ng katawan", icon: <IconStomach size={18} /> },
+  { value: "difficulty breathing", category: "respiratory", en: "Difficulty breathing", tl: "Hirap huminga", icon: <IconLungs size={18} /> },
+] as const;
+
+const SYMPTOM_CATEGORIES = [
+  { key: "general", en: "General", tl: "Pangkalahatan" },
+  { key: "respiratory", en: "Respiratory", tl: "Paghinga" },
+  { key: "digestive", en: "Digestive", tl: "Pantunaw" },
+  { key: "pain", en: "Pain", tl: "Pananakit" },
+  { key: "skin", en: "Skin", tl: "Balat" },
 ] as const;
 
 // Symptoms that warrant a plain-language "don't wait" nudge before submit.
@@ -55,6 +66,24 @@ const DURATION_OPTIONS = [
 const MIN_PROCESSING_TIME_MS = 7000;
 const PROCESSING_STEP_INTERVAL_MS = 2200;
 
+const ABDOMINAL_LOCATION_OPTIONS = [
+  { en: "Upper right", tl: "Itaas na kanan" },
+  { en: "Upper left", tl: "Itaas na kaliwa" },
+  { en: "Upper middle", tl: "Gitnang itaas" },
+  { en: "Lower right", tl: "Ibabang kanan" },
+  { en: "Lower left", tl: "Ibabang kaliwa" },
+  { en: "Lower/general", tl: "Ibaba / pangkalahatan" },
+  { en: "Around the navel", tl: "Palibot ng pusod" },
+  { en: "Not sure", tl: "Hindi sigurado" },
+] as const;
+
+const ABDOMINAL_QUALITY_OPTIONS = [
+  { en: "Cramping / wave-like", tl: "Pamumulikat / parang alon" },
+  { en: "Burning", tl: "Nagkakaroon ng hapdi" },
+  { en: "Dull / achy", tl: "Pahingang masakit" },
+  { en: "Sharp / stabbing", tl: "Matulis / tumutusok" },
+] as const;
+
 const TYPE_CHIPS: Record<string, { en: string; tl: string }[]> = {
   cough: [
     { en: "Acute", tl: "Biglaang ubo" },
@@ -69,16 +98,7 @@ const TYPE_CHIPS: Record<string, { en: string; tl: string }[]> = {
     { en: "Sinus headache", tl: "Sakit ng ulo dahil sa sinus" },
     { en: "Thunderclap headache", tl: "Biglaang matinding sakit ng ulo" },
   ],
-  "abdominal pain": [
-    { en: "Tummy or belly ache", tl: "Masakit ang tiyan" },
-    { en: "Upper right abdomen", tl: "Itaas na kanan ng tiyan" },
-    { en: "Upper left abdomen", tl: "Itaas na kaliwa ng tiyan" },
-    { en: "Lower right abdomen", tl: "Ibabang kanan ng tiyan" },
-    { en: "Lower left abdomen", tl: "Ibabang kaliwa ng tiyan" },
-    { en: "Lower abdomen", tl: "Ibabang bahagi ng tiyan" },
-    { en: "Cramping", tl: "Pamumulikat" },
-    { en: "Burning pain", tl: "Mahapding sakit" },
-  ],
+  "abdominal pain": ABDOMINAL_LOCATION_OPTIONS.map((item) => ({ ...item })).concat(ABDOMINAL_QUALITY_OPTIONS.map((item) => ({ ...item }))),
   vomiting: [
     { en: "Nausea", tl: "Pagduduwal" },
     { en: "Retching", tl: "Pag-uurong-suka" },
@@ -88,6 +108,15 @@ const TYPE_CHIPS: Record<string, { en: string; tl: string }[]> = {
     { en: "Watery stool", tl: "Tubig ang dumi" },
     { en: "Frequent stool", tl: "Madalas dumumi" },
     { en: "Blood in stool", tl: "Dugo sa dumi" },
+  ],
+  rash: [
+    { en: "Skin rash", tl: "Pantal sa balat" },
+    { en: "Redness of skin", tl: "Pula ng balat" },
+    { en: "Itchiness", tl: "Kati" },
+  ],
+  "colds / rhinitis": [
+    { en: "Runny nose", tl: "Tulo ng ilong" },
+    { en: "Sneezing", tl: "Pagbahing / pag-ubo ng ilong" },
   ],
   "difficulty breathing": [
     { en: "Shortness of breath", tl: "Kapos sa paghinga" },
@@ -258,8 +287,8 @@ export default function AssessmentPage() {
     <div className="premium-page min-h-screen">
       {!submitting && <PageHeader />}
       <PageMain narrow className={submitting ? "min-h-screen pt-8 sm:pt-12 lg:flex lg:items-center" : undefined}>
-        <div className={`grid gap-6 ${submitting ? "xl:grid-cols-1" : "xl:grid-cols-[1.35fr_0.65fr]"}`}>
-          <Card className={`!p-4 sm:!p-7 lg:!p-11 xl:!p-12 relative overflow-hidden rounded-3xl border border-[#DDE7DB] bg-[linear-gradient(135deg,#FFFFFF_0%,#FBFCF9_58%,#F1F5EE_100%)] shadow-[0_24px_70px_rgba(15,23,42,0.09)] ${submitting ? "mx-auto w-full max-w-4xl" : ""}`}>
+        <div className="assessment-route-enter grid items-start gap-6">
+          <Card className={`relative overflow-hidden rounded-3xl border border-[#DDE7DB] bg-[linear-gradient(135deg,#FFFFFF_0%,#FBFCF9_58%,#F1F5EE_100%)] shadow-[0_24px_70px_rgba(15,23,42,0.09)] ${submitting ? "mx-auto w-full max-w-4xl" : ""}`}>
             <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" aria-hidden="true" />
             {submitting ? (
               <div className="py-8 sm:py-12" aria-live="polite">
@@ -305,9 +334,9 @@ export default function AssessmentPage() {
                 </PageTitle>
                 {currentUser && (
                   <div className="mt-5 flex justify-end">
-                    <div className="inline-flex rounded-xl border border-[#D8E2D3] bg-white/80 p-1" role="group" aria-label="Assessment type">
-                      <span aria-current="page" className="inline-flex min-h-10 items-center rounded-lg bg-brand px-4 text-sm font-semibold text-brand-foreground">For myself / Sarili</span>
-                      <Link href="/assessment/child" className="inline-flex min-h-10 items-center rounded-lg px-4 text-sm font-semibold text-ink-secondary transition hover:bg-brand-tint hover:text-brand-dark">Assess someone / Ibang tao</Link>
+                    <div className="inline-flex max-w-full rounded-xl border border-[#D8E2D3] bg-white/80 p-1 shadow-[0_4px_14px_rgba(24,38,25,0.06)]" role="group" aria-label="Assessment type">
+                      <span aria-current="page" className="inline-flex min-h-10 items-center rounded-lg bg-gradient-to-r from-brand to-brand-dark px-3 text-center text-xs font-semibold text-brand-foreground shadow-[0_3px_8px_rgba(31,74,54,0.2)] sm:px-4 sm:text-sm">For myself / Sarili</span>
+                      <Link href="/assessment/child" className="group inline-flex min-h-10 items-center justify-center rounded-lg px-3 text-center text-xs font-semibold text-ink-secondary transition duration-200 ease-out hover:-translate-y-0.5 hover:bg-brand-tint hover:text-brand-dark hover:shadow-[0_6px_14px_rgba(47,107,79,0.12)] active:translate-y-0 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30 sm:px-4 sm:text-sm">Assess someone / Ibang tao</Link>
                     </div>
                   </div>
                 )}
@@ -325,18 +354,30 @@ export default function AssessmentPage() {
                   <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand text-sm text-brand-foreground">1</span>
                   What do you feel?
                 </label>
-                <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
-                  {SYMPTOMS.map((s) => (
-                    <SymptomChip
-                      key={s.value}
-                      label={s.en}
-                      icon={s.icon}
-                      subLabel={s.tl}
-                      selected={selected.includes(s.value)}
-                      urgent={s.value === "difficulty breathing"}
-                      onToggle={() => toggle(s.value)}
-                    />
-                  ))}
+                <div className="mt-4 space-y-5">
+                  {SYMPTOM_CATEGORIES.map((category) => {
+                    const categorySymptoms = SYMPTOMS.filter((symptom) => symptom.category === category.key);
+                    return (
+                      <section key={category.key} aria-labelledby={`symptom-category-${category.key}`}>
+                        <h3 id={`symptom-category-${category.key}`} className="text-sm font-semibold text-ink-secondary">
+                          {category.en} <span className="font-normal text-ink-faint">/ {category.tl}</span>
+                        </h3>
+                        <div className="mt-2.5 grid grid-cols-1 gap-2.5 min-[420px]:grid-cols-2 sm:gap-4 sm:grid-cols-3">
+                          {categorySymptoms.map((s) => (
+                            <SymptomChip
+                              key={s.value}
+                              label={s.en}
+                              icon={s.icon}
+                              subLabel={s.tl}
+                              selected={selected.includes(s.value)}
+                              urgent={s.value === "difficulty breathing"}
+                              onToggle={() => toggle(s.value)}
+                            />
+                          ))}
+                        </div>
+                      </section>
+                    );
+                  })}
                 </div>
 
                 {selectedSymptomsWithTypes.length > 0 && (
@@ -345,8 +386,8 @@ export default function AssessmentPage() {
                     <div className="flex flex-wrap items-center gap-3">
                       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#1F4A36] font-mono text-xs font-semibold text-white shadow-[0_6px_14px_rgba(31,74,54,0.2)]">02</span>
                       <div>
-                        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-brand">Optional detail</p>
-                        <h2 id="type-chip-heading" className="mt-0.5 text-base font-semibold text-ink lg:text-lg">Choose the type</h2>
+                        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-brand">Optional classification</p>
+                        <h2 id="type-chip-heading" className="mt-0.5 text-base font-semibold text-ink lg:text-lg">Choose the classification</h2>
                       </div>
                       <span className="ml-12 w-fit rounded-full border border-[#D9E3D6] bg-white/80 px-2.5 py-1 font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-ink-muted sm:ml-auto">Piliin kung alam</span>
                     </div>
@@ -355,6 +396,63 @@ export default function AssessmentPage() {
                         const symptomInfo = SYMPTOMS.find((item) => item.value === symptom);
                         const typeOptions = TYPE_CHIPS[symptom] ?? [];
                         if (typeOptions.length === 0) return null;
+
+                        if (symptom === "abdominal pain") {
+                          return (
+                            <div key={symptom} className="border-t border-[#E4EBE1] pt-4 first:border-t-0 first:pt-0">
+                              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-ink-muted">{symptomInfo?.en} <span className="font-normal normal-case tracking-normal text-ink-faint">/ {symptomInfo?.tl}</span></p>
+
+                              <div className="mt-3">
+                                <p className="text-sm font-semibold text-ink">Where exactly? <span className="font-normal text-ink-faint">/ Saan eksakto?</span></p>
+                                <div className="mt-2.5 grid grid-cols-1 gap-2 min-[400px]:grid-cols-2 sm:gap-2.5 lg:grid-cols-4">
+                                  {ABDOMINAL_LOCATION_OPTIONS.map((type) => {
+                                    const isSelected = selectedTypes[symptom]?.includes(type.en) ?? false;
+                                    return (
+                                      <button
+                                        key={type.en}
+                                        type="button"
+                                        aria-pressed={isSelected}
+                                        onClick={() => toggleType(symptom, type.en)}
+                                        className={`group flex min-h-[76px] w-full flex-col justify-center rounded-xl border px-3 py-2.5 text-left transition duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15 ${isSelected ? "border-[#1F4A36] bg-[linear-gradient(145deg,#2F6B4F_0%,#1F4A36_100%)] text-white shadow-[0_8px_18px_rgba(31,74,54,0.2)]" : "border-[#DCE5D8] bg-white/90 text-ink-secondary shadow-[0_3px_10px_rgba(24,38,25,0.035)] hover:-translate-y-0.5 hover:border-brand/45 hover:bg-white hover:shadow-[0_8px_16px_rgba(31,74,54,0.09)]"}`}
+                                      >
+                                        <span className="flex w-full items-center justify-between gap-2 font-semibold">
+                                          <span>{type.en}</span>
+                                          <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-[10px] leading-none transition ${isSelected ? "border-white/55 bg-white/15 text-white" : "border-[#CBD8CA] text-transparent group-hover:border-brand/50"}`} aria-hidden="true">✓</span>
+                                        </span>
+                                        <span className={`mt-1 block text-xs ${isSelected ? "text-white/75" : "text-ink-faint"}`}>{type.tl}</span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+
+                              <div className="mt-5">
+                                <p className="text-sm font-semibold text-ink">What does it feel like? <span className="font-normal text-ink-faint">/ Ano ang klase ng sakit?</span></p>
+                                <div className="mt-2.5 grid grid-cols-1 gap-2 min-[400px]:grid-cols-2 sm:gap-2.5 lg:grid-cols-4">
+                                  {ABDOMINAL_QUALITY_OPTIONS.map((type) => {
+                                    const isSelected = selectedTypes[symptom]?.includes(type.en) ?? false;
+                                    return (
+                                      <button
+                                        key={type.en}
+                                        type="button"
+                                        aria-pressed={isSelected}
+                                        onClick={() => toggleType(symptom, type.en)}
+                                        className={`group flex min-h-[76px] w-full flex-col justify-center rounded-xl border px-3 py-2.5 text-left transition duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15 ${isSelected ? "border-[#1F4A36] bg-[linear-gradient(145deg,#2F6B4F_0%,#1F4A36_100%)] text-white shadow-[0_8px_18px_rgba(31,74,54,0.2)]" : "border-[#DCE5D8] bg-white/90 text-ink-secondary shadow-[0_3px_10px_rgba(24,38,25,0.035)] hover:-translate-y-0.5 hover:border-brand/45 hover:bg-white hover:shadow-[0_8px_16px_rgba(31,74,54,0.09)]"}`}
+                                      >
+                                        <span className="flex w-full items-center justify-between gap-2 font-semibold">
+                                          <span>{type.en}</span>
+                                          <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-[10px] leading-none transition ${isSelected ? "border-white/55 bg-white/15 text-white" : "border-[#CBD8CA] text-transparent group-hover:border-brand/50"}`} aria-hidden="true">✓</span>
+                                        </span>
+                                        <span className={`mt-1 block text-xs ${isSelected ? "text-white/75" : "text-ink-faint"}`}>{type.tl}</span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
+
                         return (
                           <div key={symptom} className="border-t border-[#E4EBE1] pt-4 first:border-t-0 first:pt-0">
                             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-ink-muted">{symptomInfo?.en} <span className="font-normal normal-case tracking-normal text-ink-faint">/ {symptomInfo?.tl}</span></p>
@@ -469,24 +567,16 @@ export default function AssessmentPage() {
             )}
           </Card>
 
-          <aside className={submitting ? "hidden" : "space-y-6"}>
-            <div className="relative overflow-hidden rounded-3xl border border-[#F0B5AA] bg-[radial-gradient(circle_at_top_right,_rgba(255,214,205,0.2),_transparent_34%),linear-gradient(135deg,#8E2F24_0%,#6F211C_52%,#4B1715_100%)] p-6 text-[#FFF7F3] shadow-[0_22px_60px_rgba(120,35,28,0.28)]">
+          <aside className={submitting ? "hidden" : "grid gap-6 lg:grid-cols-2"}>
+            <div className="relative grid min-w-0 grid-cols-1 items-center gap-4 overflow-hidden rounded-3xl border border-[#D9E5D8] bg-[linear-gradient(145deg,#1F4A36_0%,#2F6B4F_100%)] p-4 text-[#F4F8F0] shadow-[0_22px_60px_rgba(31,74,54,0.22)] sm:p-6 min-[640px]:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] min-[640px]:gap-x-5 min-[640px]:gap-y-0">
               <div className="absolute -right-16 -top-20 h-48 w-48 rounded-full border border-white/10 bg-white/5" aria-hidden="true" />
-              <p className="relative font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[#FFD2C8]">Irosin emergency</p>
-              <h2 className="relative mt-3 font-display text-2xl font-semibold leading-tight text-white">Need urgent help?</h2>
-              <div className="relative mt-5 space-y-3 text-sm leading-relaxed text-[#FFF1EC]">
-                <div className="rounded-2xl border border-white/25 bg-white/10 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">
-                  <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-[#FFD2C8]">Emergency</p>
-                  <p className="mt-1 text-2xl font-semibold tracking-wide text-white">911</p>
-                </div>
-                <div className="rounded-2xl border border-white/25 bg-white/10 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">
-                  <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-[#FFD2C8]">Ambulance / rescue</p>
-                  <p className="mt-1 text-2xl font-semibold tracking-wide text-white">117</p>
-                </div>
+              <div className="relative min-w-0">
+                <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[#CFE3D6]">Personal health reminder</p>
+                <h2 className="mt-2 font-display text-xl font-semibold leading-tight text-white sm:mt-3 sm:text-2xl">Describe, don’t diagnose.</h2>
+                <p className="mt-3 text-sm leading-relaxed text-[#E4F0E5] min-[640px]:mt-4">
+                  Focus on what you are feeling and when it started. Choose “not sure” if a symptom type is unclear; symptom details are optional.
+                </p>
               </div>
-              <p className="relative mt-4 text-sm leading-relaxed text-[#FFE4DD]">
-                For Irosin residents, these are the available emergency response lines to use for immediate triage and transfer support.
-              </p>
             </div>
 
             <div className="rounded-3xl border border-border-soft bg-card p-6 shadow-[0_18px_40px_rgba(15,23,42,0.04)]">

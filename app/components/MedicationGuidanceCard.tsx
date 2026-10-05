@@ -1,4 +1,4 @@
-import { IconPill, IconShield } from "@/app/components/ui/icons";
+import { IconPill } from "@/app/components/ui/icons";
 
 interface MedicationInfo {
   drugName: string;
@@ -82,9 +82,9 @@ const buildGuidance = (riskLevel: string, detectedSymptoms: string[] = []): Medi
 
 function SectionBlock({ title, items }: { title: string; items: string[] }) {
   return (
-    <div className="rounded-2xl border border-[#E3E7DC] bg-[#FBFCF9] p-4 shadow-[0_6px_16px_rgba(24,38,25,0.035)] lg:p-5">
+    <div className="rounded-2xl border border-[#E3E7DC] bg-[#FBFCF9] p-3 shadow-[0_6px_16px_rgba(24,38,25,0.035)] sm:p-4 lg:p-5">
       <h4 className="font-mono text-xs font-semibold uppercase tracking-[0.1em] text-ink-secondary lg:text-sm">{title}</h4>
-      <ul className="mt-3 space-y-2.5 text-sm leading-relaxed text-ink-secondary lg:text-base">
+      <ul className="mt-2 space-y-2 text-[13px] leading-5 text-ink-secondary sm:mt-3 sm:space-y-2.5 sm:text-sm sm:leading-relaxed lg:text-base">
         {items.map((item) => (
           <li key={item} className="flex gap-2">
             <span className="mt-0.5 text-brand" aria-hidden="true">•</span>
@@ -98,17 +98,15 @@ function SectionBlock({ title, items }: { title: string; items: string[] }) {
 
 function MedicationCard({ item }: { item: MedicationInfo }) {
   return (
-    <article className="rounded-2xl border border-[#DDE7DB] bg-white p-4 shadow-[0_12px_28px_rgba(24,38,25,0.06)] lg:p-5">
-      <div className="flex items-start gap-3 rounded-2xl border border-brand/15 bg-brand-tint/55 p-4">
+    <article className="rounded-2xl border border-[#DDE7DB] bg-white p-3 shadow-[0_12px_28px_rgba(24,38,25,0.06)] sm:p-4 lg:p-5">
+      <div className="flex items-start gap-3 rounded-2xl border border-brand/15 bg-brand-tint/55 p-3 sm:p-4">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand text-brand-foreground shadow-sm"><IconPill size={18} /></span>
         <div>
-          <p className="font-display text-lg font-semibold text-brand-dark lg:text-xl">{item.drugName}</p>
+          <p className="font-display text-base font-semibold leading-snug text-brand-dark sm:text-lg lg:text-xl">{item.drugName}</p>
         </div>
       </div>
-      <div className="mt-4 grid gap-3 md:grid-cols-2">
+      <div className="mt-3 grid gap-2.5 sm:mt-4 sm:gap-3 lg:grid-cols-2">
         <SectionBlock title="Side effects" items={item.sideEffects} />
-      </div>
-      <div className="mt-3">
         <SectionBlock title="Precautions" items={item.precautions} />
       </div>
     </article>
@@ -128,31 +126,14 @@ export default function MedicationGuidanceCard({
   }
 
   return (
-    <section className="relative mt-6 overflow-hidden rounded-[24px] border border-[#E4C77C] bg-[linear-gradient(135deg,#FFFDF2_0%,#FFF8DC_58%,#FFF4C8_100%)] p-5 shadow-[0_16px_36px_rgba(151,105,22,0.1)] sm:p-6">
-      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#B87A18] via-[#E6B84F] to-[#F3D98D]" aria-hidden="true" />
-      <div className="flex items-start gap-3">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#DDB65B] bg-white/70 text-[#966719] shadow-sm">
-          <IconShield size={19} />
-        </div>
-        <div>
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.13em] text-[#966719]">Use with care</p>
-          <h3 className="mt-1 font-display text-xl font-semibold text-ink lg:text-2xl">Pre-medication guidance</h3>
-          <p className="mt-1 text-sm leading-relaxed text-ink-secondary lg:text-base">
-            Simple safety information for common over-the-counter medicines often used in the Philippines.
-          </p>
-        </div>
-      </div>
-
-      <div className="mt-4">
-        <MedicationCard item={computedGuidance} />
-      </div>
-
-      <div className="mt-4 rounded-2xl border border-[#E4C77C] bg-white/55 px-4 py-3.5 lg:px-5">
+    <div className="mt-3 space-y-3">
+      <MedicationCard item={computedGuidance} />
+      <div className="rounded-2xl border border-[#E4C77C] bg-white/55 px-3 py-3 sm:px-4 sm:py-3.5 lg:px-5">
         <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-[#966719] lg:text-xs">Important note</p>
-        <p className="mt-1.5 text-xs leading-relaxed text-ink-muted lg:text-sm">
+        <p className="mt-1 text-xs leading-5 text-ink-muted sm:mt-1.5 sm:leading-relaxed lg:text-sm">
           Check with a pharmacist, doctor, or qualified health worker before taking any medicine. This guide is not a substitute for a proper diagnosis.
         </p>
       </div>
-    </section>
+    </div>
   );
 }
