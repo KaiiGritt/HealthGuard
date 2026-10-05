@@ -78,7 +78,7 @@ const TYPE_CHIPS: Record<string, { en: string; tl: string }[]> = {
     { en: "Sinus headache", tl: "Sakit ng ulo dahil sa sinus" },
     { en: "Thunderclap headache", tl: "Biglaang matinding sakit ng ulo" },
   ],
-  "abdominal pain": ABDOMINAL_LOCATION_OPTIONS.map((item) => ({ ...item })).concat(ABDOMINAL_QUALITY_OPTIONS.map((item) => ({ ...item }))),
+  "abdominal pain": [...ABDOMINAL_LOCATION_OPTIONS, ...ABDOMINAL_QUALITY_OPTIONS],
   vomiting: [
     { en: "Nausea", tl: "Pagduduwal" },
     { en: "Retching", tl: "Pag-uurong-suka" },
