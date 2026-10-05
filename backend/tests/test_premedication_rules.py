@@ -79,10 +79,13 @@ def test_guide_is_symptom_aware() -> None:
 
 
 def test_otc_nasal_congestion_guidance() -> None:
-    """Test OTC guidance for cold-like symptoms."""
-    guide = build_premedication_guide("GREEN", ["nasal congestion", "sneezing"])
+    """Cold symptoms should receive self-care, not an automatic decongestant."""
+    guide = build_premedication_guide("GREEN", ["colds / rhinitis", "sneezing"])
     assert guide is not None
-    assert "Decongestant" in guide.medication_name
+    assert guide.medication_name == "Cold symptom self-care"
+    assert any("Rest and drink fluids" in item for item in guide.precautions)
+    assert any("paracetamol twice" in item for item in guide.precautions)
+    assert any("one week" in item for item in guide.precautions)
 
 
 def test_otc_diarrhea_guidance() -> None:
@@ -139,14 +142,44 @@ def test_validated_subtype_medication_options() -> None:
 
 
 def test_otc_rash_guidance() -> None:
-    """Test OTC guidance for allergic/skin symptoms."""
-    guide = build_premedication_guide("GREEN", ["rash", "itching"])
+    """An unexplained rash must not trigger an automatic medication."""
+    guide = build_premedication_guide("GREEN", ["rash"])
     assert guide is not None
-    assert "Antihistamine" in guide.medication_name or "Soothing" in guide.medication_name
+    assert guide.medication_name == "Non-drug skin care"
+    assert guide.dosage == "No medicine or dose is selected automatically."
+
+
+def test_itchy_rash_gets_conditional_pharmacist_guidance() -> None:
+    guide = build_premedication_guide("GREEN", ["rash"], "itchy rash")
+
+    assert guide is not None
+    assert guide.medication_name == "Pharmacist advice for itchy skin"
+    assert guide.dosage == "No medicine or dose is selected automatically."
+    assert any("whether an antihistamine is suitable" in item for item in guide.precautions)
+
+    not_itchy = build_premedication_guide("GREEN", ["rash"], "rash is not itchy")
+    assert not_itchy is not None
+    assert not_itchy.medication_name == "Non-drug skin care"
 
 
 def test_otc_muscle_pain_guidance() -> None:
-    """Test OTC guidance for muscle/joint pain."""
-    guide = build_premedication_guide("GREEN", ["muscle pain", "weakness"])
+    """Body aches may map to label-directed paracetamol, never an automatic NSAID."""
+    guide = build_premedication_guide("GREEN", ["muscle ache / body soreness"])
     assert guide is not None
-    assert "Paracetamol" in guide.medication_name or "NSAID" in guide.medication_name
+    assert guide.medication_name == "Paracetamol"
+    assert "NSAID" not in guide.medication_name
+    assert any("Do not combine" in item for item in guide.precautions)
+
+
+def test_body_aches_with_possible_dengue_do_not_recommend_nsaids() -> None:
+    guide = build_premedication_guide(
+        "YELLOW",
+        ["muscle ache / body soreness"],
+        "possible dengue with body aches",
+        age=36,
+    )
+
+    assert guide is not None
+    assert guide.medication_name == "Paracetamol"
+    assert "ibuprofen" not in guide.medication_name.lower()
+    assert "nsaid" not in guide.medication_name.lower()

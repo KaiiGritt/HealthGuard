@@ -62,6 +62,28 @@ def test_extracts_short_bicol_breathing_phrases() -> None:
         assert "difficulty breathing" in result["red_flags"]
 
 
+def test_extracts_added_symptoms_in_english_tagalog_and_bicol() -> None:
+    cases = {
+        "itchy rash": ("rash", "en"),
+        "may pantal sa balat": ("rash", "tl"),
+        "may pantal sa lawas": ("rash", "bcl"),
+        "stuffy nose": ("colds / rhinitis", "en"),
+        "baradong ilong": ("colds / rhinitis", "tl"),
+        "barado an ilong": ("colds / rhinitis", "bcl"),
+        "muscle soreness": ("muscle ache / body soreness", "en"),
+        "masakit ang buong katawan": ("muscle ache / body soreness", "tl"),
+        "masakit an lawas": ("muscle ache / body soreness", "bcl"),
+        "sakit an tiyan": ("abdominal pain", "bcl"),
+    }
+
+    for phrase, (canonical, language) in cases.items():
+        result = extract_symptoms(phrase, LEXICON)
+
+        assert result["language_detected"] == language
+        assert [item["canonical_term"] for item in result["detected_symptoms"]] == [canonical]
+        assert result["detected_symptoms"][0]["source"] == "lexicon"
+
+
 def test_marks_hedged_symptom_and_vague_onset_approximate() -> None:
     result = extract_symptoms("parang may lagnat, ilang araw na", LEXICON)
 

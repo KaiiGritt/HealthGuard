@@ -232,11 +232,11 @@ OTC_SYMPTOM_MAP = [
     # Abdominal pain subtypes.
     ({"abdominal pain", "heartburn", "acid", "acid heartburn"}, set(), "Antacids (Aluminum hydroxide and Magnesium hydroxide)"),
     ({"abdominal pain", "gas", "flatulence"}, set(), "Simethicone"),
-    # Nasal congestion + headache → Decongestant + Paracetamol
+    # Body aches → paracetamol only; do not recommend NSAIDs when dengue is possible.
     (
-        {"nasal congestion", "runny nose", "stuffy nose", "sneezing"},
+        {"muscle pain", "body pain", "joint pain", "muscle ache / body soreness", "body aches", "body ache"},
         set(),
-        "Decongestant with mild pain relief",
+        "Paracetamol",
     ),
     # Diarrhea + mild cramps → Oral rehydration + anti-motility
     (
@@ -246,18 +246,6 @@ OTC_SYMPTOM_MAP = [
     ),
     # Vomiting → oral rehydration solution.
     ({"vomiting", "nausea", "pagsusuka"}, set(), "Oral Rehydration Solution (ORS)"),
-    # Rash + itch → Antihistamine or topical soothing agent
-    (
-        {"rash", "itching", "skin itch", "allergic reaction"},
-        set(),
-        "Antihistamine or Topical Soothing Agent",
-    ),
-    # Muscle pain / joint pain → Paracetamol or NSAIDs (not just fatigue alone)
-    (
-        {"muscle pain", "body pain", "joint pain"},
-        {"weakness", "soreness"},
-        "Paracetamol or NSAID (if no kidney/GI disease)",
-    ),
 ]
 
 
@@ -310,6 +298,29 @@ def build_premedication_guide(
     # Type chips are included in input_text by the assessment UI. Prefer the
     # specific validated option before falling back to the broad symptom map.
     context = f"{' '.join(symptoms)} {(input_text or '').lower()}"
+    if "colds / rhinitis" in symptoms_set:
+        return _build_medication_for_match(
+            risk_level,
+            "Cold symptom self-care",
+            {"colds / rhinitis"},
+        )
+    itch_patterns = (
+        r"\bitch(?:y|ing|iness)?\b",
+        r"\bpruritus\b",
+        r"\b(?:makati|nangangati|kati)\b",
+    )
+    if "rash" in symptoms_set and _has_unnegated_pattern(context, itch_patterns):
+        return _build_medication_for_match(
+            risk_level,
+            "Pharmacist advice for itchy skin",
+            {"rash", "itching"},
+        )
+    if "rash" in symptoms_set:
+        return _build_medication_for_match(
+            risk_level,
+            "Non-drug skin care",
+            {"rash"},
+        )
     if "diarrhea" in symptoms_set and ((age is not None and age < 12) or "fever" in symptoms_set or "blood" in context):
         return _build_medication_for_match(risk_level, "Oral Rehydration Solution (ORS)", {"diarrhea"})
     if symptoms_set & {"diarrhea", "vomiting"} and (
@@ -349,19 +360,15 @@ def build_premedication_guide(
         risk_level=(risk_level or "GREEN").upper(),
         symptom_match=("general discomfort", "mild pain", "fatigue"),
         medication_name="General Symptom Support",
-        dosage="Follow the product label for the specific medicine you choose, and limit use to the lowest effective dose for the shortest time needed.",
-        contraindications=(
-            "Known allergy to any ingredient in the medicine",
-            "Use with another medicine that has the same active ingredient without professional advice",
-            "Severe underlying medical conditions that require clinician review",
-        ),
-        side_effects=("Drowsiness", "Dry mouth", "Mild stomach discomfort"),
+        dosage="No specific OTC medicine is recommended based on these symptoms alone.",
+        contraindications=(),
+        side_effects=(),
         precautions=(
             "Rest and stay hydrated while monitoring symptoms",
-            "Avoid driving if it causes drowsiness",
+            "Ask a pharmacist or health worker before choosing an over-the-counter medicine",
             "Seek assessment if symptoms persist, worsen, or are accompanied by breathing difficulty or severe pain",
         ),
-        note="This is a broad supportive recommendation for non-specific symptoms and should be paired with clinical review if the condition remains unclear.",
+        note="Symptoms alone may not identify a cause. This guidance does not diagnose or treat an underlying condition.",
     )
 
     return MedicationGuide(
@@ -401,8 +408,21 @@ def _build_medication_for_match(
             "dosage": "Use only according to the approved product label or a health professional's instructions.",
             "contraindications": (),
             "side_effects": ("Stomach upset", "Nausea", "Drowsiness"),
-            "precautions": ("Ask a pharmacist or doctor which option is appropriate before use.",),
-            "note": "Validated options for fever or headache. Use only as directed by a qualified health professional.",
+            "precautions": (
+                "Check the product label and ask a pharmacist if it is suitable for your age, weight, and health conditions",
+                "Do not combine with other medicines containing paracetamol",
+            ),
+            "note": "May help relieve mild aches or pain when suitable. It does not treat the cause of the symptoms.",
+        },
+        "Paracetamol": {
+            "dosage": "Use only according to the approved product label or a health professional's instructions.",
+            "contraindications": (),
+            "side_effects": ("Stomach upset", "Nausea", "Drowsiness"),
+            "precautions": (
+                "Check the product label and ask a pharmacist if it is suitable for your age, weight, and health conditions",
+                "Do not combine with other medicines containing paracetamol",
+            ),
+            "note": "May help relieve mild aches or pain when suitable. It does not treat the cause of the symptoms.",
         },
         "Dextromethorphan or Butamirate": {
             "dosage": "Use only according to the approved product label or a health professional's instructions.",
@@ -461,20 +481,17 @@ def _build_medication_for_match(
             ),
             "note": "Use for short-term symptom relief only; persistent cough requires evaluation.",
         },
-        "Decongestant with mild pain relief": {
-            "dosage": "Follow the product label for dosing; use for 3-7 days maximum.",
-            "contraindications": (
-                "High blood pressure or heart disease",
-                "Taking stimulant medications",
-                "Thyroid disorder",
-            ),
-            "side_effects": ("Mild nervousness", "Sleeplessness", "Slight increase in heart rate"),
+        "Cold symptom self-care": {
+            "dosage": "No specific OTC medicine is recommended for a cold symptom alone.",
+            "contraindications": (),
+            "side_effects": (),
             "precautions": (
-                "Not for use if you have hypertension without medical advice",
-                "Do not combine with other decongestants",
-                "Use for the shortest time possible",
+                "Rest and drink fluids",
+                "Ask a pharmacist whether an OTC cold medicine is suitable for you",
+                "Check combination products to avoid taking paracetamol twice",
+                "If using a nasal decongestant spray, follow its label and do not use it for more than one week",
             ),
-            "note": "For temporary nasal congestion relief; does not treat underlying cause.",
+            "note": "These measures may ease symptoms; they do not identify or treat the cause.",
         },
         "Oral Rehydration Salts + Symptom Relief": {
             "dosage": "Oral rehydration salts: mix according to package. Antidiarrheal: follow label for age/weight.",
@@ -491,37 +508,26 @@ def _build_medication_for_match(
             ),
             "note": "Rehydration is key; limit antidiarrheal use and seek help if not improving.",
         },
-        "Antihistamine or Topical Soothing Agent": {
-            "dosage": "Antihistamine: follow label for age. Topical: apply to affected area 3-4 times daily.",
-            "contraindications": (
-                "Known allergy to antihistamine",
-                "Severe or widespread rash",
-                "Facial swelling or wheezing",
-            ),
-            "side_effects": ("Drowsiness (with some antihistamines)", "Dry mouth", "Mild local irritation"),
+        "Pharmacist advice for itchy skin": {
+            "dosage": "No medicine or dose is selected automatically.",
+            "contraindications": (),
+            "side_effects": (),
             "precautions": (
-                "Do not drive if drowsy",
-                "Severe rash, facial swelling, or wheezing requires urgent care",
-                "If rash spreads or worsens, stop and seek help",
+                "A cool compress or unperfumed moisturizer may help soothe itching",
+                "Ask a pharmacist whether an antihistamine is suitable for the cause of the itching",
+                "Seek medical care for a severe, spreading, or worsening rash, or swelling or breathing difficulty",
             ),
-            "note": "For mild allergic or itchy skin symptoms; severe rash is not appropriate for OTC.",
+            "note": "Rashes have many possible causes. Itching does not by itself confirm an allergy or determine which medicine is appropriate.",
         },
-        "Paracetamol or NSAID (if no kidney/GI disease)": {
-            "dosage": "Paracetamol: 500 mg every 4-6 hours. NSAID (ibuprofen): 200-400 mg every 6-8 hours with food.",
-            "contraindications": (
-                "Known kidney disease",
-                "History of stomach ulcers or GI bleeding",
-                "Allergy to NSAID or paracetamol",
-                "Taking blood thinners",
-            ),
-            "side_effects": ("Nausea", "Stomach discomfort", "Dizziness"),
+        "Non-drug skin care": {
+            "dosage": "No medicine or dose is selected automatically.",
+            "contraindications": (),
+            "side_effects": (),
             "precautions": (
-                "Take with food if using NSAID",
-                "Do not exceed recommended daily doses",
-                "Ask pharmacist before combining with other pain relievers",
-                "Stop if stomach pain or black stool occurs",
+                "Ask a pharmacist or health worker if the rash is concerning, spreading, or getting worse",
+                "Seek urgent care if the rash occurs with swelling or breathing difficulty",
             ),
-            "note": "Choice depends on personal medical history; ask pharmacist when uncertain.",
+            "note": "Rashes have many possible causes, so a specific OTC treatment cannot be selected from rash alone.",
         },
     }
 

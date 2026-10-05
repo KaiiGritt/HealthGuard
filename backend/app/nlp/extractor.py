@@ -85,8 +85,18 @@ _HEDGE_RE = re.compile(
     re.IGNORECASE,
 )
 _ENGLISH_MARKERS = re.compile(r"\b(?:i|have|has|had|the|my|and|with|pain|feel|feeling)\b", re.I)
-_TAGALOG_MARKERS = re.compile(r"\b(?:ako|ko|may|wala|walang|hindi|di|naman|ng|ang|sa|araw|lagnat|ubo|ulo|tiyan|sakit|nahihilo|sinisipon)\b", re.I)
-_BICOL_MARKERS = re.compile(r"\b(?:dae|dai|mayong|aldaw|makahangos|daghan|siring)\b", re.I)
+_TAGALOG_MARKERS = re.compile(
+    r"\b(?:ako|ko|may|wala|walang|hindi|di|naman|ng|ang|sa|araw|"
+    r"lagnat|ubo|ulo|tiyan|sakit|nahihilo|sinisipon|pantal|sipon|"
+    r"baradong ilong|makating pantal|namumula ang balat)\b",
+    re.I,
+)
+_BICOL_MARKERS = re.compile(
+    r"\b(?:dae|dai|mayong|aldaw|makahangos|daghan|siring|"
+    r"(?:masakit|sakit) an (?:lawas|tiyan)|sakit sa lawas|"
+    r"(?:may )?pantal sa lawas|barado an ilong)\b",
+    re.I,
+)
 _SORSOGANON_MARKERS = re.compile(r"\bkalintura\b", re.I)
 
 _NUMBER_WORDS = {

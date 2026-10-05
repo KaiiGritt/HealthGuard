@@ -1,4 +1,4 @@
-"""Match user text against the bilingual lexicon.
+"""Match user text against the multilingual English, Tagalog, and Bikol lexicon.
 
 Matching strategy:
   1. Multi-word phrases first (e.g. "hirap huminga", "difficulty breathing") via substring
