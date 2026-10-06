@@ -3,6 +3,8 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import Mock
 
+import pytest
+
 from app.nlp.extractor import extract_patient_age, extract_symptoms, is_non_symptom_question
 from app.nlp.lexicon import LexiconEntry
 from app.routers.assessment import analyze_symptoms, extract_symptom_text
@@ -23,6 +25,57 @@ def test_extracts_tagalog_inflection_and_explicit_duration() -> None:
     ]
     assert result["onset"] == {"raw_phrase": "3 days na", "days_since_onset": 3.0, "approximate": False}
     assert result["unmapped_terms"][0]["raw_phrase"] == "may sakit ulo"
+
+
+def test_selected_duration_ranges_are_preserved_as_approximate_onset() -> None:
+    cases = [
+        (
+            "Symptoms started about 1–6 hours ago.",
+            {"raw_phrase": "1–6 hours", "days_since_onset": 3.5 / 24, "approximate": True},
+        ),
+        (
+            "Symptoms started about 1–2 days ago.",
+            {"raw_phrase": "1–2 days", "days_since_onset": 1.5, "approximate": True},
+        ),
+        (
+            "Symptoms started about 3–4 days ago.",
+            {"raw_phrase": "3–4 days", "days_since_onset": 3.5, "approximate": True},
+        ),
+        (
+            "Symptoms started about 5–7 days ago.",
+            {"raw_phrase": "5–7 days", "days_since_onset": 6.0, "approximate": True},
+        ),
+        (
+            "Symptoms started about 1–2 weeks ago.",
+            {"raw_phrase": "1–2 weeks", "days_since_onset": 10.5, "approximate": True},
+        ),
+        (
+            "Symptoms started more than 2 weeks ago.",
+            {"raw_phrase": "more than 2 weeks", "days_since_onset": 14.0, "approximate": True},
+        ),
+    ]
+
+    for text, expected in cases:
+        onset = extract_symptoms(text, LEXICON)["onset"]
+        assert onset["raw_phrase"] == expected["raw_phrase"]
+        assert onset["days_since_onset"] == pytest.approx(expected["days_since_onset"])
+        assert onset["approximate"] is expected["approximate"]
+
+
+def test_selected_today_bucket_is_marked_approximate() -> None:
+    assert extract_symptoms("Symptoms started sometime today.", LEXICON)["onset"] == {
+        "raw_phrase": "sometime today",
+        "days_since_onset": 0.5,
+        "approximate": True,
+    }
+
+
+def test_typed_exact_duration_is_not_marked_approximate() -> None:
+    assert extract_symptoms("Symptoms started 4.5 days ago.", LEXICON)["onset"] == {
+        "raw_phrase": "4.5 days",
+        "days_since_onset": 4.5,
+        "approximate": False,
+    }
 
 
 def test_extracts_kwf_documented_sorsoganon_fever_term() -> None:

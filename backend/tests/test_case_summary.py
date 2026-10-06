@@ -109,3 +109,45 @@ def test_approximate_onset_is_never_shown_as_exact() -> None:
     )
 
     assert summary["onset_display"] == "About this morning (uncertain)"
+
+
+def test_onset_only_complaint_does_not_hide_detected_symptoms() -> None:
+    summary = build_case_summary(
+        chief_complaint="Symptoms started 3-7 days ago.",
+        detected_symptoms=["fever", "abdominal pain"],
+        symptom_extraction={
+            "detected_symptoms": [
+                {"canonical_term": "fever", "raw_phrase": "lagnat"},
+                {"canonical_term": "abdominal pain", "raw_phrase": "masakit ang tiyan"},
+            ],
+            "red_flags": [],
+            "onset": {
+                "days_since_onset": 7,
+                "approximate": True,
+                "raw_phrase": "3-7 days",
+            },
+        },
+        triage_level="red",
+    )
+
+    assert summary["chief_complaint_summary"] == "lagnat, masakit ang tiyan."
+    assert summary["triage_badge_color"] == "needs-info"
+    assert summary["urgency_reasons"] == []
+
+
+def test_more_than_duration_is_presented_without_double_about_wording() -> None:
+    summary = build_case_summary(
+        chief_complaint="Fever",
+        detected_symptoms=["fever"],
+        symptom_extraction={
+            "detected_symptoms": [{"canonical_term": "fever"}],
+            "red_flags": [],
+            "onset": {
+                "days_since_onset": 7,
+                "approximate": True,
+                "raw_phrase": "more than 7 days",
+            },
+        },
+        triage_level="yellow",
+    )
+    assert summary["onset_display"] == "More than 7 days ago (approx.)"

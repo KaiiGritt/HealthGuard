@@ -57,10 +57,13 @@ const URGENT_NUDGE_SYMPTOMS = new Set(["difficulty breathing"]);
 // to know to type a value in a parseable format ("2 days"). `days` is the
 // representative value sent to the API as duration_days.
 const DURATION_OPTIONS = [
-  { key: "today", en: "Today", tl: "Ngayon lang", days: 0.5 },
-  { key: "few_days", en: "1–2 days", tl: "1–2 araw", days: 1.5 },
-  { key: "about_a_week", en: "3–7 days", tl: "3–7 araw", days: 5 },
-  { key: "over_a_week", en: "More than a week", tl: "Higit sa isang linggo", days: 10 },
+  { key: "few_hours", en: "A few hours ago", tl: "Ilang oras pa lang", phrase: "about 1–6 hours ago", days: 3.5 / 24, tier: "recent" },
+  { key: "today", en: "Today", tl: "Ngayong araw", phrase: "sometime today", days: 0.5, tier: "recent" },
+  { key: "one_two_days", en: "1–2 days", tl: "1–2 araw", phrase: "about 1–2 days ago", days: 1.5, tier: "recent" },
+  { key: "three_four_days", en: "3–4 days", tl: "3–4 araw", phrase: "about 3–4 days ago", days: 3.5, tier: "longer" },
+  { key: "five_seven_days", en: "5–7 days", tl: "5–7 araw", phrase: "about 5–7 days ago", days: 6, tier: "longer" },
+  { key: "one_two_weeks", en: "1–2 weeks", tl: "1–2 linggo", phrase: "about 1–2 weeks ago", days: 10.5, tier: "longer" },
+  { key: "over_two_weeks", en: "More than 2 weeks", tl: "Mahigit 2 linggo", phrase: "more than 2 weeks ago", days: 14.5, tier: "longer" },
 ] as const;
 
 const MIN_PROCESSING_TIME_MS = 7000;
@@ -139,6 +142,9 @@ export default function AssessmentPage() {
   const [selected, setSelected] = useState<string[]>([]);
   const [selectedTypes, setSelectedTypes] = useState<Record<string, string[]>>({});
   const [durationKey, setDurationKey] = useState<string | null>(null);
+  const [showLongerDurations, setShowLongerDurations] = useState(false);
+  const [exactDurationMode, setExactDurationMode] = useState(false);
+  const [exactDurationDays, setExactDurationDays] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; tone: "success" | "error" } | null>(null);
@@ -209,6 +215,8 @@ export default function AssessmentPage() {
   const showUrgentNudge = selected.some((s) => URGENT_NUDGE_SYMPTOMS.has(s));
   const selectedSymptomsWithTypes = selected.filter((symptom) => (TYPE_CHIPS[symptom] ?? []).length > 0);
   const selectedDuration = DURATION_OPTIONS.find((d) => d.key === durationKey) ?? null;
+  const exactDaysValue = Number(exactDurationDays);
+  const exactDurationValid = exactDurationMode && exactDurationDays.trim() !== "" && Number.isFinite(exactDaysValue) && exactDaysValue > 0;
 
   const getSubmissionValidationError = () => {
     const trimmedText = text.trim();
@@ -217,6 +225,9 @@ export default function AssessmentPage() {
     }
     if (trimmedText && hasExplicitNoSymptoms(trimmedText)) {
       return "We could not recognize a symptom in your message. Please check the spelling and describe a symptom such as fever, cough, headache, or difficulty breathing.";
+    }
+    if (exactDurationMode && !exactDurationValid) {
+      return "Enter the number of days since symptoms started, or go back to choose a time range.";
     }
     return null;
   };
@@ -255,7 +266,9 @@ export default function AssessmentPage() {
         Object.values(selectedTypes).flat().length > 0
           ? `Selected symptom types: ${Object.values(selectedTypes).flat().join(", ")}.`
           : "",
-        selectedDuration ? `Symptoms started ${selectedDuration.en.toLowerCase()} ago.` : "",
+        exactDurationMode
+          ? `Symptoms started ${exactDaysValue} ${exactDaysValue === 1 ? "day" : "days"} ago.`
+          : selectedDuration ? `Symptoms started ${selectedDuration.phrase}.` : "",
       ]
         .filter(Boolean)
         .join(" ");
@@ -264,7 +277,7 @@ export default function AssessmentPage() {
         input_text: combinedText,
         selected_symptoms: selected,
         method: text.trim() ? "text" : "select",
-        duration_days: selectedDuration ? selectedDuration.days : null,
+        duration_days: exactDurationMode ? exactDaysValue : selectedDuration?.days ?? null,
       } as const;
       const result = await analyze(payload);
       const remainingDisplayTime = Math.max(0, MIN_PROCESSING_TIME_MS - (Date.now() - processingStartedAt));
@@ -497,30 +510,121 @@ export default function AssessmentPage() {
 
                 {/* STEP 2 — tap-to-pick duration, no typing or format to get
                     right. Optional, so no chip needs to be pre-selected. */}
-                <label className="mt-10 flex items-center gap-2 text-base font-semibold text-ink lg:text-lg">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand text-sm text-brand-foreground">3</span>
-                  When did it start? <span className="font-normal text-ink-faint">(optional)</span>
-                </label>
-                <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  {DURATION_OPTIONS.map((d) => {
+                <fieldset className="mt-10">
+                  <legend className="flex items-center gap-2 text-base font-semibold text-ink lg:text-lg">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand text-sm text-brand-foreground">3</span>
+                    When did it start? <span className="font-normal text-ink-faint">(optional)</span>
+                  </legend>
+                  <p className="mt-1 pl-9 text-xs leading-relaxed text-ink-muted">
+                    Choose the closest time range. It’s okay if you’re not sure; you can leave this blank.
+                    <span className="mt-0.5 block">Piliin ang pinakamalapit na tagal. Puwedeng hindi pumili kung hindi sigurado.</span>
+                  </p>
+                  <div className="mt-4 grid grid-cols-1 gap-4">
+                    <div>
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-ink-muted">Recent / Kamakailan lang</p>
+                      <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-3 sm:gap-3">
+                  {DURATION_OPTIONS.filter((duration) => duration.tier === "recent").map((d) => {
                     const isSelected = durationKey === d.key;
                     return (
                       <button
                         key={d.key}
                         type="button"
-                        onClick={() => setDurationKey(isSelected ? null : d.key)}
-                        className={`flex min-h-[68px] flex-col justify-center rounded-2xl border px-2 py-3 text-center text-sm font-medium transition sm:px-3 ${
+                        aria-pressed={isSelected}
+                        onClick={() => {
+                          setDurationKey(isSelected ? null : d.key);
+                          setExactDurationMode(false);
+                        }}
+                        className={`group flex min-h-[76px] flex-col justify-center rounded-2xl border px-2 py-3 text-center text-sm font-semibold transition duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15 sm:px-3 ${
                           isSelected
-                            ? "border-brand bg-brand text-brand-foreground shadow-sm"
-                            : "border-border-soft bg-white/80 text-ink-secondary hover:border-brand/50"
+                            ? "border-[#1F4A36] bg-[linear-gradient(145deg,#2F6B4F_0%,#1F4A36_100%)] text-white shadow-[0_8px_18px_rgba(31,74,54,0.2)]"
+                            : "border-[#DCE5D8] bg-white/90 text-ink-secondary shadow-[0_3px_10px_rgba(24,38,25,0.035)] hover:-translate-y-0.5 hover:border-brand/45 hover:bg-white hover:shadow-[0_8px_16px_rgba(31,74,54,0.09)]"
                         }`}
                       >
                         <span className="block">{d.en}</span>
-                        <span className={`block text-xs ${isSelected ? "text-brand-foreground/80" : "text-ink-faint"}`}>{d.tl}</span>
+                        <span className={`mt-0.5 block text-xs font-normal ${isSelected ? "text-white/80" : "text-ink-faint"}`}>{d.tl}</span>
                       </button>
                     );
                   })}
-                </div>
+                      </div>
+                    </div>
+                    {showLongerDurations && (
+                      <div>
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-ink-muted">Longer / Matagal na</p>
+                        <div className="grid grid-cols-2 gap-2 min-[640px]:grid-cols-4 sm:gap-3">
+                          {DURATION_OPTIONS.filter((duration) => duration.tier === "longer").map((d) => {
+                            const isSelected = durationKey === d.key;
+                            return (
+                              <button
+                                key={d.key}
+                                type="button"
+                                aria-pressed={isSelected}
+                                onClick={() => {
+                                  setDurationKey(isSelected ? null : d.key);
+                                  setExactDurationMode(false);
+                                }}
+                                className={`flex min-h-[76px] flex-col justify-center rounded-2xl border px-2 py-3 text-center text-sm font-semibold transition duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15 sm:px-3 ${
+                                  isSelected
+                                    ? "border-[#1F4A36] bg-[linear-gradient(145deg,#2F6B4F_0%,#1F4A36_100%)] text-white shadow-[0_8px_18px_rgba(31,74,54,0.2)]"
+                                    : "border-[#DCE5D8] bg-white/90 text-ink-secondary shadow-[0_3px_10px_rgba(24,38,25,0.035)] hover:-translate-y-0.5 hover:border-brand/45 hover:bg-white hover:shadow-[0_8px_16px_rgba(31,74,54,0.09)]"
+                                }`}
+                              >
+                                <span>{d.en}</span>
+                                <span className={`mt-0.5 text-xs font-normal ${isSelected ? "text-white/80" : "text-ink-faint"}`}>{d.tl}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (showLongerDurations && selectedDuration?.tier === "longer") {
+                        setDurationKey(null);
+                      }
+                      setShowLongerDurations(!showLongerDurations);
+                      setExactDurationMode(false);
+                    }}
+                    aria-expanded={showLongerDurations}
+                    className="text-action mt-3 cursor-pointer border-0 bg-transparent p-0 text-left text-sm font-semibold text-brand underline decoration-brand/40 underline-offset-4"
+                  >
+                    {showLongerDurations ? "Show recent only ↑" : "Longer than 2 days? See more →"}
+                    <span className="sr-only"> / Mahigit 2 araw? Ipakita ang iba pang pagpipilian</span>
+                  </button>
+                  {!exactDurationMode ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDurationKey(null);
+                        setExactDurationMode(true);
+                      }}
+                      className="text-action mt-3 block cursor-pointer border-0 bg-transparent p-0 text-left text-sm font-medium text-brand underline decoration-brand/40 underline-offset-4"
+                    >
+                      Need an exact duration? Type the days → / Hindi sigurado sa saklaw? Mag-type ng eksaktong araw →
+                    </button>
+                  ) : (
+                    <div className="mt-4 max-w-sm">
+                      <label htmlFor="exact-duration-days" className="block text-sm font-medium text-ink-secondary">Exact duration in days / Eksaktong bilang ng araw</label>
+                      <div className="mt-2 flex items-center gap-3">
+                        <input
+                          id="exact-duration-days"
+                          type="number"
+                          min="0.01"
+                          step="any"
+                          inputMode="decimal"
+                          value={exactDurationDays}
+                          onChange={(event) => setExactDurationDays(event.currentTarget.value)}
+                          aria-invalid={exactDurationDays !== "" && !exactDurationValid}
+                          className={`${inputClass} max-w-40`}
+                          placeholder="e.g. 4"
+                        />
+                        <span className="text-sm text-ink-muted">days / araw</span>
+                      </div>
+                      <button type="button" onClick={() => setExactDurationMode(false)} className="text-action mt-2 cursor-pointer border-0 bg-transparent p-0 text-left text-xs font-medium text-brand underline underline-offset-4">Use time-range buttons / Pumili ng saklaw</button>
+                    </div>
+                  )}
+                </fieldset>
 
                 {/* Free-text path kept out of the default view so it doesn't
                     compete with the two-step tap flow above. */}
@@ -529,7 +633,7 @@ export default function AssessmentPage() {
                     <button
                       type="button"
                       onClick={() => setShowTextInput(true)}
-                      className="text-sm font-medium text-brand underline decoration-brand/40 underline-offset-4 hover:text-brand-dark"
+                      className="text-action cursor-pointer border-0 bg-transparent p-0 text-left text-sm font-medium text-brand underline decoration-brand/40 underline-offset-4"
                     >
                       Prefer to type it instead?
                     </button>

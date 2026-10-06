@@ -38,6 +38,10 @@ def _onset_display(onset: Any) -> str:
 
     if approximate:
         if raw_phrase:
+            if raw_phrase.lower() == "sometime today":
+                return "Sometime today (approx.)"
+            if re.match(r"^(?:more than|over)\b", raw_phrase, re.I):
+                return f"{raw_phrase[0].upper()}{raw_phrase[1:]} ago (approx.)"
             relative_phrase = bool(
                 re.search(r"\b(?:today|yesterday|this morning|this week|this month)\b", raw_phrase, re.I)
             )
@@ -77,6 +81,17 @@ def _finish_sentence(text: str) -> str:
     return text if text[-1] in ".!?" else f"{text}."
 
 
+def _is_onset_only_complaint(text: str) -> bool:
+    normalized = re.sub(r"\s+", " ", text).strip().lower()
+    return bool(
+        re.fullmatch(
+            r"(?:symptoms?\s+)?(?:started|began|onset(?:\s+was)?)(?:\s+about)?\s+"
+            r".{1,80}?(?:ago|earlier|today|yesterday|this morning|this week)[.!]?",
+            normalized,
+        )
+    )
+
+
 def build_case_summary(
     *,
     chief_complaint: str | None,
@@ -87,9 +102,12 @@ def build_case_summary(
     extraction = symptom_extraction if isinstance(symptom_extraction, dict) else {}
     complaint = (chief_complaint or "").strip()
     symptoms = _symptom_terms(extraction, detected_symptoms or [])
-    summary = _finish_sentence(complaint) if complaint else (
-        _finish_sentence(", ".join(symptoms)) if symptoms else NO_DETAILS
-    )
+    if symptoms and (not complaint or _is_onset_only_complaint(complaint)):
+        summary = _finish_sentence(", ".join(symptoms))
+    elif complaint:
+        summary = _finish_sentence(complaint)
+    else:
+        summary = NO_DETAILS
 
     raw_flags = extraction.get("red_flags")
     red_flags = (

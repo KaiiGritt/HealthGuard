@@ -160,6 +160,43 @@
   box-shadow: 0 8px 18px rgba(24, 38, 25, 0.1);
 }
 
+.premium-page .text-action:not(:disabled),
+.premium-page .text-action:not(:disabled):hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.premium-page .text-action {
+  display: inline-flex;
+  max-width: 100%;
+  padding-bottom: 3px;
+  background-image: linear-gradient(90deg, #2f6b4f 0%, #c7b37a 52%, #2f6b4f 100%);
+  background-repeat: no-repeat;
+  background-position: left calc(100% - 1px);
+  background-size: 0% 2px;
+  text-decoration: none;
+  transition: color 0.22s ease, background-size 0.32s cubic-bezier(0.2, 0.7, 0.2, 1), filter 0.22s ease;
+}
+
+.premium-page .text-action:hover {
+  color: var(--color-brand-dark);
+  background-size: 100% 2px;
+  filter: drop-shadow(0 2px 5px rgba(47, 107, 79, 0.12));
+}
+
+.premium-page .text-action:focus-visible {
+  background-size: 100% 2px;
+  outline: 2px solid rgba(47, 107, 79, 0.28);
+  outline-offset: 4px;
+  border-radius: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .premium-page .text-action {
+    transition: none;
+  }
+}
+
 .premium-overlay,
 .premium-overlay:hover {
   transform: none !important;

@@ -116,6 +116,16 @@ _DURATION_RE = re.compile(
     rf"\b(?P<count>\d+(?:\.\d+)?|{_NUMBER_PATTERN}|isang)(?:\s+na)?\s*(?P<unit>hours?|oras?|days?|araw|aldaw|weeks?|linggo|months?|buwan)(?:\s+na)?(?:\s+po)?\b",
     re.I,
 )
+_DURATION_RANGE_RE = re.compile(
+    r"\b(?P<start>\d+(?:\.\d+)?)\s*(?:-|–|—|to)\s*(?P<end>\d+(?:\.\d+)?)\s*"
+    r"(?P<unit>hours?|oras?|days?|araw|aldaw|weeks?|linggo|months?|buwan)\b",
+    re.I,
+)
+_DURATION_OVER_RE = re.compile(
+    r"\b(?:more\s+than|over|mahigit(?:\s+sa)?)\s+(?P<count>\d+(?:\.\d+)?)\s*"
+    r"(?P<unit>hours?|oras?|days?|araw|aldaw|weeks?|linggo|months?|buwan)\b",
+    re.I,
+)
 
 _BODY_LOCATIONS = (
     (re.compile(r"\b(?:dibdib|daghan|chest)\b", re.I), "chest"),
@@ -295,6 +305,39 @@ def is_age_duration(text: str, match: re.Match[str]) -> bool:
 
 
 def _onset(text: str, message_timestamp: datetime | None) -> dict:
+    range_match = _DURATION_RANGE_RE.search(text)
+    if range_match:
+        unit = range_match.group("unit").lower()
+        multiplier = (
+            1 / 24 if unit.startswith(("hour", "ora"))
+            else 7 if unit.startswith(("week", "linggo"))
+            else 30 if unit.startswith(("month", "buwan"))
+            else 1
+        )
+        start = float(range_match.group("start"))
+        end = float(range_match.group("end"))
+        return {
+            "raw_phrase": f"{range_match.group('start')}–{range_match.group('end')} {range_match.group('unit')}",
+            "days_since_onset": ((start + end) / 2) * multiplier,
+            "approximate": True,
+        }
+
+    over_match = _DURATION_OVER_RE.search(text)
+    if over_match:
+        unit = over_match.group("unit").lower()
+        multiplier = (
+            1 / 24 if unit.startswith(("hour", "ora"))
+            else 7 if unit.startswith(("week", "linggo"))
+            else 30 if unit.startswith(("month", "buwan"))
+            else 1
+        )
+        count = float(over_match.group("count"))
+        return {
+            "raw_phrase": f"more than {over_match.group('count')} {over_match.group('unit')}",
+            "days_since_onset": count * multiplier,
+            "approximate": True,
+        }
+
     match = None
     for candidate in _DURATION_RE.finditer(text):
         if is_age_duration(text, candidate):
@@ -323,6 +366,7 @@ def _onset(text: str, message_timestamp: datetime | None) -> dict:
         }
 
     relative = (
+        (r"\bsometime today\b", 0.5, True),
         (r"\b(?:kaninang umaga|earlier today|this morning|today|ngayong araw)\b", 0, False),
         (r"\b(?:kahapon|yesterday)\b", 1, False),
         (r"\b(?:nitong linggo|this week)\b", 5, True),
