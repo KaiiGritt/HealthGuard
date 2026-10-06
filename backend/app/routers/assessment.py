@@ -399,6 +399,7 @@ def dashboard_summary(
                 User.phone_number,
                 Assessment.handled_at,
                 Assessment.symptom_extraction,
+                User.age,
             )
             .join(User, Assessment.user_id == User.id, isouter=True)
             .order_by(Assessment.created_at.desc())
@@ -435,6 +436,7 @@ def dashboard_summary(
                 id=row[0],
                 resident_name=resident_name,
                 barangay=row[7],
+                age=row[11],
                 detected_symptoms=symptoms,
                 risk_level=row[3],
                 note=note,

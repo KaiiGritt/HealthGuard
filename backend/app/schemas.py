@@ -165,6 +165,7 @@ class DashboardAssessmentItem(BaseModel):
     id: int
     resident_name: str
     barangay: str | None = None
+    age: int | None = None
     detected_symptoms: list[str] = Field(default_factory=list)
     risk_level: str
     note: str

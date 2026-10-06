@@ -69,6 +69,7 @@ export interface DashboardAssessmentItem {
   id: number;
   resident_name: string;
   barangay: string | null;
+  age?: number | null;
   detected_symptoms: string[];
   risk_level: string;
   note: string;

@@ -21,6 +21,7 @@ import {
   TriageBadge,
 } from "@/app/components/ui/primitives";
 import { formatAssessmentRecordNumber, getDashboardSummary, getMe, getMhoLexicon, markLexiconReviewed, rejectLexiconEntry, type AdminModuleLexiconEntry, type User } from "@/lib/api";
+import { generateCommunityHealthReport } from "@/lib/communityHealthReport";
 import { downloadReport } from "@/lib/report";
 
 const SECTIONS = [
@@ -125,6 +126,87 @@ function WidgetCard({
         </div>
       )}
     </div>
+  );
+}
+
+function formatSubmittedAgo(value: string) {
+  const submittedAt = new Date(value).getTime();
+  if (!Number.isFinite(submittedAt)) return "Submitted date unavailable";
+
+  const elapsedMinutes = Math.max(0, Math.floor((Date.now() - submittedAt) / 60_000));
+  if (elapsedMinutes < 1) return "Submitted just now";
+  if (elapsedMinutes < 60) return `Submitted ${elapsedMinutes}m ago`;
+
+  const elapsedHours = Math.floor(elapsedMinutes / 60);
+  if (elapsedHours < 24) return `Submitted ${elapsedHours}h ago`;
+
+  const elapsedDays = Math.floor(elapsedHours / 24);
+  return `Submitted ${elapsedDays}d ago`;
+}
+
+function AssessmentCaseCard({ item }: { item: DashboardState["recent_assessments"][number] }) {
+  const riskLevel = item.risk_level.toUpperCase();
+  const caseType = riskLevel === "RED"
+    ? "Flagged"
+    : riskLevel === "YELLOW"
+      ? "Follow-up"
+      : riskLevel === "GREEN"
+        ? "Routine"
+        : "Needs info";
+
+  return (
+    <article className={cn(
+      "rounded-xl border border-border-soft bg-white p-4 shadow-[0_8px_20px_rgba(24,38,25,0.035)] sm:p-5",
+      riskLevel === "RED"
+        ? "border-l-4 border-l-triage-red"
+        : riskLevel === "YELLOW"
+          ? "border-l-4 border-l-triage-yellow"
+          : riskLevel === "GREEN"
+            ? "border-l-4 border-l-triage-green"
+            : "border-l-4 border-l-slate-300",
+    )}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate font-semibold text-ink">{item.resident_name}</p>
+          <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint">
+            {formatAssessmentRecordNumber(item.id)} <span aria-hidden="true">·</span> {caseType}
+          </p>
+        </div>
+        <TriageBadge level={item.risk_level} />
+      </div>
+
+      <p className="mt-3 text-sm leading-relaxed text-ink-secondary">
+        {item.detected_symptoms?.length ? item.detected_symptoms.join(" / ") : "Symptoms not recorded"}
+        <span className="text-ink-muted"> — onset {item.case_summary.onset_display.toLowerCase()}</span>
+      </p>
+
+      <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-ink-muted">
+        {item.age != null && <span>Age {item.age}</span>}
+        {item.barangay && <span>{item.barangay}</span>}
+        {item.age == null && !item.barangay && <span>Resident details unavailable</span>}
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-border-soft pt-3 text-xs text-ink-muted">
+        <span>{formatSubmittedAgo(item.created_at)}</span>
+        {item.phone_number && (
+          <a href={`tel:${item.phone_number}`} className="font-medium text-brand-dark transition hover:text-brand">
+            Mobile: {item.phone_number}
+          </a>
+        )}
+      </div>
+
+      {item.case_summary.urgency_reasons.length > 0 && (
+        <p className="mt-3 text-xs text-emergency-red">
+          Flags: {item.case_summary.urgency_reasons.join(" · ")}
+        </p>
+      )}
+      {item.case_summary.validation_note && (
+        <p role="status" className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
+          <span className="font-semibold">Data validation warning: </span>
+          {item.case_summary.validation_note}
+        </p>
+      )}
+    </article>
   );
 }
 
@@ -503,6 +585,10 @@ function DashboardPageContent() {
   const [refreshing, setRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [stats, setStats] = useState<DashboardState | null>(null);
+  const communityReport = useMemo(
+    () => stats ? generateCommunityHealthReport(stats) : null,
+    [stats],
+  );
   const [lexiconEntries, setLexiconEntries] = useState<AdminModuleLexiconEntry[]>([]);
   const [reviewingLexicon, setReviewingLexicon] = useState<number | null>(null);
   const [riskFilter, setRiskFilter] = useState("all");
@@ -530,27 +616,47 @@ function DashboardPageContent() {
   }
 
   function generateReport() {
-    if (!stats) return;
+    if (!communityReport) return;
 
     let downloaded: "downloaded" | "opened" | false = false;
     try {
       downloaded = downloadReport({
         title: "Community Health Report",
-        subtitle: "Municipal Health Office summary",
+        subtitle: communityReport.report_period,
         generatedAt: new Date().toLocaleString(),
         filename: `healthguard-community-report-${new Date().toISOString().slice(0, 10)}`,
         sections: [
           {
-            heading: "Barangay summary",
-            rows: stats.barangay_stats.map((item) => [item.barangay, `${item.total} total (${item.urgent} urgent, ${item.follow_up} follow-up)`]),
+            heading: "Executive summary",
+            rows: [["Main findings", communityReport.executive_summary]],
           },
           {
-            heading: "Risk distribution",
-            rows: stats.triage_breakdown.map((item) => [item.level, String(item.value)]),
+            heading: "Key metrics",
+            rows: communityReport.key_metrics.map((item) => [item.label, `${item.value} — ${item.context}`]),
+          },
+          {
+            heading: "Urgent cases",
+            rows: [
+              ["Count", String(communityReport.urgent_cases_summary.count)],
+              ["Summary", communityReport.urgent_cases_summary.narrative],
+              ["Barangays", communityReport.urgent_cases_summary.barangays_involved.join(", ") || "None identified"],
+            ],
+          },
+          {
+            heading: "Barangay breakdown",
+            rows: communityReport.barangay_breakdown.map((item) => [item.barangay, item.narrative]),
           },
           {
             heading: "Weekly trend",
-            rows: stats.weekly_trend.map((item) => [item.label, `${item.date} • ${item.count} cases`]),
+            rows: [["Trend", communityReport.trend_narrative]],
+          },
+          {
+            heading: "Reported symptoms",
+            rows: [["Summary", communityReport.top_symptoms_narrative]],
+          },
+          {
+            heading: "Recommended actions",
+            rows: communityReport.recommended_actions.map((action, index) => [`Priority ${index + 1}`, action]),
           },
         ],
       });
@@ -562,6 +668,23 @@ function DashboardPageContent() {
       message: downloaded === "downloaded" ? "PDF report downloaded successfully." : downloaded === "opened" ? "Report opened in a new tab. Use your browser's Share or Save option." : "Could not create the report.",
       tone: downloaded ? "success" : "error",
     });
+  }
+
+  function downloadReportJson() {
+    if (!communityReport) return;
+
+    try {
+      const file = new Blob([JSON.stringify(communityReport, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(file);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `healthguard-community-report-${new Date().toISOString().slice(0, 10)}.json`;
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setToast({ message: "Community health report JSON downloaded.", tone: "success" });
+    } catch {
+      setToast({ message: "Could not download the report JSON.", tone: "error" });
+    }
   }
 
   const refreshSummary = async () => {
@@ -755,92 +878,8 @@ function DashboardPageContent() {
           </div>
           <div className="flex-1 space-y-3 p-5">
             {redCases.length > 0 ? (
-              redCases.slice(0, 3).map((item, idx) => (
-                <ListRow
-                  key={item.id}
-                  className="relative flex flex-col gap-3 overflow-hidden border-l-4 border-l-triage-red pl-4 shadow-sm lg:flex-row lg:items-center lg:justify-between"
-                >
-                  {idx === 0 && (
-                    <span className="absolute right-3 top-3 flex h-2.5 w-2.5 shrink-0">
-                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-triage-red/60" />
-                      <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-triage-red" />
-                    </span>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-medium text-ink">{item.resident_name}</p>
-                      <span className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wide ${
-                        item.case_summary.triage_badge_color === "red"
-                          ? "bg-red-100 text-red-800"
-                          : item.case_summary.triage_badge_color === "yellow"
-                            ? "bg-amber-100 text-amber-800"
-                            : item.case_summary.triage_badge_color === "green"
-                              ? "bg-emerald-100 text-emerald-800"
-                              : "bg-slate-100 text-slate-700"
-                      }`}>
-                        {item.case_summary.triage_badge_color === "needs-info"
-                          ? "Needs info"
-                          : item.case_summary.triage_badge_color}
-                      </span>
-                      <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-muted">#{item.id}</span>
-                    </div>
-
-                    <div className="mt-3 grid gap-2 rounded-md border border-red-200 bg-white/60 p-3 text-sm text-ink-secondary sm:grid-cols-2">
-                      <div>
-                        <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-ink-muted">Resident</p>
-                        <p className="mt-1 font-medium text-ink">{item.resident_name}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-ink-muted">Barangay</p>
-                        <p className="mt-1 font-medium text-ink">{item.barangay ?? "Unknown barangay"}</p>
-                      </div>
-                      {item.phone_number && (
-                        <div>
-                          <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-ink-muted">Contact</p>
-                          <a href={`tel:${item.phone_number}`} className="mt-1 font-medium text-brand-dark hover:text-brand transition">
-                            {item.phone_number}
-                          </a>
-                        </div>
-                      )}
-                      <div className="sm:col-span-2">
-                        <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-ink-muted">Chief complaint</p>
-                        <p className="mt-1 leading-relaxed text-ink-secondary">{item.case_summary.chief_complaint_summary}</p>
-                      </div>
-                      <div className="sm:col-span-2">
-                        <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-ink-muted">Symptoms</p>
-                        <p className="mt-1 leading-relaxed text-ink-secondary">
-                          {item.detected_symptoms?.length
-                            ? item.detected_symptoms.join(", ")
-                            : "No symptoms were extracted from this assessment."}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-ink-muted">Onset</p>
-                        <p className="mt-1 font-medium text-ink">{item.case_summary.onset_display}</p>
-                      </div>
-                      {item.case_summary.urgency_reasons.length > 0 && (
-                        <div>
-                          <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-ink-muted">Extracted red flags</p>
-                          <ul className="mt-1 list-inside list-disc text-ink-secondary">
-                            {item.case_summary.urgency_reasons.map((reason, reasonIndex) => (
-                              <li key={`${item.id}-flag-${reasonIndex}`}>{reason}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                      {item.case_summary.validation_note && (
-                        <p role="status" className="sm:col-span-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
-                          <span className="font-semibold">Data validation warning: </span>
-                          {item.case_summary.validation_note}
-                        </p>
-                      )}
-                    </div>
-
-                    <p className="mt-3 text-xs text-ink-muted">
-                      Recorded {new Date(item.created_at).toLocaleString()}
-                    </p>
-                  </div>
-                </ListRow>
+              redCases.slice(0, 3).map((item) => (
+                <AssessmentCaseCard key={item.id} item={item} />
               ))
             ) : (
               <p className="rounded-md border border-dashed border-border bg-surface p-5 text-sm text-ink-muted">
@@ -948,36 +987,7 @@ function DashboardPageContent() {
           <div className="space-y-3">
             {recentAssessments.length > 0 ? (
               visibleRecentAssessments.map((item) => (
-                  <div key={item.id} className="rounded-2xl border border-border-soft bg-gradient-to-r from-white via-slate-50 to-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-medium text-ink">{item.resident_name}</p>
-                        <p className="mt-0.5 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-faint">Record no. {formatAssessmentRecordNumber(item.id)}</p>
-                      </div>
-                      <TriageBadge level={item.risk_level} />
-                    </div>
-                    <div className="mt-3 grid gap-2 border-y border-border-soft/80 py-3 text-xs sm:grid-cols-2">
-                      <div>
-                        <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint">Location</p>
-                        <p className="mt-0.5 font-medium text-ink-secondary">{item.barangay ?? "Not provided"}</p>
-                      </div>
-                      <div>
-                        <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint">Mobile number</p>
-                        <p className="mt-0.5 font-medium text-ink-secondary">{item.phone_number ?? "Not provided"}</p>
-                      </div>
-                      <div>
-                        <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint">Symptoms recognized</p>
-                        <p className="mt-0.5 font-medium capitalize text-ink-secondary">{item.detected_symptoms?.length ? item.detected_symptoms.join(", ") : "Not recorded"}</p>
-                      </div>
-                    </div>
-                    <div>
-                      <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint">Submitted details</p>
-                      <p className="mt-0.5 text-xs leading-relaxed text-ink-secondary">{item.note}</p>
-                    </div>
-                    <p className="mt-3 text-[10px] uppercase tracking-[0.08em] text-ink-faint">
-                      Submitted {new Date(item.created_at).toLocaleString()}
-                    </p>
-                  </div>
+                <AssessmentCaseCard key={item.id} item={item} />
               ))
             ) : (
               <p className="rounded-md border border-dashed border-border bg-surface p-5 text-sm text-ink-muted">
@@ -1169,36 +1179,7 @@ function DashboardPageContent() {
       <div className="space-y-3">
         {filteredAssessments.length > 0 ? (
           paginatedAssessments.map((item) => (
-            <ListRow key={item.id} className="block">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="truncate font-medium text-ink">{item.resident_name}</p>
-                    <p className="mt-0.5 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-faint">Record no. {formatAssessmentRecordNumber(item.id)}</p>
-                  </div>
-                  <TriageBadge level={item.risk_level} />
-                </div>
-                <div className="mt-3 grid gap-3 border-y border-border-soft/80 py-3 text-xs sm:grid-cols-2">
-                  <div>
-                    <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint">Location</p>
-                    <p className="mt-0.5 font-medium text-ink-secondary">{item.barangay ?? "Not provided"}</p>
-                  </div>
-                  <div>
-                    <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint">Mobile number</p>
-                    <p className="mt-0.5 font-medium text-ink-secondary">{item.phone_number ?? "Not provided"}</p>
-                  </div>
-                  <div>
-                    <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint">Symptoms recognized</p>
-                    <p className="mt-0.5 font-medium capitalize text-ink-secondary">{item.detected_symptoms?.length ? item.detected_symptoms.join(", ") : "Not recorded"}</p>
-                  </div>
-                </div>
-                <div className="mt-3">
-                  <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint">Submitted details</p>
-                  <p className="mt-0.5 text-sm leading-relaxed text-ink-secondary">{item.note}</p>
-                </div>
-                <p className="mt-3 text-xs text-ink-muted">Submitted {new Date(item.created_at).toLocaleString()}</p>
-              </div>
-            </ListRow>
+            <AssessmentCaseCard key={item.id} item={item} />
           ))
         ) : (
           <p className="rounded-md border border-dashed border-border bg-surface p-5 text-sm text-ink-muted">No assessment records match the selected filters.</p>
@@ -1250,6 +1231,93 @@ function DashboardPageContent() {
 
   const renderReports = () => (
     <div className="space-y-6">
+      {communityReport && (
+        <Panel
+          title="Community health report"
+          subtitle={communityReport.report_period}
+          badge={<TagBadge tone="neutral">Aggregate summary</TagBadge>}
+        >
+          <div className="space-y-5">
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={downloadReportJson}
+                className="rounded-lg border border-brand/20 bg-white px-3 py-2 text-xs font-semibold text-brand-dark transition hover:border-brand/50 hover:bg-brand-tint/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30"
+              >
+                Download report JSON
+              </button>
+            </div>
+            <section aria-labelledby="report-executive-summary">
+              <h3 id="report-executive-summary" className="font-display text-base font-semibold text-ink">Executive summary</h3>
+              <p className="mt-2 text-sm leading-relaxed text-ink-secondary">{communityReport.executive_summary}</p>
+            </section>
+
+            <section aria-labelledby="report-key-metrics">
+              <h3 id="report-key-metrics" className="font-display text-base font-semibold text-ink">Key metrics</h3>
+              <dl className="mt-2 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {communityReport.key_metrics.map((metric) => (
+                  <div key={metric.label} className="rounded-xl border border-border-soft bg-surface-alt/60 p-3">
+                    <dt className="text-xs font-medium text-ink-muted">{metric.label}</dt>
+                    <dd className="mt-1 font-mono text-lg font-semibold text-ink">{metric.value}</dd>
+                    <p className="mt-1 text-xs leading-relaxed text-ink-secondary">{metric.context}</p>
+                  </div>
+                ))}
+              </dl>
+            </section>
+
+            <section aria-labelledby="report-urgent-cases" className="rounded-xl border border-red-200 bg-red-50/50 p-4">
+              <h3 id="report-urgent-cases" className="font-display text-base font-semibold text-emergency-red">
+                Urgent cases ({communityReport.urgent_cases_summary.count})
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed text-ink-secondary">{communityReport.urgent_cases_summary.narrative}</p>
+              {communityReport.urgent_cases_summary.barangays_involved.length > 0 && (
+                <p className="mt-2 text-xs text-ink-muted">
+                  Barangays listed: {communityReport.urgent_cases_summary.barangays_involved.join(", ")}
+                </p>
+              )}
+            </section>
+
+            <section aria-labelledby="report-barangays">
+              <h3 id="report-barangays" className="font-display text-base font-semibold text-ink">Barangay activity</h3>
+              {communityReport.barangay_breakdown.length > 0 ? (
+                <ul className="mt-2 space-y-2">
+                  {communityReport.barangay_breakdown.map((item) => (
+                    <li key={item.barangay} className="rounded-lg border border-border-soft px-3 py-2 text-sm">
+                      <span className="font-semibold text-ink">{item.barangay}: </span>
+                      <span className="text-ink-secondary">{item.narrative}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-2 text-sm text-ink-muted">No barangay activity is available for this snapshot.</p>
+              )}
+            </section>
+
+            <section className="grid gap-4 md:grid-cols-2">
+              <div>
+                <h3 className="font-display text-base font-semibold text-ink">Weekly trend</h3>
+                <p className="mt-2 text-sm leading-relaxed text-ink-secondary">{communityReport.trend_narrative}</p>
+              </div>
+              <div>
+                <h3 className="font-display text-base font-semibold text-ink">Most reported symptoms</h3>
+                <p className="mt-2 text-sm leading-relaxed text-ink-secondary">{communityReport.top_symptoms_narrative}</p>
+              </div>
+            </section>
+
+            <section aria-labelledby="report-recommended-actions">
+              <h3 id="report-recommended-actions" className="font-display text-base font-semibold text-ink">Recommended actions</h3>
+              {communityReport.recommended_actions.length > 0 ? (
+                <ol className="mt-2 list-inside list-decimal space-y-2 text-sm leading-relaxed text-ink-secondary">
+                  {communityReport.recommended_actions.map((action) => <li key={action}>{action}</li>)}
+                </ol>
+              ) : (
+                <p className="mt-2 text-sm text-ink-muted">No case-specific action is indicated by the available dashboard counts.</p>
+              )}
+            </section>
+          </div>
+        </Panel>
+      )}
+
       <Panel title="Barangay coverage" badge={<TagBadge tone="neutral">Geographic view</TagBadge>}>
         <div className="space-y-5">
           {barangayStats.length > 0 ? barangayStats.map((item) => {
