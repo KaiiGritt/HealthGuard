@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..deps import get_current_user, get_current_user_optional, require_role
-from ..models import Assessment, AssessmentSymptom, Symptom, SymptomLexicon, User
+from ..models import Assessment, AssessmentCaseActivity, AssessmentSymptom, Symptom, SymptomLexicon, User
 from ..nlp.engine import analyze
 from ..nlp.extractor import (
     extract_patient_age,
@@ -32,6 +32,8 @@ from ..schemas import (
     AdminUserItem,
     AnalyzeRequest,
     AnalyzeResult,
+    AssessmentCaseActivityIn,
+    AssessmentCaseActivityOut,
     AssessmentOut,
     BarangayStatItem,
     DashboardAssessmentItem,
@@ -151,11 +153,37 @@ def _build_weekly_trend(db: Session) -> list[WeeklyTrendItem]:
 
 
 def _build_barangay_stats(db: Session) -> list[BarangayStatItem]:
+    latest_status_id = (
+        select(func.max(AssessmentCaseActivity.id))
+        .where(
+            AssessmentCaseActivity.assessment_id == Assessment.id,
+            AssessmentCaseActivity.kind == "status",
+        )
+        .correlate(Assessment)
+        .scalar_subquery()
+    )
+    latest_status = (
+        select(AssessmentCaseActivity.status)
+        .where(AssessmentCaseActivity.id == latest_status_id)
+        .scalar_subquery()
+    )
     rows = db.execute(
         select(
             User.barangay,
             func.count(Assessment.id),
-            func.sum(case((and_(Assessment.risk_level == "RED", Assessment.handled_at.is_(None)), 1), else_=0)),
+            func.sum(
+                case(
+                    (
+                        and_(
+                            Assessment.risk_level == "RED",
+                            Assessment.handled_at.is_(None),
+                            latest_status.is_distinct_from("Resolved"),
+                        ),
+                        1,
+                    ),
+                    else_=0,
+                )
+            ),
             func.sum(case((Assessment.risk_level == "YELLOW", 1), else_=0)),
         )
         .join(User, Assessment.user_id == User.id, isouter=True)
@@ -327,15 +355,27 @@ def dashboard_summary(
     week_count = db.scalar(
         select(func.count(Assessment.id)).where(func.date(Assessment.created_at) >= week_start)
     ) or 0
-    urgent_alerts = (
-        db.scalar(
-            select(func.count(Assessment.id)).where(
-                Assessment.risk_level == "RED",
-                Assessment.handled_at.is_(None),
-            )
+    latest_status_id = (
+        select(func.max(AssessmentCaseActivity.id))
+        .where(
+            AssessmentCaseActivity.assessment_id == Assessment.id,
+            AssessmentCaseActivity.kind == "status",
         )
-        or 0
+        .correlate(Assessment)
+        .scalar_subquery()
     )
+    latest_status = (
+        select(AssessmentCaseActivity.status)
+        .where(AssessmentCaseActivity.id == latest_status_id)
+        .scalar_subquery()
+    )
+    urgent_alerts = db.scalar(
+        select(func.count(Assessment.id)).where(
+            Assessment.risk_level == "RED",
+            Assessment.handled_at.is_(None),
+            latest_status.is_distinct_from("Resolved"),
+        )
+    ) or 0
     follow_up_needed = db.scalar(select(func.count(Assessment.id)).where(Assessment.risk_level == "YELLOW")) or 0
     residents_assisted = (
         db.scalar(select(func.count(func.distinct(Assessment.user_id))).where(Assessment.user_id.is_not(None))) or 0
@@ -359,10 +399,25 @@ def dashboard_summary(
             )
             .join(User, Assessment.user_id == User.id, isouter=True)
             .order_by(Assessment.created_at.desc())
-            .limit(8)
+            .limit(50)
         )
         .all()
     )
+
+    activity_rows = (
+        db.execute(
+            select(AssessmentCaseActivity)
+            .where(AssessmentCaseActivity.assessment_id.in_([row[0] for row in recent_rows]))
+            .order_by(AssessmentCaseActivity.id.desc())
+        )
+        .scalars()
+        .all()
+        if recent_rows
+        else []
+    )
+    activity_by_assessment: dict[int, list[AssessmentCaseActivity]] = {}
+    for activity in activity_rows:
+        activity_by_assessment.setdefault(activity.assessment_id, []).append(activity)
 
     recent_assessments = []
     for row in recent_rows:
@@ -384,6 +439,18 @@ def dashboard_summary(
                 phone_number=row[8],
                 handled=row[9] is not None,
                 handled_at=row[9],
+                case_status=next(
+                    (
+                        activity.status
+                        for activity in activity_by_assessment.get(row[0], [])
+                        if activity.kind == "status"
+                    ),
+                    "New",
+                ),
+                case_activities=[
+                    AssessmentCaseActivityOut.model_validate(activity, from_attributes=True)
+                    for activity in activity_by_assessment.get(row[0], [])
+                ],
             )
         )
 
@@ -1044,6 +1111,77 @@ def mark_assessment_handled(
         phone_number=row[8],
         handled=row[9] is not None,
         handled_at=row[9],
+    )
+
+
+@router.post("/{assessment_id}/case-activity", response_model=DashboardAssessmentItem)
+def add_assessment_case_activity(
+    assessment_id: int,
+    payload: AssessmentCaseActivityIn,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("mho")),
+) -> DashboardAssessmentItem:
+    assessment = db.get(Assessment, assessment_id)
+    if assessment is None:
+        raise HTTPException(status_code=404, detail="Assessment not found.")
+    if assessment.risk_level != "RED":
+        raise HTTPException(status_code=400, detail="Case management is only available for RED assessments.")
+
+    activity = AssessmentCaseActivity(
+        assessment_id=assessment_id,
+        user_id=user.id,
+        kind=payload.kind,
+        status=payload.status,
+        details=payload.details.strip() if payload.details else None,
+    )
+    db.add(activity)
+    db.commit()
+    db.refresh(activity)
+
+    row = db.execute(
+        select(
+            Assessment.id,
+            Assessment.input_text,
+            Assessment.detected_symptoms,
+            Assessment.risk_level,
+            Assessment.created_at,
+            Assessment.user_id,
+            User.full_name,
+            User.barangay,
+            User.phone_number,
+            Assessment.handled_at,
+        )
+        .join(User, Assessment.user_id == User.id, isouter=True)
+        .where(Assessment.id == assessment_id)
+    ).one()
+    activities = (
+        db.execute(
+            select(AssessmentCaseActivity)
+            .where(AssessmentCaseActivity.assessment_id == assessment_id)
+            .order_by(AssessmentCaseActivity.id.desc())
+        )
+        .scalars()
+        .all()
+    )
+    note = (row[1] or "No details provided").strip() or "No details provided"
+    symptoms = [str(item).strip() for item in (row[2] or []) if str(item).strip()]
+    resident_name = "Anonymous submission" if row[5] is None else (row[6] or f"Resident #{row[5]}")
+    return DashboardAssessmentItem(
+        id=row[0],
+        resident_name=resident_name,
+        barangay=row[7],
+        detected_symptoms=symptoms,
+        risk_level=row[3],
+        note=note,
+        created_at=row[4],
+        phone_number=row[8],
+        handled=row[9] is not None,
+        handled_at=row[9],
+        case_status=next((item.status for item in activities if item.kind == "status"), "New"),
+        case_activities=[
+            AssessmentCaseActivityOut.model_validate(item, from_attributes=True)
+            for item in activities
+        ],
     )
 
 

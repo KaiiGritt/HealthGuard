@@ -261,6 +261,22 @@ class Assessment(Base):
     assessment_symptoms: Mapped[list["AssessmentSymptom"]] = relationship(back_populates="assessment")
 
 
+class AssessmentCaseActivity(Base):
+    """Auditable MHO status changes, follow-up notes, and contact attempts."""
+
+    __tablename__ = "assessment_case_activities"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    assessment_id: Mapped[int] = mapped_column(ForeignKey("assessments.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    kind: Mapped[str] = mapped_column(String(24))
+    status: Mapped[str | None] = mapped_column(String(24), nullable=True)
+    details: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
 class AssessmentSymptom(Base):
     """Diagram-aligned assessment-to-symptom mapping for normalized symptom tracking."""
 

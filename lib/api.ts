@@ -76,6 +76,22 @@ export interface DashboardAssessmentItem {
   phone_number?: string | null;
   handled?: boolean;
   handled_at?: string | null;
+  case_status?: "New" | "In progress" | "Resolved";
+  case_activities?: AssessmentCaseActivity[];
+}
+
+export interface AssessmentCaseActivity {
+  id: number;
+  kind: "status" | "note" | "contact_attempt";
+  status?: "New" | "In progress" | "Resolved" | null;
+  details?: string | null;
+  created_at: string;
+}
+
+export interface AssessmentCaseActivityPayload {
+  kind: AssessmentCaseActivity["kind"];
+  status?: NonNullable<AssessmentCaseActivity["status"]>;
+  details?: string;
 }
 
 export interface TriageBreakdownItem {
@@ -421,6 +437,16 @@ export function getMhoLexicon(): Promise<AdminModuleLexiconEntry[]> {
 export function markAssessmentHandled(assessmentId: number): Promise<DashboardAssessmentItem> {
   return request<DashboardAssessmentItem>(`/assessment/${assessmentId}/handled`, {
     method: "PATCH",
+  });
+}
+
+export function addAssessmentCaseActivity(
+  assessmentId: number,
+  payload: AssessmentCaseActivityPayload,
+): Promise<DashboardAssessmentItem> {
+  return request<DashboardAssessmentItem>(`/assessment/${assessmentId}/case-activity`, {
+    method: "POST",
+    body: JSON.stringify(payload),
   });
 }
 // --- Auth ---

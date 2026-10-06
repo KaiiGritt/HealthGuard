@@ -145,6 +145,14 @@ class DashboardMetric(BaseModel):
     hint: str
 
 
+class AssessmentCaseActivityOut(BaseModel):
+    id: int
+    kind: str
+    status: str | None = None
+    details: str | None = None
+    created_at: datetime
+
+
 class DashboardAssessmentItem(BaseModel):
     id: int
     resident_name: str
@@ -156,6 +164,38 @@ class DashboardAssessmentItem(BaseModel):
     phone_number: str | None = None
     handled: bool = False
     handled_at: datetime | None = None
+    case_status: str = "New"
+    case_activities: list["AssessmentCaseActivityOut"] = Field(default_factory=list)
+
+
+class AssessmentCaseActivityIn(BaseModel):
+    kind: str
+    status: str | None = None
+    details: str | None = None
+
+    @field_validator("kind")
+    @classmethod
+    def validate_kind(cls, value: str) -> str:
+        if value not in {"status", "note", "contact_attempt"}:
+            raise ValueError("Activity kind must be status, note, or contact_attempt.")
+        return value
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, value: str | None) -> str | None:
+        if value is not None and value not in {"New", "In progress", "Resolved"}:
+            raise ValueError("Status must be New, In progress, or Resolved.")
+        return value
+
+    @model_validator(mode="after")
+    def validate_activity(self) -> "AssessmentCaseActivityIn":
+        if self.kind == "status" and self.status is None:
+            raise ValueError("A status is required for status activity.")
+        if self.kind != "status" and not (self.details or "").strip():
+            raise ValueError("Activity details are required.")
+        if self.kind != "status" and self.status is not None:
+            raise ValueError("Status can only be supplied for status activity.")
+        return self
 
 
 class TriageBreakdownItem(BaseModel):

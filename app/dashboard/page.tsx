@@ -20,7 +20,7 @@ import {
   Toast,
   TriageBadge,
 } from "@/app/components/ui/primitives";
-import { formatAssessmentRecordNumber, getDashboardSummary, getMe, getMhoLexicon, markLexiconReviewed, rejectLexiconEntry, type AdminModuleLexiconEntry, type User } from "@/lib/api";
+import { addAssessmentCaseActivity, formatAssessmentRecordNumber, getDashboardSummary, getMe, getMhoLexicon, markLexiconReviewed, rejectLexiconEntry, type AdminModuleLexiconEntry, type User } from "@/lib/api";
 import { downloadReport } from "@/lib/report";
 
 const SECTIONS = [
@@ -505,6 +505,7 @@ function DashboardPageContent() {
   const [stats, setStats] = useState<DashboardState | null>(null);
   const [lexiconEntries, setLexiconEntries] = useState<AdminModuleLexiconEntry[]>([]);
   const [reviewingLexicon, setReviewingLexicon] = useState<number | null>(null);
+  const [savingCaseId, setSavingCaseId] = useState<number | null>(null);
   const [riskFilter, setRiskFilter] = useState("all");
   const [barangayFilter, setBarangayFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
@@ -634,8 +635,33 @@ function DashboardPageContent() {
     }
   }
 
+  async function recordCaseActivity(assessmentId: number, formData: FormData) {
+    const kind = String(formData.get("kind"));
+    const details = String(formData.get("details") ?? "").trim();
+    setSavingCaseId(assessmentId);
+    try {
+      await addAssessmentCaseActivity(assessmentId, {
+        kind: kind as "status" | "note" | "contact_attempt",
+        ...(kind === "status"
+          ? { status: String(formData.get("status")) as "New" | "In progress" | "Resolved" }
+          : { details }),
+      });
+      const summary = await getDashboardSummary();
+      setStats(summary);
+      setLastUpdated(new Date());
+      setToast({ message: "RED case activity saved.", tone: "success" });
+    } catch (error) {
+      setToast({
+        message: error instanceof Error ? error.message : "Could not save RED case activity.",
+        tone: "error",
+      });
+    } finally {
+      setSavingCaseId(null);
+    }
+  }
+
   const redCases = useMemo(
-    () => (stats?.recent_assessments ?? []).filter((item) => (item.risk_level || "").toUpperCase() === "RED"),
+    () => (stats?.recent_assessments ?? []).filter((item) => (item.risk_level || "").toUpperCase() === "RED" && item.case_status !== "Resolved" && !item.handled),
     [stats],
   );
   const barangayOptions = useMemo(
@@ -794,6 +820,63 @@ function DashboardPageContent() {
                         <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-ink-muted">Assessment details</p>
                         <p className="mt-1 leading-relaxed text-ink-secondary">{item.note}</p>
                       </div>
+                    </div>
+
+                    <div className="mt-3 rounded-md border border-red-200 bg-white/60 p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-xs font-semibold text-ink">
+                          Case status: <span className="text-emergency-red">{item.case_status ?? "New"}</span>
+                        </p>
+                      </div>
+                      <form
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          void recordCaseActivity(item.id, new FormData(event.currentTarget));
+                        }}
+                        className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto]"
+                      >
+                        <select name="kind" aria-label="Case activity type" className="min-h-10 rounded-md border border-border bg-white px-3 text-xs text-ink">
+                          <option value="status">Update status</option>
+                          <option value="note">Add follow-up note</option>
+                          <option value="contact_attempt">Log contact attempt</option>
+                        </select>
+                        <select name="status" aria-label="Case status" defaultValue={item.case_status ?? "New"} className="min-h-10 rounded-md border border-border bg-white px-3 text-xs text-ink">
+                          <option value="New">New</option>
+                          <option value="In progress">In progress</option>
+                          <option value="Resolved">Resolved</option>
+                        </select>
+                        <input
+                          name="details"
+                          aria-label="Follow-up note or contact attempt details"
+                          placeholder="Note or contact attempt details"
+                          className="min-h-10 rounded-md border border-border bg-white px-3 text-xs text-ink sm:col-span-2"
+                        />
+                        <button
+                          type="submit"
+                          disabled={savingCaseId === item.id}
+                          className="min-h-10 rounded-md bg-emergency-red px-3 text-xs font-semibold text-white transition hover:bg-red-700 disabled:opacity-60 sm:col-span-2"
+                        >
+                          {savingCaseId === item.id ? "Saving…" : "Save activity"}
+                        </button>
+                      </form>
+                      {(item.case_activities ?? []).length > 0 && (
+                        <div className="mt-3 space-y-2 border-t border-red-100 pt-3">
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-muted">Recent activity</p>
+                          {item.case_activities?.slice(0, 3).map((activity) => (
+                            <p key={activity.id} className="text-xs leading-relaxed text-ink-secondary">
+                              <span className="font-medium text-ink">
+                                {activity.kind === "status"
+                                  ? `Status → ${activity.status}`
+                                  : activity.kind === "contact_attempt"
+                                    ? "Contact attempt"
+                                    : "Follow-up note"}
+                              </span>
+                              {activity.details ? ` — ${activity.details}` : ""}
+                              <span className="text-ink-muted"> · {new Date(activity.created_at).toLocaleString()}</span>
+                            </p>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     <p className="mt-3 text-xs text-ink-muted">

@@ -29,12 +29,12 @@ const SYMPTOMS = [
   { value: "fever", category: "general", en: "Fever", tl: "Lagnat", icon: <IconThermometer size={18} /> },
   { value: "cough", category: "respiratory", en: "Cough", tl: "Ubo", icon: <IconLungs size={18} /> },
   { value: "headache", category: "pain", en: "Headache", tl: "Sakit ng ulo", icon: <IconBrain size={18} /> },
-  { value: "abdominal pain", category: "digestive", en: "Stomach ache", tl: "Masakit ang tiyan", icon: <IconStomach size={18} /> },
+  { value: "abdominal pain", category: "digestive", en: "Abdominal pain", tl: "Pananakit ng tiyan", icon: <IconStomach size={18} /> },
   { value: "vomiting", category: "digestive", en: "Vomiting", tl: "Pagsusuka", icon: <IconDroplets size={18} /> },
   { value: "diarrhea", category: "digestive", en: "Diarrhea", tl: "Pagtatae", icon: <IconDroplets size={18} /> },
   { value: "rash", category: "skin", en: "Rashes", tl: "Pantal", icon: <IconDroplets size={18} /> },
   { value: "colds / rhinitis", category: "respiratory", en: "Cold", tl: "Sipon", icon: <IconLungs size={18} /> },
-  { value: "muscle ache / body soreness", category: "pain", en: "Body aches", tl: "Pananakit ng katawan", icon: <IconStomach size={18} /> },
+  { value: "muscle ache / body soreness", category: "pain", en: "Body pain", tl: "Pananakit ng katawan", icon: <IconStomach size={18} /> },
   { value: "difficulty breathing", category: "respiratory", en: "Difficulty breathing", tl: "Hirap huminga", icon: <IconLungs size={18} /> },
 ] as const;
 
@@ -85,6 +85,9 @@ const ABDOMINAL_QUALITY_OPTIONS = [
 ] as const;
 
 const TYPE_CHIPS: Record<string, { en: string; tl: string }[]> = {
+  fever: [
+    { en: "Dizziness", tl: "Pagkahilo" },
+  ],
   cough: [
     { en: "Acute", tl: "Biglaang ubo" },
     { en: "Chronic", tl: "Pangmatagalang ubo" },
@@ -97,12 +100,14 @@ const TYPE_CHIPS: Record<string, { en: string; tl: string }[]> = {
     { en: "Cluster headache", tl: "Kumpol-kumpol na sakit ng ulo" },
     { en: "Sinus headache", tl: "Sakit ng ulo dahil sa sinus" },
     { en: "Thunderclap headache", tl: "Biglaang matinding sakit ng ulo" },
+    { en: "Dizziness", tl: "Pagkahilo" },
   ],
   "abdominal pain": [...ABDOMINAL_LOCATION_OPTIONS, ...ABDOMINAL_QUALITY_OPTIONS],
   vomiting: [
     { en: "Nausea", tl: "Pagduduwal" },
     { en: "Retching", tl: "Pag-uurong-suka" },
     { en: "Vomiting", tl: "Pagsusuka" },
+    { en: "Dizziness", tl: "Pagkahilo" },
   ],
   diarrhea: [
     { en: "Watery stool", tl: "Tubig ang dumi" },
