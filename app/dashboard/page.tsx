@@ -156,52 +156,66 @@ function AssessmentCaseCard({ item }: { item: DashboardState["recent_assessments
 
   return (
     <article className={cn(
-      "rounded-xl border border-border-soft bg-white p-4 shadow-[0_8px_20px_rgba(24,38,25,0.035)] sm:p-5",
+      "group relative overflow-hidden rounded-2xl border border-[#dce5d8] bg-[linear-gradient(145deg,#ffffff_0%,#fbfcf9_58%,#f4f8f1_100%)] p-5 shadow-[0_12px_28px_rgba(24,38,25,0.075)] transition duration-200 hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-[0_18px_36px_rgba(24,38,25,0.12)] sm:p-6",
       riskLevel === "RED"
-        ? "border-l-4 border-l-triage-red"
+        ? "border-l-[5px] border-l-triage-red"
         : riskLevel === "YELLOW"
-          ? "border-l-4 border-l-triage-yellow"
+          ? "border-l-[5px] border-l-triage-yellow"
           : riskLevel === "GREEN"
-            ? "border-l-4 border-l-triage-green"
-            : "border-l-4 border-l-slate-300",
+            ? "border-l-[5px] border-l-triage-green"
+            : "border-l-[5px] border-l-slate-400",
     )}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate font-semibold text-ink">{item.resident_name}</p>
-          <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint">
+          <p className="truncate text-lg font-semibold leading-snug tracking-[-0.015em] text-[#182619] sm:text-xl">{item.resident_name}</p>
+          <p className="mt-1 font-mono text-xs font-medium uppercase tracking-[0.07em] text-[#52604f]">
             {formatAssessmentRecordNumber(item.id)} <span aria-hidden="true">·</span> {caseType}
           </p>
         </div>
         <TriageBadge level={item.risk_level} />
       </div>
 
-      <p className="mt-3 text-sm leading-relaxed text-ink-secondary">
-        {item.detected_symptoms?.length ? item.detected_symptoms.join(" / ") : "Symptoms not recorded"}
-        <span className="text-ink-muted"> — onset {item.case_summary.onset_display.toLowerCase()}</span>
-      </p>
-
-      <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-ink-muted">
-        {item.age != null && <span>Age {item.age}</span>}
-        {item.barangay && <span>{item.barangay}</span>}
-        {item.age == null && !item.barangay && <span>Resident details unavailable</span>}
+      <div className="mt-4 rounded-xl border border-[#e4eae0] bg-white/80 px-4 py-3">
+        <p className="text-base font-medium leading-relaxed text-[#263629]">
+          {item.detected_symptoms?.length ? item.detected_symptoms.join(" / ") : "Symptoms not recorded"}
+        </p>
+        <p className="mt-1.5 text-sm font-medium leading-relaxed text-[#52604f]">
+          Onset <span className="font-semibold text-[#344536]">{item.case_summary.onset_display}</span>
+        </p>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-border-soft pt-3 text-xs text-ink-muted">
-        <span>{formatSubmittedAgo(item.created_at)}</span>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {item.age != null && (
+          <span className="rounded-full border border-[#dce6d8] bg-[#f2f6ef] px-3 py-1.5 text-sm font-semibold text-[#354638]">
+            Age {item.age}
+          </span>
+        )}
+        {item.barangay && (
+          <span className="rounded-full border border-[#dce6d8] bg-[#f2f6ef] px-3 py-1.5 text-sm font-semibold text-[#354638]">
+            {item.barangay}
+          </span>
+        )}
+        {item.age == null && !item.barangay && (
+          <span className="text-sm font-medium text-[#52604f]">Resident details unavailable</span>
+        )}
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-[#e2e8de] pt-3 text-sm text-[#4d5a4b]">
+        <span className="font-medium">{formatSubmittedAgo(item.created_at)}</span>
         {item.phone_number && (
-          <a href={`tel:${item.phone_number}`} className="font-medium text-brand-dark transition hover:text-brand">
+          <a href={`tel:${item.phone_number}`} className="font-semibold text-[#285d43] underline decoration-[#9bb49f] underline-offset-4 transition hover:text-brand">
             Mobile: {item.phone_number}
           </a>
         )}
       </div>
 
       {item.case_summary.urgency_reasons.length > 0 && (
-        <p className="mt-3 text-xs text-emergency-red">
-          Flags: {item.case_summary.urgency_reasons.join(" · ")}
+        <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium leading-relaxed text-[#852d21]">
+          <span className="font-bold">Urgency flags:</span> {item.case_summary.urgency_reasons.join(" · ")}
         </p>
       )}
       {item.case_summary.validation_note && (
-        <p role="status" className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
+        <p role="status" className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm leading-relaxed text-amber-950">
           <span className="font-semibold">Data validation warning: </span>
           {item.case_summary.validation_note}
         </p>
