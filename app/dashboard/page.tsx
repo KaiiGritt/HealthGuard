@@ -795,7 +795,19 @@ function DashboardPageContent() {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="font-medium text-ink">{item.resident_name}</p>
-                      <TriageBadge level={item.risk_level} />
+                      <span className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wide ${
+                        item.case_summary.triage_badge_color === "red"
+                          ? "bg-red-100 text-red-800"
+                          : item.case_summary.triage_badge_color === "yellow"
+                            ? "bg-amber-100 text-amber-800"
+                            : item.case_summary.triage_badge_color === "green"
+                              ? "bg-emerald-100 text-emerald-800"
+                              : "bg-slate-100 text-slate-700"
+                      }`}>
+                        {item.case_summary.triage_badge_color === "needs-info"
+                          ? "Needs info"
+                          : item.case_summary.triage_badge_color}
+                      </span>
                       <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-muted">#{item.id}</span>
                     </div>
 
@@ -817,9 +829,28 @@ function DashboardPageContent() {
                         </div>
                       )}
                       <div className="sm:col-span-2">
-                        <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-ink-muted">Assessment details</p>
-                        <p className="mt-1 leading-relaxed text-ink-secondary">{item.note}</p>
+                        <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-ink-muted">Chief complaint</p>
+                        <p className="mt-1 leading-relaxed text-ink-secondary">{item.case_summary.chief_complaint_summary}</p>
                       </div>
+                      <div>
+                        <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-ink-muted">Onset</p>
+                        <p className="mt-1 font-medium text-ink">{item.case_summary.onset_display}</p>
+                      </div>
+                      {item.case_summary.urgency_reasons.length > 0 && (
+                        <div>
+                          <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-ink-muted">Extracted red flags</p>
+                          <ul className="mt-1 list-inside list-disc text-ink-secondary">
+                            {item.case_summary.urgency_reasons.map((reason, reasonIndex) => (
+                              <li key={`${item.id}-flag-${reasonIndex}`}>{reason}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {item.case_summary.validation_note && (
+                        <p role="status" className="sm:col-span-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
+                          {item.case_summary.validation_note}
+                        </p>
+                      )}
                     </div>
 
                     <div className="mt-3 rounded-md border border-red-200 bg-white/60 p-3">

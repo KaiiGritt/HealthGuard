@@ -129,6 +129,18 @@ def migrate_assessment_handled_schema() -> None:
             connection.execute(text(f"ALTER TABLE assessments ADD COLUMN handled_at {handled_at_type}"))
 
 
+def migrate_assessment_symptom_extraction_schema() -> None:
+    """Add stored structured symptom-extraction output to existing assessments."""
+    from sqlalchemy import inspect, text
+
+    if "assessments" not in inspect(engine).get_table_names():
+        return
+    columns = {column["name"] for column in inspect(engine).get_columns("assessments")}
+    if "symptom_extraction" not in columns:
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE assessments ADD COLUMN symptom_extraction JSON"))
+
+
 
 def migrate_lexicon_review_schema() -> None:
     """Add review metadata to existing lexicon tables without losing entries."""

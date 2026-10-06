@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import and_, case, func, select
 from sqlalchemy.orm import Session
 
+from ..case_summary import build_case_summary
 from ..database import get_db
 from ..deps import get_current_user, get_current_user_optional, require_role
 from ..models import Assessment, AssessmentCaseActivity, AssessmentSymptom, Symptom, SymptomLexicon, User
@@ -36,6 +37,7 @@ from ..schemas import (
     AssessmentCaseActivityOut,
     AssessmentOut,
     BarangayStatItem,
+    CaseSummaryOut,
     DashboardAssessmentItem,
     DashboardInsightItem,
     DashboardMetric,
@@ -396,6 +398,7 @@ def dashboard_summary(
                 User.barangay,
                 User.phone_number,
                 Assessment.handled_at,
+                Assessment.symptom_extraction,
             )
             .join(User, Assessment.user_id == User.id, isouter=True)
             .order_by(Assessment.created_at.desc())
@@ -451,6 +454,14 @@ def dashboard_summary(
                     AssessmentCaseActivityOut.model_validate(activity, from_attributes=True)
                     for activity in activity_by_assessment.get(row[0], [])
                 ],
+                case_summary=CaseSummaryOut(
+                    **build_case_summary(
+                        chief_complaint=row[1],
+                        detected_symptoms=symptoms,
+                        symptom_extraction=row[10],
+                        triage_level=row[3],
+                    )
+                ),
             )
         )
 
@@ -960,6 +971,7 @@ def analyze_symptoms(
             {"name": rule.name, "description": rule.description}
             for rule in result.classification.triggered_rules
         ],
+        symptom_extraction=result.symptom_extraction,
     )
     db.add(record)
     db.flush()
@@ -1092,6 +1104,7 @@ def mark_assessment_handled(
             User.barangay,
             User.phone_number,
             Assessment.handled_at,
+            Assessment.symptom_extraction,
         )
         .join(User, Assessment.user_id == User.id, isouter=True)
         .where(Assessment.id == assessment_id)
@@ -1111,6 +1124,14 @@ def mark_assessment_handled(
         phone_number=row[8],
         handled=row[9] is not None,
         handled_at=row[9],
+        case_summary=CaseSummaryOut(
+            **build_case_summary(
+                chief_complaint=row[1],
+                detected_symptoms=symptoms,
+                symptom_extraction=row[10],
+                triage_level=row[3],
+            )
+        ),
     )
 
 
@@ -1150,6 +1171,7 @@ def add_assessment_case_activity(
             User.barangay,
             User.phone_number,
             Assessment.handled_at,
+            Assessment.symptom_extraction,
         )
         .join(User, Assessment.user_id == User.id, isouter=True)
         .where(Assessment.id == assessment_id)
@@ -1182,6 +1204,14 @@ def add_assessment_case_activity(
             AssessmentCaseActivityOut.model_validate(item, from_attributes=True)
             for item in activities
         ],
+        case_summary=CaseSummaryOut(
+            **build_case_summary(
+                chief_complaint=row[1],
+                detected_symptoms=symptoms,
+                symptom_extraction=row[10],
+                triage_level=row[3],
+            )
+        ),
     )
 
 

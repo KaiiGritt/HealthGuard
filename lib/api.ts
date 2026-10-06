@@ -78,6 +78,15 @@ export interface DashboardAssessmentItem {
   handled_at?: string | null;
   case_status?: "New" | "In progress" | "Resolved";
   case_activities?: AssessmentCaseActivity[];
+  case_summary: CaseSummary;
+}
+
+export interface CaseSummary {
+  chief_complaint_summary: string;
+  urgency_reasons: string[];
+  onset_display: string;
+  triage_badge_color: "green" | "yellow" | "red" | "needs-info";
+  validation_note: string | null;
 }
 
 export interface AssessmentCaseActivity {

@@ -17,6 +17,7 @@ from .database import (
     engine,
     migrate_email_verification_schema,
     migrate_assessment_handled_schema,
+    migrate_assessment_symptom_extraction_schema,
     migrate_assessment_rules_schema,
     migrate_assessment_confidence_schema,
     migrate_user_profile_schema,
@@ -51,6 +52,7 @@ async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     migrate_email_verification_schema()
     migrate_assessment_handled_schema()
+    migrate_assessment_symptom_extraction_schema()
     migrate_lexicon_review_schema()
     migrate_user_preferences_schema()
     migrate_user_role_schema()

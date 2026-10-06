@@ -153,6 +153,14 @@ class AssessmentCaseActivityOut(BaseModel):
     created_at: datetime
 
 
+class CaseSummaryOut(BaseModel):
+    chief_complaint_summary: str
+    urgency_reasons: list[str] = Field(default_factory=list)
+    onset_display: str
+    triage_badge_color: Literal["green", "yellow", "red", "needs-info"]
+    validation_note: str | None = None
+
+
 class DashboardAssessmentItem(BaseModel):
     id: int
     resident_name: str
@@ -166,6 +174,7 @@ class DashboardAssessmentItem(BaseModel):
     handled_at: datetime | None = None
     case_status: str = "New"
     case_activities: list["AssessmentCaseActivityOut"] = Field(default_factory=list)
+    case_summary: CaseSummaryOut
 
 
 class AssessmentCaseActivityIn(BaseModel):
