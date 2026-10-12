@@ -74,9 +74,9 @@ function LoginForm() {
         </>
       }
     >
-      <div className="mb-5 flex items-center gap-3 rounded-2xl border border-brand/15 bg-brand-tint/65 px-3.5 py-3 text-left">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand text-brand-foreground shadow-[0_6px_14px_rgba(47,107,79,0.18)]">
-          <IconShield size={17} />
+      <div className="mb-4 flex items-center gap-3 rounded-2xl border border-[#dfe9dc] bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(239,247,242,0.9))] px-3 py-2.5 text-left shadow-[0_12px_28px_rgba(19,35,29,0.07)] ring-1 ring-white/80 sm:mb-5 sm:rounded-[20px] sm:px-3.5 sm:py-3 sm:shadow-[0_16px_36px_rgba(19,35,29,0.08)]">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-[linear-gradient(135deg,#1f4a36_0%,#2f6b4f_38%,#5dbb8a_100%)] text-brand-foreground shadow-[0_10px_20px_rgba(31,74,54,0.24)]">
+          <IconShield size={18} />
         </span>
         <div className="min-w-0">
           <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-brand-dark">Secure health workspace</p>
@@ -84,7 +84,7 @@ function LoginForm() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className={cn(authFormStackClass, "rounded-2xl border border-brand/15 bg-gradient-to-b from-white via-white to-surface/80 p-4 shadow-[0_18px_40px_rgba(24,38,25,0.07)] ring-1 ring-white sm:p-5")}>
+      <form onSubmit={handleSubmit} className={cn(authFormStackClass, "space-y-3.5 rounded-2xl border border-brand/15 bg-gradient-to-b from-white via-white to-surface/80 p-3.5 shadow-[0_12px_28px_rgba(24,38,25,0.06)] ring-1 ring-white sm:space-y-4 sm:p-5 sm:shadow-[0_18px_40px_rgba(24,38,25,0.07)]")}>
         <AuthProField
           id="email"
           label="Email address"
@@ -130,7 +130,7 @@ function LoginForm() {
         </button>
       </form>
 
-      <p className="mt-6 text-center text-xs leading-relaxed text-ink-faint">
+      <p className="mt-4 text-center text-[11px] leading-relaxed text-ink-faint sm:mt-6 sm:text-xs">
         By signing in, you agree to use HealthGuard as a decision-support tool only — not as a medical diagnosis.
       </p>
     </AuthLayout>

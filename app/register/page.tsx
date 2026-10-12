@@ -218,9 +218,9 @@ export default function RegisterPage() {
         </>
       }
     >
-      <div className="mb-5 flex items-center gap-3 rounded-2xl border border-brand/15 bg-brand-tint/65 px-3.5 py-3 text-left">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand text-brand-foreground shadow-[0_6px_14px_rgba(47,107,79,0.18)]">
-          <IconShield size={17} />
+      <div className="mb-5 flex items-center gap-3 rounded-[20px] border border-[#dfe9dc] bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(239,247,242,0.9))] px-3.5 py-3 text-left shadow-[0_16px_36px_rgba(19,35,29,0.08)] ring-1 ring-white/80">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-[linear-gradient(135deg,#1f4a36_0%,#2f6b4f_38%,#5dbb8a_100%)] text-brand-foreground shadow-[0_10px_20px_rgba(31,74,54,0.24)]">
+          <IconShield size={18} />
         </span>
         <div className="min-w-0">
           <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-brand-dark">Private health profile</p>

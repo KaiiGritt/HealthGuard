@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type ButtonHTMLAttributes, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ButtonHTMLAttributes, type CSSProperties, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { IconChevronDown } from "@/app/components/ui/icons";
 
 /* Shared class strings — one source of truth for form and layout styling */
@@ -19,7 +20,7 @@ export const labelHintClass = "font-normal text-ink-muted";
 export const formStackClass = "space-y-4";
 
 export const submitButtonClass =
-  "flex min-h-[52px] w-full items-center justify-center rounded-xl bg-brand px-5 font-mono text-sm uppercase tracking-[0.04em] font-semibold text-brand-foreground shadow-[0_10px_22px_rgba(47,107,79,0.16)] outline-none transition hover:bg-brand-dark focus-visible:ring-4 focus-visible:ring-brand/25 disabled:cursor-not-allowed disabled:opacity-60";
+  "group flex min-h-14 w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-brand to-brand-dark px-6 text-base font-semibold tracking-[0.01em] text-brand-foreground shadow-[0_12px_26px_rgba(31,74,54,0.2)] outline-none transition-[transform,box-shadow,filter] duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_32px_rgba(31,74,54,0.26)] focus-visible:ring-4 focus-visible:ring-brand/25 active:translate-y-0 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-[0_12px_26px_rgba(31,74,54,0.2)] sm:w-auto sm:min-w-56";
 
 /** Shared max-width shell — use the full available space on large screens for better readability */
 export const contentShellClass = "mx-auto w-full max-w-[1600px] xl:max-w-[1728px] 2xl:max-w-[1800px]";
@@ -51,11 +52,58 @@ export function PremiumSelect({
 }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [menuStyle, setMenuStyle] = useState<CSSProperties | null>(null);
   const activeOption = options.find((option) => option.value === value) ?? options[0];
+
+  useLayoutEffect(() => {
+    if (!open) return;
+
+    function updateMenuPosition() {
+      const button = buttonRef.current;
+      if (!button) return;
+
+      const rect = button.getBoundingClientRect();
+      const viewportWidth = document.documentElement.clientWidth;
+      const viewportHeight = window.innerHeight;
+      const margin = 8;
+      const targetHeight = Math.min(256, options.length * 44 + 12);
+      const belowSpace = viewportHeight - rect.bottom - margin;
+      const aboveSpace = rect.top - margin;
+      const openAbove = belowSpace < Math.min(targetHeight, 160) && aboveSpace > belowSpace;
+      const availableSpace = openAbove ? aboveSpace : belowSpace;
+      const maxHeight = Math.max(40, Math.min(targetHeight, availableSpace));
+      const width = Math.min(rect.width, viewportWidth - margin * 2);
+      const left = Math.max(margin, Math.min(rect.left, viewportWidth - width - margin));
+
+      setMenuStyle({
+        position: "fixed",
+        left,
+        width,
+        maxHeight,
+        top: openAbove ? Math.max(margin, rect.top - maxHeight - margin) : rect.bottom + margin,
+        zIndex: 1000,
+      });
+    }
+
+    updateMenuPosition();
+    window.addEventListener("resize", updateMenuPosition);
+    window.addEventListener("scroll", updateMenuPosition, true);
+    window.visualViewport?.addEventListener("resize", updateMenuPosition);
+    window.visualViewport?.addEventListener("scroll", updateMenuPosition);
+    return () => {
+      window.removeEventListener("resize", updateMenuPosition);
+      window.removeEventListener("scroll", updateMenuPosition, true);
+      window.visualViewport?.removeEventListener("resize", updateMenuPosition);
+      window.visualViewport?.removeEventListener("scroll", updateMenuPosition);
+    };
+  }, [open, options.length]);
 
   useEffect(() => {
     function closeOnOutsideClick(event: MouseEvent) {
-      if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
+      const target = event.target as Node;
+      if (!containerRef.current?.contains(target) && !menuRef.current?.contains(target)) setOpen(false);
     }
     document.addEventListener("mousedown", closeOnOutsideClick);
     return () => document.removeEventListener("mousedown", closeOnOutsideClick);
@@ -64,6 +112,7 @@ export function PremiumSelect({
   return (
     <div ref={containerRef} className={cn("relative", className)}>
       <button
+        ref={buttonRef}
         id={id}
         type="button"
         aria-label={ariaLabel}
@@ -76,8 +125,14 @@ export function PremiumSelect({
         <span className="truncate">{activeOption?.label ?? "Select"}</span>
         <IconChevronDown size={17} className={cn("shrink-0 text-brand transition-transform duration-200", open && "rotate-180")} aria-hidden="true" />
       </button>
-      {open ? (
-        <div role="listbox" aria-label={ariaLabel} className="absolute inset-x-0 top-full z-50 mt-2 max-h-64 w-full overflow-auto rounded-2xl border border-[#D8E2D3] bg-white p-1.5 shadow-[0_22px_44px_rgba(24,38,25,0.18)] ring-1 ring-black/5">
+      {open && menuStyle ? createPortal(
+        <div
+          ref={menuRef}
+          role="listbox"
+          aria-label={ariaLabel}
+          style={menuStyle}
+          className="overflow-auto rounded-2xl border border-[#D8E2D3] bg-white p-1.5 shadow-[0_22px_44px_rgba(24,38,25,0.18)] ring-1 ring-black/5"
+        >
           {options.map((option) => (
             <button
               key={option.value}
@@ -97,7 +152,8 @@ export function PremiumSelect({
               {option.value === value ? <span className="text-brand" aria-hidden="true">✓</span> : null}
             </button>
           ))}
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </div>
   );
@@ -334,7 +390,7 @@ export function TriageBadge({ level }: { level: "GREEN" | "YELLOW" | "RED" | str
 
 export function ErrorAlert({ children }: { children: ReactNode }) {
   return (
-    <p className="rounded-lg border border-emergency-red/30 bg-red-tint px-5 py-4 text-base leading-relaxed text-emergency-red">
+    <p className="rounded-lg border border-emergency-red/30 bg-red-tint px-3.5 py-3 text-sm leading-relaxed text-emergency-red sm:px-5 sm:py-4 sm:text-base">
       {children}
     </p>
   );
@@ -569,7 +625,7 @@ export const authSelectClass =
 export const authFormStackClass = "space-y-4";
 
 export const authSubmitClass =
-  "flex h-12 w-full items-center justify-center rounded-xl bg-gradient-to-r from-brand to-brand-dark px-4 text-sm font-semibold text-brand-foreground shadow-[0_12px_24px_rgba(47,107,79,0.18)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_28px_rgba(47,107,79,0.22)] disabled:cursor-not-allowed disabled:opacity-60";
+  "flex h-12 w-full items-center justify-center rounded-[18px] bg-[linear-gradient(135deg,#2f6b4f_0%,#1f4a36_100%)] px-4 text-sm font-semibold tracking-[0.01em] text-brand-foreground shadow-[0_14px_30px_rgba(31,74,54,0.22),inset_0_1px_0_rgba(255,255,255,0.16)] ring-1 ring-white/40 transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_34px_rgba(31,74,54,0.28),inset_0_1px_0_rgba(255,255,255,0.18)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/20 disabled:cursor-not-allowed disabled:opacity-60";
 
 export function AuthProField({
   id,

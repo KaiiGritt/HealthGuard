@@ -3,7 +3,7 @@
 /* HealthGuard — unified rural health-record design system */
 @theme inline {
   --font-sans: var(--font-body), "Segoe UI", system-ui, sans-serif;
-  --font-display: "Georgia", serif;
+  --font-display: var(--font-display), "Segoe UI", system-ui, sans-serif;
   --font-mono: var(--font-tag), "Segoe UI", system-ui, sans-serif;
 
   --color-brand: #2f6b4f;
@@ -58,6 +58,24 @@
     linear-gradient(180deg, #f9fbf7 0%, #eef3ec 58%, #e9f0e8 100%);
   background-size: 34px 34px, 34px 34px, auto, auto, auto;
   background-attachment: fixed;
+}
+
+.brand-wordmark {
+  font-family: var(--font-display), "Segoe UI", sans-serif;
+  letter-spacing: -0.06em;
+  line-height: 0.96;
+  font-weight: 700;
+}
+
+.brand-wordmark--tight {
+  letter-spacing: -0.05em;
+}
+
+.brand-subtitle {
+  font-family: var(--font-tag), "Segoe UI", sans-serif;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-weight: 600;
 }
 
 .premium-date-input {

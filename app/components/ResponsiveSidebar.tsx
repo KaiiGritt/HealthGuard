@@ -6,6 +6,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { cn } from "./ui/primitives";
 import { logout, type User } from "@/lib/api";
+import { BrandLogo } from "./BrandLogo";
 
 const ICONS = {
   home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1v-9.5Z",
@@ -105,7 +106,7 @@ function ResponsiveSidebarContent({ user, dashboardAlertCount = 0 }: { user: Use
         <div className="relative border-b border-[#D7E0D2] px-5 pb-5 pt-6">
           <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" />
           <Link href="/" onClick={() => setOpen(false)} className="group flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-[linear-gradient(145deg,#2E6A52_0%,#183D2D_100%)] text-lg font-medium text-brand-foreground shadow-[0_8px_18px_rgba(24,61,45,0.2)] ring-1 ring-white/60" style={{ fontFamily: "var(--font-display)" }}>H</span>
+            <BrandLogo compact className="drop-shadow-[0_8px_18px_rgba(24,61,45,0.18)]" />
             <span className="min-w-0">
               <span className="block font-mono text-[9px] font-semibold uppercase tracking-[0.16em] text-brand">Irosin health workspace</span>
               <span className="mt-0.5 block text-[1.12rem] font-semibold leading-tight text-ink transition-colors group-hover:text-brand-dark" style={{ fontFamily: "var(--font-display)" }}>HealthGuard</span>

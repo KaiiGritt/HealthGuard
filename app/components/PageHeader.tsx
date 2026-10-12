@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/app/components/ui/primitives";
 import { useInterfaceLanguage } from "@/app/components/LanguageProvider";
 import { getMe, logout, type User } from "@/lib/api";
+import { BrandLogo } from "./BrandLogo";
 import ResponsiveSidebar from "./ResponsiveSidebar";
 
 function IconWrapper({ children }: { children: ReactNode }) {
@@ -180,10 +181,10 @@ export default function PageHeader({ dashboardAlertCount = 0 }: { dashboardAlert
   function linkClass(href: string) {
     const active = pathname === href;
     return cn(
-      "group relative z-10 flex items-center gap-2 rounded-full px-3.5 py-2.5 text-sm font-medium outline-none transition-all duration-200 hover:-translate-y-0.5 focus-visible:ring-4 focus-visible:ring-brand/20 sm:gap-2.5 sm:px-4 lg:gap-2.5 lg:px-4.5 lg:py-2.5 lg:text-base",
+      "group relative z-10 flex items-center gap-2 overflow-hidden rounded-full px-3.5 py-2.5 text-sm font-medium tracking-[-0.01em] outline-none transition-all duration-200 hover:-translate-y-0.5 hover:scale-[1.025] active:translate-y-0 active:scale-[0.98] focus-visible:ring-4 focus-visible:ring-brand/20 sm:gap-2.5 sm:px-4 lg:gap-2.5 lg:px-4.5 lg:py-2.5 lg:text-base",
       active
-        ? "bg-[linear-gradient(100deg,#E6F1E5_0%,#F4F8EF_100%)] text-brand-dark shadow-[0_5px_14px_rgba(47,107,79,0.08)] ring-1 ring-brand/15"
-        : "text-ink-secondary hover:bg-white/75 hover:text-ink hover:shadow-sm hover:ring-1 hover:ring-border/80",
+        ? "bg-[linear-gradient(135deg,#EAF4EC_0%,#F7FBF5_100%)] text-brand-dark shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_12px_26px_rgba(47,107,79,0.16)] ring-1 ring-[#2F6B4F]/12 before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.9),transparent_35%)] before:content-['']"
+        : "text-ink-secondary hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(232,242,232,0.96)_100%)] hover:text-brand-dark hover:shadow-[0_10px_22px_rgba(47,107,79,0.12)] hover:ring-1 hover:ring-[#B9D1B8] before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.75),transparent_38%)] before:opacity-0 before:transition-opacity before:duration-200 before:content-[''] hover:before:opacity-100",
     );
   }
 
@@ -213,22 +214,24 @@ export default function PageHeader({ dashboardAlertCount = 0 }: { dashboardAlert
     <>
       <ResponsiveSidebar user={user} dashboardAlertCount={dashboardAlertCount} />
       <div className="hidden md:block">
-      <header className="sticky top-0 z-40 border-b border-border bg-header/90 backdrop-blur-xl">
+      <header className="sticky top-0 z-40 border-b border-[#E1E8DD]/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.88),rgba(244,248,242,0.92))] shadow-[0_18px_44px_rgba(15,23,42,0.06)] backdrop-blur-2xl">
       <div className="relative mx-auto grid w-full max-w-[1800px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 px-5 py-4 sm:px-8 sm:py-5 lg:px-12 lg:py-5 2xl:px-16">
         <Link href="/" className="group justify-self-start flex items-center gap-2.5 lg:gap-3">
-          <span
-            className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-[linear-gradient(145deg,#2E6A52_0%,#183D2D_100%)] text-lg text-brand-foreground shadow-[0_9px_20px_rgba(24,61,45,0.18)] ring-1 ring-white/70 transition-transform duration-200 group-hover:scale-[1.03] lg:h-11 lg:w-11 lg:text-xl"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
-            H
+          <BrandLogo compact className="transition-transform duration-200 group-hover:scale-[1.04]" />
+          <span>
+            <span className="brand-subtitle block text-[9px] font-semibold uppercase tracking-[0.12em] text-brand">Irosin health workspace</span>
+            <span className="brand-wordmark brand-wordmark--tight mt-0.5 block text-lg leading-none tracking-[-0.06em] text-ink transition-colors group-hover:text-brand-dark lg:text-xl">
+              <span className="text-ink">Health</span>
+              <span className="text-brand-dark">Guard</span>
+            </span>
           </span>
-          <span><span className="block font-mono text-[9px] font-semibold uppercase tracking-[0.15em] text-brand">Irosin health workspace</span><span className="mt-0.5 block text-lg font-semibold leading-tight text-ink transition-colors group-hover:text-brand-dark lg:text-xl" style={{ fontFamily: "var(--font-display)" }}>HealthGuard</span></span>
         </Link>
 
         {!isCompactNav ? (
           <div className="col-start-3 justify-self-end flex items-center gap-3 lg:gap-4">
-            <nav className="relative hidden items-center gap-1 overflow-hidden rounded-full border border-[#D8E2D3] bg-[linear-gradient(180deg,rgba(255,255,255,0.8)_0%,rgba(242,247,238,0.9)_100%)] p-1.5 shadow-[0_8px_22px_rgba(24,38,25,0.06)] backdrop-blur-sm md:flex lg:gap-1.5">
+            <nav className="relative hidden items-center gap-1 overflow-hidden rounded-full border border-[#D9E4D4] bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.96),rgba(247,250,245,0.9)_38%,rgba(240,246,238,0.84)_100%)] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_18px_38px_rgba(24,38,25,0.085)] ring-1 ring-white/70 backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5 hover:border-[#BFD3BC] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_22px_44px_rgba(24,38,25,0.12)] md:flex lg:gap-1.5">
               <span className="pointer-events-none absolute inset-x-10 top-0 h-px bg-white/90 blur-[1px]" aria-hidden="true" />
+              <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(110deg,transparent_0%,rgba(255,255,255,0.55)_30%,transparent_58%)] opacity-80" aria-hidden="true" />
               {user?.role === "resident" && (
                 <>
                   <Link href="/assessment" className={linkClass("/assessment")}>
@@ -343,7 +346,7 @@ export default function PageHeader({ dashboardAlertCount = 0 }: { dashboardAlert
           >
             <div className="border-b border-border px-[18px] py-[18px]">
               <Link href="/" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3">
-                <span className="flex h-[34px] w-[34px] items-center justify-center rounded-full bg-brand-dark font-display text-base text-brand-foreground shadow-sm">H</span>
+                <BrandLogo compact className="drop-shadow-[0_8px_18px_rgba(24,61,45,0.12)]" />
                 <span className="font-display text-[15px] font-semibold text-ink">HealthGuard</span>
               </Link>
               <p className="mt-5 max-w-[185px] text-xs leading-relaxed text-ink-muted">Bilingual health guidance for the Irosin community.</p>

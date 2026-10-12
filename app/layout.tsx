@@ -1,19 +1,19 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Mono, Newsreader, Public_Sans } from "next/font/google";
+import { IBM_Plex_Mono, Inter, Sora } from "next/font/google";
 import { LanguageProvider } from "./components/LanguageProvider";
 import SystemToast from "./components/SystemToast";
 import "./globals.css";
 
-const publicSans = Public_Sans({
+const inter = Inter({
   subsets: ["latin"],
   variable: "--font-body",
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "500", "600", "700", "800"],
 });
 
-const newsreader = Newsreader({
+const sora = Sora({
   subsets: ["latin"],
   variable: "--font-display",
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 const ibmPlexMono = IBM_Plex_Mono({
@@ -37,7 +37,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${publicSans.variable} ${newsreader.variable} ${ibmPlexMono.variable} h-full antialiased`}
+      className={`${inter.variable} ${sora.variable} ${ibmPlexMono.variable} h-full antialiased`}
     >
       <body className="premium-page flex min-h-full flex-col font-sans text-base leading-relaxed text-ink xl:text-lg">
         <LanguageProvider>

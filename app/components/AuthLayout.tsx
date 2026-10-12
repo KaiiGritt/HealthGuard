@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { IconShield } from "@/app/components/ui/icons";
+import { BrandLogo } from "./BrandLogo";
 import Sidebar from "./Sidebar";
 
 type AuthLayoutProps = {
@@ -19,16 +20,15 @@ export default function AuthLayout({ children, title, subtitle, footer, step }: 
         <Sidebar user={null} />
       </div>
       {/* Brand panel — left on desktop */}
-      <aside className="auth-pro-brand relative hidden w-[44%] shrink-0 flex-col justify-between overflow-hidden lg:flex xl:w-[42%]">
+      <aside className="auth-pro-brand relative hidden w-[44%] shrink-0 flex-col justify-between overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(72,240,208,0.18),_transparent_24%),radial-gradient(circle_at_bottom_right,_rgba(119,90,244,0.18),_transparent_28%),linear-gradient(135deg,#061b2d_0%,#0c2138_42%,#111d3e_100%)] lg:flex xl:w-[42%]">
         <div className="auth-pro-brand-grid pointer-events-none absolute inset-0" aria-hidden />
 
         <div className="relative z-10 p-10 xl:p-14">
           <Link href="/" className="inline-flex items-center gap-3 transition hover:opacity-90">
-            <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-white/10 font-mono text-xl font-semibold text-white ring-1 ring-white/20">
-              H
-            </span>
-            <span className="font-display text-2xl font-semibold text-white">
-              HealthGuard <span className="text-brand-muted"></span>
+            <BrandLogo compact dark />
+            <span className="brand-wordmark brand-wordmark--tight text-2xl text-white">
+              <span className="text-white">Health</span>
+              <span className="text-brand-muted">Guard</span>
             </span>
           </Link>
         </div>
@@ -66,20 +66,12 @@ export default function AuthLayout({ children, title, subtitle, footer, step }: 
 
       {/* Form panel — right on desktop, full width on mobile */}
       <main className="auth-pro-form flex flex-1 flex-col bg-white/25">
-        <div className="relative flex items-center justify-between overflow-hidden border-b border-[#D8E2D3] bg-white/70 px-5 py-4 shadow-[0_8px_20px_rgba(24,38,25,0.04)] backdrop-blur-md lg:hidden">
-          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" aria-hidden="true" />
-          <Link href="/" className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand to-brand-dark font-mono text-lg font-semibold text-brand-foreground shadow-[0_6px_14px_rgba(47,107,79,0.2)]">
-              H
-            </span>
-            <span className="font-display text-lg font-semibold tracking-tight text-ink">
-              HealthGuard
-            </span>
-          </Link>
+        <div className="lg:hidden" aria-hidden="true">
+          <div className="sr-only">Mobile brand bar hidden</div>
         </div>
 
-        <div className="flex flex-1 flex-col items-center justify-center px-5 py-10 sm:px-8 lg:px-12 xl:px-16">
-          <div className="relative w-full max-w-[420px] overflow-hidden rounded-[28px] border border-[#dfe8dc] bg-white/85 p-4 shadow-[0_24px_56px_rgba(21,36,28,0.09)] backdrop-blur-sm sm:p-6">
+        <div className="flex flex-1 flex-col items-center px-4 py-6 sm:justify-center sm:px-8 sm:py-10 lg:px-12 xl:px-16">
+          <div className="relative w-full max-w-[520px] overflow-hidden rounded-[24px] border border-[#dfe8dc] bg-white/85 p-4 shadow-[0_24px_56px_rgba(21,36,28,0.09)] backdrop-blur-sm sm:rounded-[28px] sm:p-6 xl:max-w-[560px]">
             <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" aria-hidden="true" />
             {step ? (
               <p className="font-mono text-xs font-medium uppercase tracking-[0.12em] text-brand">{step}</p>
@@ -89,9 +81,9 @@ export default function AuthLayout({ children, title, subtitle, footer, step }: 
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-ink-muted sm:text-base">{subtitle}</p>
 
-            <div className="mt-8">{children}</div>
+            <div className="mt-6 sm:mt-8">{children}</div>
 
-            {footer ? <div className="mt-8 border-t border-border pt-6 text-center text-sm text-ink-muted">{footer}</div> : null}
+            {footer ? <div className="mt-6 border-t border-border pt-5 text-center text-sm text-ink-muted sm:mt-8 sm:pt-6">{footer}</div> : null}
           </div>
         </div>
 

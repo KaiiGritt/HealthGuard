@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { cn } from "@/app/components/ui/primitives";
 import type { User } from "@/lib/api";
+import { BrandLogo } from "./BrandLogo";
 
 function Icon({ path }: { path: string }) {
   return (
@@ -71,16 +72,12 @@ export default function Sidebar({ user }: { user: User | null }) {
 
   const content: ReactNode = (
     <>
-      <div className="border-b border-border px-4 py-5 sm:px-5 sm:py-6">
+      <div className="border-b border-border bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(241,247,239,0.86))] px-4 py-5 sm:px-5 sm:py-6">
         <Link href="/" className="flex items-center gap-3">
-          <span
-            className="flex h-9 w-9 items-center justify-center rounded-lg bg-linear-to-br from-brand to-brand-dark text-base font-medium text-brand-foreground shadow-sm"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
-            H
-          </span>
-          <span className="text-[1.05rem] font-medium text-ink" style={{ fontFamily: "var(--font-display)" }}>
-            HealthGuard
+          <BrandLogo compact />
+          <span className="brand-wordmark brand-wordmark--tight text-[1.05rem] text-ink">
+            <span className="text-ink">Health</span>
+            <span className="text-brand-dark">Guard</span>
           </span>
         </Link>
 

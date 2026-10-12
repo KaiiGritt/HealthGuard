@@ -7,7 +7,7 @@ import Disclaimer from "../../components/Disclaimer";
 import MedicationGuidanceCard from "../../components/MedicationGuidanceCard";
 import PageHeader from "../../components/PageHeader";
 import RiskCard from "../../components/RiskCard";
-import { IconHistory } from "../../components/ui/icons";
+import { IconAssessment, IconCheck, IconChevronDown, IconHistory } from "../../components/ui/icons";
 import { clearPendingGuestPayload, type AnalyzeResult } from "@/lib/api";
 
 const MESSAGES: Record<string, string> = {
@@ -94,10 +94,16 @@ export default function GuestResultPage() {
     <div className="premium-page min-h-screen">
       <PageHeader />
       <PageMain wide>
-        <div className="mb-6 border-b border-[#D8E2D3] pb-6">
-          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-brand">HealthGuard clinical summary</p>
-          <h1 className="mt-2 font-display text-3xl font-semibold leading-tight text-ink sm:text-4xl">Assessment summary</h1>
-          <p className="mt-2 text-sm text-ink-muted">This result is available now. No account is required to view it.</p>
+        <div className="relative mb-6 overflow-hidden rounded-3xl border border-[#DCE6D9] bg-[linear-gradient(135deg,#FFFFFF_0%,#FBFCF8_62%,#F0F5ED_100%)] px-5 py-5 shadow-[0_14px_36px_rgba(31,74,54,0.07)] sm:px-7 sm:py-6">
+          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#183D2D] via-[#4D8061] to-[#C7B37A]" aria-hidden="true" />
+          <div className="relative">
+            <p className="inline-flex items-center gap-2 rounded-full border border-[#DCE7D9] bg-white/85 px-3 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.13em] text-brand-dark shadow-[0_2px_8px_rgba(31,74,54,0.04)] sm:text-[11px]">
+              <span className="h-1.5 w-1.5 rounded-full bg-brand" aria-hidden="true" />
+              HealthGuard clinical summary
+            </p>
+            <h1 className="mt-3 font-display text-3xl font-semibold leading-tight tracking-tight text-ink sm:mt-2 sm:text-4xl">Assessment summary</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-muted sm:text-base">This result is available now. No account is required to view it.</p>
+          </div>
         </div>
 
         <div className="space-y-6">
@@ -106,22 +112,29 @@ export default function GuestResultPage() {
               <RiskCard level={result.risk_level} message={MESSAGES[result.risk_level] ?? result.message} recommendation={result.recommendation} />
             </div>
 
-            <section className="mt-6 rounded-[20px] border border-[#dfe7dc] bg-[linear-gradient(180deg,#ffffff_0%,#f7faf4_100%)] p-4 sm:p-5 xl:mt-0">
-              <div className="flex items-center justify-between gap-3 border-b border-[#e6eee1] pb-3">
-                <div>
-                  <h3 className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint sm:text-xs">Condition summary</h3>
-                  <p className="mt-1 text-xs text-ink-muted">Text-match confidence is not medical certainty.</p>
+            <section className="relative mt-6 overflow-hidden rounded-3xl border border-[#DCE6D9] bg-[linear-gradient(145deg,#FFFFFF_0%,#F8FAF6_100%)] p-4 shadow-[0_12px_30px_rgba(31,74,54,0.05)] sm:p-5 xl:mt-0">
+              <div className="absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-[#DCE6D9] to-transparent" aria-hidden="true" />
+              <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#e6eee1] pb-3">
+                <div className="flex min-w-0 items-start gap-3">
+                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[#DCE7D9] bg-white text-brand shadow-[0_3px_10px_rgba(31,74,54,0.06)]" aria-hidden="true">
+                    <IconCheck size={16} />
+                  </span>
+                  <div className="min-w-0">
+                    <h3 className="font-display text-base font-semibold leading-tight text-ink sm:text-lg">Condition summary</h3>
+                    <p className="mt-1 text-xs leading-relaxed text-ink-muted sm:text-sm">Text-match confidence is not medical certainty.</p>
+                  </div>
                 </div>
-                <span className="rounded-full border border-[#dfeadf] bg-[#f4faef] px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-brand-dark">{result.detected_symptoms.length} noted</span>
+                <span className="shrink-0 rounded-full border border-[#cfe0cf] bg-white px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-brand-dark shadow-[0_2px_8px_rgba(47,107,79,0.05)]">{result.detected_symptoms.length} noted</span>
               </div>
               {result.detected_symptoms.length > 0 ? (
-                <ul className="mt-4 flex flex-wrap gap-2.5">
+                <ul className="mt-4 flex flex-wrap gap-2">
                   {result.detected_symptoms.map((symptom) => {
                     const confidence = symptom.confidence;
                     const level = confidence === undefined ? null : confidence >= 0.85 ? "High" : confidence >= 0.65 ? "Medium" : "Low";
                     return (
-                      <li key={symptom.medical_term} className="inline-flex max-w-full flex-wrap items-center gap-2 rounded-2xl border border-[#cfe0cf] bg-[#eaf5ea] px-3.5 py-2 text-sm font-semibold capitalize text-[#1f4b3d]">
-                        <span>{symptom.medical_term}</span>
+                      <li key={symptom.medical_term} className="inline-flex max-w-full flex-wrap items-center gap-2 rounded-2xl border border-[#cfe0cf] bg-[linear-gradient(180deg,#F2FAEF_0%,#EAF5EA_100%)] px-3 py-2 text-sm font-semibold capitalize text-[#1f4b3d] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#e1f1e3] text-[#1d6b4d]" aria-hidden="true"><IconCheck size={12} /></span>
+                        <span className="min-w-0 break-words">{symptom.medical_term}</span>
                         {confidence !== undefined && level && (
                           <span aria-label={`Text-match confidence: ${level}, ${Math.round(confidence * 100)} percent`} className="rounded-full border border-[#d6e3d3] bg-white/75 px-2 py-0.5 font-mono text-[9px] font-semibold normal-case tracking-normal text-[#51664F]">
                             Text match · {level} · {Math.round(confidence * 100)}%
@@ -134,25 +147,50 @@ export default function GuestResultPage() {
               ) : <p className="mt-3 text-sm leading-relaxed text-ink-muted">No recognizable symptoms were detected.</p>}
             </section>
 
-            <details className="group mt-4 min-w-0 rounded-[18px] border border-[#e2e8db] bg-white/80 p-3 sm:p-5 xl:mt-0">
-              <summary className="cursor-pointer list-none">
-                <span className="font-mono text-xs font-semibold uppercase tracking-[0.1em] text-ink-faint">Clinical explanation</span>
-                <span className="mt-1 block text-xs leading-5 text-ink-muted sm:text-sm">View assessment reasoning</span>
+            <details className="group mt-4 min-w-0 rounded-2xl border border-[#dfe8dc] bg-[linear-gradient(145deg,#FFFFFF_0%,#F8FAF6_100%)] p-3 shadow-[0_8px_22px_rgba(31,74,54,0.04)] transition-[border-color,box-shadow] duration-200 open:border-[#cbdac8] open:shadow-[0_14px_30px_rgba(31,74,54,0.07)] sm:p-4 xl:mt-0">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-xl outline-none focus-visible:ring-4 focus-visible:ring-brand/15">
+                <span className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#dce7d9] bg-white text-brand shadow-[0_3px_10px_rgba(31,74,54,0.05)]" aria-hidden="true">
+                    <IconAssessment size={17} />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold text-ink sm:text-base">Clinical explanation</span>
+                    <span className="mt-0.5 block text-xs leading-relaxed text-ink-muted sm:text-sm">View assessment reasoning</span>
+                  </span>
+                </span>
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#dce7d9] bg-white text-brand transition-transform duration-200 group-open:rotate-180" aria-hidden="true">
+                  <IconChevronDown size={16} />
+                </span>
               </summary>
-              <p className="mt-3 text-sm leading-6 text-ink-secondary sm:text-base sm:leading-7">{result.reason}</p>
-              {result.input_text && <p className="mt-3 border-t border-border/70 pt-3 text-xs leading-5 text-ink-faint sm:text-sm sm:leading-relaxed">Reported information: <span className="italic text-ink-muted">“{result.input_text}”</span></p>}
+              <p className="mt-4 border-t border-[#e4ebe1] pt-4 text-sm leading-6 text-ink-secondary sm:text-base sm:leading-7">{result.reason}</p>
+              {result.input_text && (
+                <p className="mt-4 rounded-xl border border-[#e2e9de] bg-white/80 px-3.5 py-3 text-xs leading-5 text-ink-faint sm:text-sm sm:leading-relaxed">
+                  <span className="mb-1 block font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-ink-muted sm:text-[10px]">Reported information</span>
+                  <span className="italic text-ink-muted">“{result.input_text}”</span>
+                </p>
+              )}
             </details>
 
-            <details className="group mt-4 overflow-hidden rounded-[18px] border border-[#d8e2d3] bg-[linear-gradient(145deg,#fbfcf8_0%,#f2f7ef_100%)] p-3 sm:p-5 xl:col-span-2 xl:mt-0">
-              <summary className="flex cursor-pointer list-none flex-wrap items-start justify-between gap-2 border-b border-[#d8e2d3]/80 pb-3 sm:gap-3 sm:pb-4">
-                <span>
-                  <span className="font-mono text-xs font-semibold uppercase tracking-[0.12em] text-brand-dark lg:text-sm">Rules used</span>
-                  <span className="mt-1 block text-xs leading-5 text-ink-muted sm:text-sm">View applied rules</span>
+            <details className="group/rules mt-4 overflow-hidden rounded-2xl border border-[#d8e2d3] bg-[linear-gradient(145deg,#fbfcf8_0%,#f2f7ef_100%)] p-3 shadow-[0_12px_28px_rgba(31,74,54,0.05)] transition-[border-color,box-shadow] duration-200 open:border-[#c6d8c4] open:shadow-[0_16px_34px_rgba(31,74,54,0.08)] sm:p-5 xl:col-span-2 xl:mt-0">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 border-b border-[#d8e2d3]/80 pb-3 outline-none focus-visible:rounded-xl focus-visible:ring-4 focus-visible:ring-brand/15 sm:pb-4">
+                <span className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#d5e2d2] bg-white text-brand shadow-[0_3px_10px_rgba(31,74,54,0.06)]" aria-hidden="true">
+                    <IconCheck size={17} />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold text-ink sm:text-base">Rules used</span>
+                    <span className="mt-0.5 block text-xs leading-relaxed text-ink-muted sm:text-sm">View applied assessment rules</span>
+                  </span>
                 </span>
-                <span className="rounded-full border border-[#c9d8cb] bg-white/75 px-2 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-dark sm:px-2.5 sm:text-[11px]">{result.triggered_rules.length} applied</span>
+                <span className="flex shrink-0 items-center gap-2">
+                  <span className="rounded-full border border-[#c9d8cb] bg-white/85 px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-dark shadow-[0_2px_8px_rgba(31,74,54,0.05)] sm:text-[11px]">{result.triggered_rules.length} applied</span>
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full border border-[#d5e2d2] bg-white text-brand transition-transform duration-200 group-open/rules:rotate-180" aria-hidden="true">
+                    <IconChevronDown size={16} />
+                  </span>
+                </span>
               </summary>
-              <ol className="mt-3 space-y-2 sm:mt-4 sm:space-y-2.5">
-                {result.triggered_rules.map((rule, index) => <li key={`${rule.name}-${index}`} className="group relative rounded-2xl border border-[#dfe8dc] bg-white/85 px-3 py-3 shadow-[0_4px_12px_rgba(31,74,54,0.035)] transition hover:border-[#b9ceb9] sm:px-5 sm:py-4"><span className="absolute inset-y-0 left-0 w-1 bg-brand/45" aria-hidden="true" /><div className="flex min-w-0 items-start gap-2.5 sm:gap-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#dce8d8] bg-[#f4f8f0] font-mono text-xs font-semibold text-brand-dark">{index + 1}</span><div className="min-w-0"><p className="font-mono text-[10px] font-semibold uppercase tracking-[0.06em] text-ink-secondary sm:text-[11px] sm:tracking-[0.08em]">{ruleTitle(rule.name)}</p><p className="mt-1 text-[13px] leading-5 text-ink-muted sm:mt-1.5 sm:text-sm sm:leading-6">{ruleDescription(rule.name, rule.description)}</p></div></div></li>)}
+              <ol className="mt-4 space-y-2.5 sm:mt-5 sm:space-y-3">
+                {result.triggered_rules.map((rule, index) => <li key={`${rule.name}-${index}`} className="group relative rounded-xl border border-[#dfe8dc] bg-white/90 px-3.5 py-3 shadow-[0_3px_10px_rgba(31,74,54,0.03)] transition-colors duration-200 hover:border-[#b9ceb9] sm:px-4 sm:py-3.5"><span className="absolute inset-y-3 left-0 w-0.5 rounded-r-full bg-brand/45 transition-colors duration-200 group-hover:bg-brand" aria-hidden="true" /><div className="flex min-w-0 items-start gap-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[#dce8d8] bg-[#f4f8f0] font-mono text-[11px] font-semibold text-brand-dark">{index + 1}</span><div className="min-w-0"><p className="font-mono text-[10px] font-semibold uppercase tracking-[0.06em] text-ink-secondary sm:text-[11px] sm:tracking-[0.08em]">{ruleTitle(rule.name)}</p><p className="mt-1 text-[13px] leading-5 text-ink-muted sm:mt-1.5 sm:text-sm sm:leading-6">{ruleDescription(rule.name, rule.description)}</p></div></div></li>)}
               </ol>
             </details>
 
@@ -207,8 +245,8 @@ export default function GuestResultPage() {
                   <p className="text-sm text-[#FFE4DD]">Lying In</p>
                 </div>
                 <div className="rounded-2xl border border-white/25 bg-white/10 p-3 sm:p-3.5">
-                  <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-[#FFD2C8] sm:text-[10px] sm:tracking-[0.12em]">PDO</p>
-                  <p className="mt-1 whitespace-nowrap text-base font-semibold tracking-tight text-white sm:text-lg sm:tracking-normal">0902576740</p>
+                  <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-[#FFD2C8] sm:text-[10px] sm:tracking-[0.12em]">OPD</p>
+                  <p className="mt-1 whitespace-nowrap text-base font-semibold tracking-tight text-white sm:text-lg sm:tracking-normal">09702576740</p>
                 </div>
               </div>
             </div>

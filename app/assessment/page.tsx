@@ -16,7 +16,7 @@ import {
 import Disclaimer from "../components/Disclaimer";
 import PageHeader from "../components/PageHeader";
 import SymptomChip from "../components/SymptomChip";
-import { IconBrain, IconDroplets, IconLungs, IconStomach, IconThermometer } from "../components/ui/icons";
+import { IconBrain, IconChevronDown, IconDroplets, IconLungs, IconStomach, IconThermometer } from "../components/ui/icons";
 import { AssessmentTargetProvider } from "./AssessmentTargetContext";
 import PersonAssessmentPage from "./child/page";
 
@@ -27,6 +27,9 @@ import PersonAssessmentPage from "./child/page";
 // as ["fever", "cough", ...]).
 const SYMPTOMS = [
   { value: "fever", category: "general", en: "Fever", tl: "Lagnat", icon: <IconThermometer size={18} /> },
+  { value: "generalized weakness", category: "general", en: "General weakness", tl: "Pangkalahatang kahinaan", icon: <IconBrain size={18} /> },
+  { value: "dehydration", category: "general", en: "Dehydration", tl: "Pagkauhaw", icon: <IconDroplets size={18} /> },
+  { value: "fatigue", category: "general", en: "Fatigue", tl: "Pagkapagod", icon: <IconBrain size={18} /> },
   { value: "cough", category: "respiratory", en: "Cough", tl: "Ubo", icon: <IconLungs size={18} /> },
   { value: "headache", category: "pain", en: "Headache", tl: "Sakit ng ulo", icon: <IconBrain size={18} /> },
   { value: "abdominal pain", category: "digestive", en: "Abdominal pain", tl: "Pananakit ng tiyan", icon: <IconStomach size={18} /> },
@@ -216,7 +219,11 @@ export default function AssessmentPage() {
   const selectedSymptomsWithTypes = selected.filter((symptom) => (TYPE_CHIPS[symptom] ?? []).length > 0);
   const selectedDuration = DURATION_OPTIONS.find((d) => d.key === durationKey) ?? null;
   const exactDaysValue = Number(exactDurationDays);
-  const exactDurationValid = exactDurationMode && exactDurationDays.trim() !== "" && Number.isFinite(exactDaysValue) && exactDaysValue > 0;
+  const exactDurationValid =
+    exactDurationMode &&
+    /^(?:\d+(?:\.\d*)?|\.\d+)$/.test(exactDurationDays) &&
+    Number.isFinite(exactDaysValue) &&
+    exactDaysValue >= 0.01;
 
   const getSubmissionValidationError = () => {
     const trimmedText = text.trim();
@@ -306,7 +313,7 @@ export default function AssessmentPage() {
       {!submitting && <PageHeader />}
       <PageMain narrow className={submitting ? "min-h-screen pt-8 sm:pt-12 lg:flex lg:items-center" : undefined}>
         <div className="assessment-route-enter grid items-start gap-6">
-          <Card className={`relative overflow-hidden rounded-3xl border border-[#DDE7DB] bg-[linear-gradient(135deg,#FFFFFF_0%,#FBFCF9_58%,#F1F5EE_100%)] shadow-[0_24px_70px_rgba(15,23,42,0.09)] ${submitting ? "mx-auto w-full max-w-4xl" : ""}`}>
+          <Card className={`relative overflow-hidden rounded-3xl border border-[#DDE7DB] bg-[linear-gradient(135deg,#FFFFFF_0%,#FBFCF9_58%,#F1F5EE_100%)] shadow-[0_26px_72px_rgba(24,38,25,0.11)] ring-1 ring-white/70 ${submitting ? "mx-auto w-full max-w-4xl" : ""}`}>
             <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" aria-hidden="true" />
             {submitting ? (
               <div className="py-8 sm:py-12" aria-live="polite">
@@ -368,19 +375,34 @@ export default function AssessmentPage() {
 
                 {/* STEP 1 — tap-to-select, icon-led. This is the whole task
                     for most users; nothing else on the page needs reading. */}
-                <label className="mt-10 flex items-center gap-2 text-base font-semibold text-ink lg:text-lg">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand text-sm text-brand-foreground">1</span>
-                  What do you feel?
-                </label>
-                <div className="mt-4 space-y-5">
+                <div className="mt-10 flex min-w-0 flex-wrap items-start gap-3 sm:items-center sm:gap-4">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/20 bg-gradient-to-br from-brand to-brand-dark font-mono text-sm font-semibold text-brand-foreground shadow-[0_6px_16px_rgba(31,74,54,0.2)]">1</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-brand">Step 1 <span className="text-ink-faint">/ Hakbang 1</span></p>
+                    <h2 className="mt-0.5 text-lg font-semibold leading-snug tracking-[-0.02em] text-ink sm:text-xl">Select symptoms</h2>
+                    <p className="mt-0.5 text-xs leading-relaxed text-ink-muted sm:text-sm">Choose all that apply / Piliin ang lahat ng naaangkop</p>
+                  </div>
+                  {selected.length > 0 && (
+                    <span aria-live="polite" className="ml-[3.25rem] inline-flex items-center gap-2 rounded-full border border-brand/15 bg-white/80 px-3 py-1.5 text-xs font-semibold text-brand-dark shadow-[0_3px_10px_rgba(31,74,54,0.06)] sm:ml-0">
+                      <span className="h-1.5 w-1.5 rounded-full bg-brand" aria-hidden="true" />
+                      {selected.length} selected / Napili
+                    </span>
+                  )}
+                  <span className="hidden h-px w-12 shrink-0 bg-gradient-to-r from-[#DDE7DB] to-transparent sm:block" aria-hidden="true" />
+                </div>
+                <div className="mt-4 space-y-3 sm:space-y-4">
                   {SYMPTOM_CATEGORIES.map((category) => {
                     const categorySymptoms = SYMPTOMS.filter((symptom) => symptom.category === category.key);
                     return (
-                      <section key={category.key} aria-labelledby={`symptom-category-${category.key}`}>
-                        <h3 id={`symptom-category-${category.key}`} className="text-sm font-semibold text-ink-secondary">
-                          {category.en} <span className="font-normal text-ink-faint">/ {category.tl}</span>
-                        </h3>
-                        <div className="mt-2.5 grid grid-cols-1 gap-2.5 min-[420px]:grid-cols-2 sm:gap-4 sm:grid-cols-3">
+                      <section key={category.key} aria-labelledby={`symptom-category-${category.key}`} className="relative rounded-2xl border border-[#E4EAE1] bg-[linear-gradient(145deg,rgba(255,255,255,0.82)_0%,rgba(247,250,245,0.72)_100%)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_5px_16px_rgba(24,38,25,0.025)] sm:p-4">
+                        <div className="flex items-center gap-3">
+                          <span className="h-5 w-1 shrink-0 rounded-full bg-gradient-to-b from-brand to-[#C7B37A]" aria-hidden="true" />
+                          <h3 id={`symptom-category-${category.key}`} className="text-sm font-semibold text-ink-secondary">
+                            {category.en} <span className="font-normal text-ink-faint">/ {category.tl}</span>
+                          </h3>
+                          <span className="h-px flex-1 bg-gradient-to-r from-[#DDE7DB] to-transparent" aria-hidden="true" />
+                        </div>
+                        <div className="mt-3 grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:gap-3 sm:grid-cols-3">
                           {categorySymptoms.map((s) => (
                             <SymptomChip
                               key={s.value}
@@ -388,7 +410,6 @@ export default function AssessmentPage() {
                               icon={s.icon}
                               subLabel={s.tl}
                               selected={selected.includes(s.value)}
-                              urgent={s.value === "difficulty breathing"}
                               onToggle={() => toggle(s.value)}
                             />
                           ))}
@@ -510,18 +531,24 @@ export default function AssessmentPage() {
 
                 {/* STEP 2 — tap-to-pick duration, no typing or format to get
                     right. Optional, so no chip needs to be pre-selected. */}
-                <fieldset className="mt-10">
-                  <legend className="flex items-center gap-2 text-base font-semibold text-ink lg:text-lg">
-                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand text-sm text-brand-foreground">3</span>
-                    When did it start? <span className="font-normal text-ink-faint">(optional)</span>
+                <fieldset className="relative mt-10 min-w-0 overflow-hidden rounded-3xl border border-[#DCE6D9] bg-[linear-gradient(145deg,rgba(255,255,255,0.94)_0%,rgba(247,250,245,0.9)_100%)] p-4 shadow-[0_16px_38px_rgba(31,74,54,0.07)] sm:p-6">
+                  <span className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent" aria-hidden="true" />
+                  <legend className="max-w-full px-2 text-base font-semibold text-ink lg:text-lg">
+                    <span className="inline-flex max-w-full items-center gap-3 rounded-2xl border border-[#DCE6D9] bg-white/95 px-3 py-2.5 shadow-[0_6px_18px_rgba(31,74,54,0.08)] sm:px-4">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand to-brand-dark font-mono text-sm text-brand-foreground shadow-[0_4px_10px_rgba(31,74,54,0.2)]">3</span>
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold leading-tight text-ink sm:text-base">When did it start?</span>
+                        <span className="mt-0.5 block text-xs font-normal leading-tight text-ink-muted">Kailan nagsimula? <span className="text-ink-faint">(optional)</span></span>
+                      </span>
+                    </span>
                   </legend>
-                  <p className="mt-1 pl-9 text-xs leading-relaxed text-ink-muted">
+                  <p className="mt-2 pl-10 text-xs leading-relaxed text-ink-muted">
                     Choose the closest time range. It’s okay if you’re not sure; you can leave this blank.
                     <span className="mt-0.5 block">Piliin ang pinakamalapit na tagal. Puwedeng hindi pumili kung hindi sigurado.</span>
                   </p>
                   <div className="mt-4 grid grid-cols-1 gap-4">
                     <div>
-                      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-ink-muted">Recent / Kamakailan lang</p>
+                      <p className="mb-2.5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted"><span className="h-px w-5 bg-brand/35" aria-hidden="true" />Recent / Kamakailan lang</p>
                       <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-3 sm:gap-3">
                   {DURATION_OPTIONS.filter((duration) => duration.tier === "recent").map((d) => {
                     const isSelected = durationKey === d.key;
@@ -534,14 +561,16 @@ export default function AssessmentPage() {
                           setDurationKey(isSelected ? null : d.key);
                           setExactDurationMode(false);
                         }}
-                        className={`group flex min-h-[76px] flex-col justify-center rounded-2xl border px-2 py-3 text-center text-sm font-semibold transition duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15 sm:px-3 ${
+                        className={`group relative flex min-h-[76px] flex-col items-center justify-center overflow-hidden rounded-2xl border px-2 py-3 text-center text-sm font-semibold transition-all duration-200 ease-out hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/20 motion-reduce:transition-none sm:px-3 ${
                           isSelected
-                            ? "border-[#1F4A36] bg-[linear-gradient(145deg,#2F6B4F_0%,#1F4A36_100%)] text-white shadow-[0_8px_18px_rgba(31,74,54,0.2)]"
-                            : "border-[#DCE5D8] bg-white/90 text-ink-secondary shadow-[0_3px_10px_rgba(24,38,25,0.035)] hover:-translate-y-0.5 hover:border-brand/45 hover:bg-white hover:shadow-[0_8px_16px_rgba(31,74,54,0.09)]"
+                            ? "border-[#1F4A36] bg-[linear-gradient(145deg,#347454_0%,#1F4A36_100%)] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_rgba(31,74,54,0.22)] ring-1 ring-brand/20"
+                            : "border-[#DCE5D8] bg-[linear-gradient(145deg,#FFFFFF_0%,#F9FBF7_100%)] text-ink-secondary shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_4px_12px_rgba(24,38,25,0.04)] hover:border-brand/40 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_12px_22px_rgba(31,74,54,0.11)]"
                         }`}
                       >
-                        <span className="block">{d.en}</span>
-                        <span className={`mt-0.5 block text-xs font-normal ${isSelected ? "text-white/80" : "text-ink-faint"}`}>{d.tl}</span>
+                        <span className={`pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent ${isSelected ? "opacity-60" : "opacity-90"}`} aria-hidden="true" />
+                        {isSelected && <span className="absolute right-2.5 top-2.5 flex h-5 w-5 items-center justify-center rounded-full bg-white/15 text-[11px] text-white ring-1 ring-white/25" aria-hidden="true">✓</span>}
+                        <span className="relative block">{d.en}</span>
+                        <span className={`relative mt-0.5 block text-xs font-normal ${isSelected ? "text-white/80" : "text-ink-faint"}`}>{d.tl}</span>
                       </button>
                     );
                   })}
@@ -549,7 +578,7 @@ export default function AssessmentPage() {
                     </div>
                     {showLongerDurations && (
                       <div>
-                        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-ink-muted">Longer / Matagal na</p>
+                        <p className="mb-2.5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted"><span className="h-px w-5 bg-brand/35" aria-hidden="true" />Longer / Matagal na</p>
                         <div className="grid grid-cols-2 gap-2 min-[640px]:grid-cols-4 sm:gap-3">
                           {DURATION_OPTIONS.filter((duration) => duration.tier === "longer").map((d) => {
                             const isSelected = durationKey === d.key;
@@ -562,14 +591,16 @@ export default function AssessmentPage() {
                                   setDurationKey(isSelected ? null : d.key);
                                   setExactDurationMode(false);
                                 }}
-                                className={`flex min-h-[76px] flex-col justify-center rounded-2xl border px-2 py-3 text-center text-sm font-semibold transition duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15 sm:px-3 ${
+                                className={`group relative flex min-h-[76px] flex-col items-center justify-center overflow-hidden rounded-2xl border px-2 py-3 text-center text-sm font-semibold transition-all duration-200 ease-out hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/20 motion-reduce:transition-none sm:px-3 ${
                                   isSelected
-                                    ? "border-[#1F4A36] bg-[linear-gradient(145deg,#2F6B4F_0%,#1F4A36_100%)] text-white shadow-[0_8px_18px_rgba(31,74,54,0.2)]"
-                                    : "border-[#DCE5D8] bg-white/90 text-ink-secondary shadow-[0_3px_10px_rgba(24,38,25,0.035)] hover:-translate-y-0.5 hover:border-brand/45 hover:bg-white hover:shadow-[0_8px_16px_rgba(31,74,54,0.09)]"
+                                    ? "border-[#1F4A36] bg-[linear-gradient(145deg,#347454_0%,#1F4A36_100%)] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_rgba(31,74,54,0.22)] ring-1 ring-brand/20"
+                                    : "border-[#DCE5D8] bg-[linear-gradient(145deg,#FFFFFF_0%,#F9FBF7_100%)] text-ink-secondary shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_4px_12px_rgba(24,38,25,0.04)] hover:border-brand/40 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_12px_22px_rgba(31,74,54,0.11)]"
                                 }`}
                               >
-                                <span>{d.en}</span>
-                                <span className={`mt-0.5 text-xs font-normal ${isSelected ? "text-white/80" : "text-ink-faint"}`}>{d.tl}</span>
+                                <span className={`pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent ${isSelected ? "opacity-60" : "opacity-90"}`} aria-hidden="true" />
+                                {isSelected && <span className="absolute right-2.5 top-2.5 flex h-5 w-5 items-center justify-center rounded-full bg-white/15 text-[11px] text-white ring-1 ring-white/25" aria-hidden="true">✓</span>}
+                                <span className="relative">{d.en}</span>
+                                <span className={`relative mt-0.5 text-xs font-normal ${isSelected ? "text-white/80" : "text-ink-faint"}`}>{d.tl}</span>
                               </button>
                             );
                           })}
@@ -609,18 +640,24 @@ export default function AssessmentPage() {
                       <div className="mt-2 flex items-center gap-3">
                         <input
                           id="exact-duration-days"
-                          type="number"
-                          min="0.01"
-                          step="any"
+                          type="text"
                           inputMode="decimal"
+                          pattern="(?:\d+(?:\.\d*)?|\.\d+)"
                           value={exactDurationDays}
-                          onChange={(event) => setExactDurationDays(event.currentTarget.value)}
+                          onChange={(event) => {
+                            const value = event.currentTarget.value;
+                            if (/^\d*(?:\.\d*)?$/.test(value)) setExactDurationDays(value);
+                          }}
                           aria-invalid={exactDurationDays !== "" && !exactDurationValid}
+                          aria-describedby="exact-duration-hint"
                           className={`${inputClass} max-w-40`}
                           placeholder="e.g. 4"
                         />
                         <span className="text-sm text-ink-muted">days / araw</span>
                       </div>
+                      <p id="exact-duration-hint" className={`mt-1.5 text-xs ${exactDurationDays !== "" && !exactDurationValid ? "text-emergency-red" : "text-ink-muted"}`}>
+                        Enter digits and an optional decimal; minimum 0.01 day.
+                      </p>
                       <button type="button" onClick={() => setExactDurationMode(false)} className="text-action mt-2 cursor-pointer border-0 bg-transparent p-0 text-left text-xs font-medium text-brand underline underline-offset-4">Use time-range buttons / Pumili ng saklaw</button>
                     </div>
                   )}
@@ -628,31 +665,51 @@ export default function AssessmentPage() {
 
                 {/* Free-text path kept out of the default view so it doesn't
                     compete with the two-step tap flow above. */}
-                <div className="mt-8">
-                  {!showTextInput ? (
-                    <button
-                      type="button"
-                      onClick={() => setShowTextInput(true)}
-                      className="text-action cursor-pointer border-0 bg-transparent p-0 text-left text-sm font-medium text-brand underline decoration-brand/40 underline-offset-4"
-                    >
-                      Prefer to type it instead?
-                    </button>
-                  ) : (
-                    <>
-                      <label htmlFor="symptoms" className="block text-base font-semibold text-ink lg:text-lg">
-                        Describe it in your own words
-                      </label>
-                      <textarea
-                        id="symptoms"
-                        value={text}
-                        onChange={(e) => setText(e.target.value)}
-                        rows={4}
-                        placeholder='e.g. "May lagnat ako at hirap huminga" / "I have fever and cough"'
-                        className={`mt-3 min-h-36 resize-y bg-white/80 shadow-[0_6px_18px_rgba(24,38,25,0.035)] ${inputClass}`}
-                      />
-                    </>
-                  )}
-                </div>
+                <section className="relative mt-8 overflow-hidden rounded-3xl border border-[#DCE6D9] bg-[linear-gradient(145deg,rgba(255,255,255,0.96)_0%,rgba(247,250,245,0.92)_100%)] p-4 shadow-[0_14px_34px_rgba(31,74,54,0.06)] sm:p-5">
+                  <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent" aria-hidden="true" />
+                  <button
+                    type="button"
+                    aria-expanded={showTextInput}
+                    aria-controls="symptoms-text-panel"
+                    onClick={() => setShowTextInput((visible) => !visible)}
+                    className="group flex w-full min-w-0 flex-col items-stretch gap-3 rounded-2xl text-left outline-none focus-visible:ring-4 focus-visible:ring-brand/15 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+                  >
+                    <span className="flex min-w-0 items-start gap-2.5 sm:items-center sm:gap-3">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[#DCE6D9] bg-white text-brand shadow-[0_4px_12px_rgba(31,74,54,0.07)]" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+                          <path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H7l-4 2v-5.5A7.5 7.5 0 1 1 20 11.5Z" />
+                          <path d="M8 11h8M8 14h5" />
+                        </svg>
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-brand">Another way to share</span>
+                        <span className="mt-0.5 block break-words text-sm font-semibold leading-snug text-ink sm:text-base">Describe symptoms in your own words</span>
+                        <span className="mt-0.5 block break-words text-xs leading-relaxed text-ink-muted">Ilarawan ang mga sintomas sa sarili mong salita</span>
+                      </span>
+                    </span>
+                    <span className="inline-flex w-fit shrink-0 items-center gap-2 rounded-full border border-[#DCE6D9] bg-white/80 px-3 py-1.5 text-xs font-semibold text-brand-dark shadow-sm transition-colors group-hover:bg-white sm:ml-auto sm:py-2">
+                      {showTextInput ? "Hide / Itago" : "Type instead / Mag-type"}
+                      <IconChevronDown size={16} className={`transition-transform duration-200 ${showTextInput ? "rotate-180" : ""}`} aria-hidden="true" />
+                    </span>
+                  </button>
+                  <div id="symptoms-text-panel" hidden={!showTextInput} className="mt-4 border-t border-[#E3EBE0] pt-4">
+                    <label htmlFor="symptoms" className="block text-sm font-semibold text-ink">
+                      What are you experiencing? / Ano ang nararamdaman?
+                    </label>
+                    <p id="symptoms-text-hint" className="mt-1 text-xs leading-relaxed text-ink-muted">
+                      Include when it started and anything else that may help. / Isama kung kailan nagsimula at iba pang mahahalagang detalye.
+                    </p>
+                    <textarea
+                      id="symptoms"
+                      value={text}
+                      onChange={(e) => setText(e.target.value)}
+                      rows={5}
+                      aria-describedby="symptoms-text-hint"
+                      placeholder={'For example: “I have had a fever and cough since yesterday.”\nHalimbawa: “May lagnat at ubo ako simula kahapon.”'}
+                      className={`mt-3 min-h-36 resize-y border-[#D6E1D3] bg-white/90 leading-relaxed shadow-[inset_0_1px_2px_rgba(24,38,25,0.03),0_6px_18px_rgba(24,38,25,0.035)] transition-[border-color,box-shadow] placeholder:whitespace-pre-line placeholder:text-ink-faint hover:border-brand/45 focus:border-brand focus:ring-4 focus:ring-brand/10 ${inputClass}`}
+                    />
+                  </div>
+                </section>
 
                 {error && (
                   <div className="mt-6">
@@ -664,8 +721,9 @@ export default function AssessmentPage() {
                   <button type="button" onClick={() => router.back()} className="min-h-11 w-full rounded-xl border border-border bg-white px-5 font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark sm:w-auto">
                     Back
                   </button>
-                  <button type="button" onClick={handleSubmit} disabled={!canSubmit || submitting} className={`bg-gradient-to-r from-brand to-brand-dark shadow-[0_14px_28px_rgba(31,74,54,0.2)] sm:min-w-56 ${submitButtonClass}`}>
-                    {submitting ? "Checking…" : "Submit Assessment"}
+                  <button type="button" onClick={handleSubmit} disabled={!canSubmit || submitting} className={`${submitButtonClass} sm:min-w-64`}>
+                    <span>{submitting ? "Checking…" : "Submit Assessment"}</span>
+                    {!submitting && <IconChevronDown size={17} className="rotate-[-90deg] transition-transform duration-200 group-hover:translate-x-0.5" aria-hidden="true" />}
                   </button>
                 </div>
 

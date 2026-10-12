@@ -190,7 +190,7 @@ export default function Home() {
             <div className="relative overflow-hidden rounded-[28px] border border-[#DDE7DB] bg-[linear-gradient(135deg,rgba(255,255,255,0.94)_0%,rgba(251,252,249,0.9)_62%,rgba(241,245,238,0.88)_100%)] p-5 shadow-[0_24px_56px_rgba(24,38,25,0.09)] backdrop-blur-sm sm:p-7 lg:p-9 xl:p-10">
               <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" aria-hidden="true" />
               <TagBadge>{strings.tag}</TagBadge>
-              <h1 className="mt-5 max-w-[16ch] font-sans font-semibold tracking-[-0.04em] text-[2.1rem] leading-[1.04] text-ink sm:text-[2.6rem] lg:text-[3.6rem] xl:text-[3.1rem] xl:leading-[1.08]">
+              <h1 className="brand-wordmark mt-5 max-w-[16ch] text-[2.1rem] text-ink sm:text-[2.6rem] lg:text-[3.6rem] xl:text-[3.1rem] xl:leading-[1.08]">
                 {strings.heading}
               </h1>
               <p className="mt-5 max-w-md text-[0.98rem] leading-relaxed text-ink-secondary sm:text-lg lg:max-w-lg lg:text-xl">
@@ -205,9 +205,25 @@ export default function Home() {
               <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:flex-wrap sm:items-center">
                 <Link
                   href="/assessment"
-                  className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-brand/15 bg-gradient-to-r from-brand to-brand-light px-5 text-base font-semibold tracking-[0.01em] text-brand-foreground shadow-[0_12px_28px_rgba(47,107,79,0.18)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_32px_rgba(47,107,79,0.22)] sm:w-auto sm:min-h-[3.2rem] sm:px-7 sm:text-lg lg:min-h-[3.45rem] lg:px-8 lg:text-xl"
+                  className="group relative inline-flex min-h-11 w-full items-center justify-center overflow-hidden rounded-2xl border border-[#2F6B4F]/20 bg-[linear-gradient(135deg,#285D45_0%,#2F6B4F_30%,#3B7B5A_100%)] px-5 text-base font-semibold tracking-[0.01em] text-brand-foreground shadow-[0_16px_34px_rgba(47,107,79,0.22)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(47,107,79,0.28)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#2F6B4F]/20 sm:w-auto sm:min-h-[3.2rem] sm:px-7 sm:text-lg lg:min-h-[3.45rem] lg:px-8 lg:text-xl"
                 >
-                  {strings.cta}
+                  <span className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.28),transparent_42%)] opacity-90" aria-hidden="true" />
+                  <span className="relative inline-flex items-center gap-2">
+                    <span>{strings.cta}</span>
+                    <svg
+                      viewBox="0 0 20 20"
+                      aria-hidden="true"
+                      className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M4.166 10h11.668" />
+                      <path d="M10 4.167 15.833 10 10 15.833" />
+                    </svg>
+                  </span>
                 </Link>
                 <span className="text-xs font-medium text-ink-muted sm:text-sm lg:text-base">{strings.helper}</span>
               </div>
@@ -254,8 +270,15 @@ export default function Home() {
         </section>
       </main>
 
-      <footer className="border-t border-border bg-surface py-6 text-center text-sm text-ink-muted lg:py-8 lg:text-base">
-        HealthGuard — a health decision-support tool. Not a substitute for professional care.
+      <footer className="border-t border-border bg-[linear-gradient(180deg,#F4F7F0_0%,#EEF3EA_100%)] py-6 text-center text-sm text-ink-muted lg:py-8 lg:text-base">
+        <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-center gap-2 px-5 text-center">
+          <span className="inline-flex items-center gap-2 rounded-full border border-[#DDE7DB] bg-white/75 px-2.5 py-1 shadow-[0_8px_22px_rgba(31,74,54,0.06)] backdrop-blur-sm">
+            <span className="h-2.5 w-2.5 rounded-full bg-[linear-gradient(135deg,#183D2D_0%,#2E6A52_45%,#C3B27A_100%)] shadow-[0_0_0_3px_rgba(46,106,82,0.12)]" aria-hidden="true" />
+            <span className="font-semibold tracking-[0.08em] text-ink-secondary uppercase">HealthGuard</span>
+          </span>
+          <span className="hidden text-ink-faint sm:inline">•</span>
+          <span className="text-ink-muted">a health decision-support tool. Not a substitute for professional care.</span>
+        </div>
       </footer>
     </>
   );

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { IconCheck } from "@/app/components/ui/icons";
+import { IconAssessment, IconCheck, IconChevronDown } from "@/app/components/ui/icons";
 import {
   Card,
   PageMain,
@@ -93,18 +93,25 @@ export default async function ResultPage({
       <PageHeader />
       <div className="premium-page min-h-screen">
       <PageMain wide>
-        <div className="relative mb-6 border-b border-[#D8E2D3] pb-6">
-          <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" />
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-brand">HealthGuard clinical summary</p>
-              <h1 className="mt-2 font-display text-3xl font-semibold leading-tight text-ink sm:text-4xl">Assessment summary</h1>
+        <div className="relative mb-6 overflow-hidden rounded-3xl border border-[#DCE6D9] bg-[linear-gradient(135deg,#FFFFFF_0%,#FBFCF8_62%,#F0F5ED_100%)] px-5 py-5 shadow-[0_14px_36px_rgba(31,74,54,0.07)] sm:px-7 sm:py-6">
+          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#183D2D] via-[#4D8061] to-[#C7B37A]" aria-hidden="true" />
+          <div className="relative flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="min-w-0">
+              <p className="inline-flex items-center gap-2 rounded-full border border-[#DCE7D9] bg-white/85 px-3 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.13em] text-brand-dark shadow-[0_2px_8px_rgba(31,74,54,0.04)] sm:text-[11px]">
+                <span className="h-1.5 w-1.5 rounded-full bg-brand" aria-hidden="true" />
+                HealthGuard clinical summary
+              </p>
+              <h1 className="mt-3 font-display text-3xl font-semibold leading-tight tracking-tight text-ink sm:mt-2 sm:text-4xl">Assessment summary</h1>
             </div>
-            <div className="text-left sm:text-right">
-              <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-faint">Record no.</p>
-              <p className="mt-1 font-mono text-sm font-semibold tracking-[0.08em] text-brand-dark">{formatAssessmentRecordNumber(record.id)}</p>
-              <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-faint">Recorded</p>
-              <p className="mt-1 text-sm text-ink-muted">{created}</p>
+            <div className="flex flex-wrap gap-x-5 gap-y-2 rounded-2xl border border-[#DCE6D9] bg-white/75 px-4 py-3 sm:shrink-0 sm:justify-end">
+              <div>
+                <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-ink-faint">Record no.</p>
+                <p className="mt-0.5 font-mono text-xs font-semibold tracking-[0.06em] text-brand-dark sm:text-sm">{formatAssessmentRecordNumber(record.id)}</p>
+              </div>
+              <div>
+                <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-ink-faint">Recorded</p>
+                <p className="mt-0.5 text-xs font-medium text-ink-muted sm:text-sm">{created}</p>
+              </div>
             </div>
           </div>
         </div>
@@ -119,13 +126,19 @@ export default async function ResultPage({
               />
             </div>
 
-            <section className="mt-6 rounded-[20px] border border-[#dfe7dc] bg-[linear-gradient(180deg,#ffffff_0%,#f7faf4_100%)] p-4 shadow-[0_18px_38px_rgba(15,23,42,0.04)] ring-1 ring-[#eef3eb] sm:p-5 xl:mt-0">
-              <div className="flex items-center justify-between gap-3 border-b border-[#e6eee1] pb-3">
-                <div>
-                  <h3 className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint sm:text-xs lg:text-sm">Condition summary</h3>
-                  <p className="mt-1 text-xs text-ink-muted">Text-match confidence is not medical certainty.</p>
+            <section className="relative mt-6 overflow-hidden rounded-3xl border border-[#DCE6D9] bg-[linear-gradient(145deg,#FFFFFF_0%,#F8FAF6_100%)] p-4 shadow-[0_12px_30px_rgba(31,74,54,0.05)] sm:p-5 xl:mt-0">
+              <div className="absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-[#DCE6D9] to-transparent" aria-hidden="true" />
+              <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#e6eee1] pb-3">
+                <div className="flex min-w-0 items-start gap-3">
+                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[#DCE7D9] bg-white text-brand shadow-[0_3px_10px_rgba(31,74,54,0.06)]" aria-hidden="true">
+                    <IconCheck size={16} />
+                  </span>
+                  <div className="min-w-0">
+                    <h3 className="font-display text-base font-semibold leading-tight text-ink sm:text-lg">Condition summary</h3>
+                    <p className="mt-1 text-xs leading-relaxed text-ink-muted sm:text-sm">Text-match confidence is not medical certainty.</p>
+                  </div>
                 </div>
-                <span className="rounded-full border border-[#dfeadf] bg-[#f4faef] px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-brand-dark shadow-[0_2px_8px_rgba(47,107,79,0.06)]">
+                <span className="shrink-0 rounded-full border border-[#cfe0cf] bg-white px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-brand-dark shadow-[0_2px_8px_rgba(47,107,79,0.05)]">
                   {record.detected_symptoms.length} noted
                 </span>
               </div>
@@ -160,35 +173,53 @@ export default async function ResultPage({
               )}
             </section>
 
-            <details className="group mt-4 min-w-0 rounded-[18px] border border-[#e2e8db] bg-white/80 p-3 sm:p-5 xl:mt-0">
-              <summary className="cursor-pointer list-none">
-                <span className="font-mono text-xs font-semibold uppercase tracking-[0.1em] text-ink-faint lg:text-sm">Clinical explanation</span>
-                <span className="mt-1 block text-xs leading-5 text-ink-muted sm:text-sm">View assessment reasoning</span>
+            <details className="group mt-4 min-w-0 rounded-2xl border border-[#dfe8dc] bg-[linear-gradient(145deg,#FFFFFF_0%,#F8FAF6_100%)] p-3 shadow-[0_8px_22px_rgba(31,74,54,0.04)] transition-[border-color,box-shadow] duration-200 open:border-[#cbdac8] open:shadow-[0_14px_30px_rgba(31,74,54,0.07)] sm:p-4 xl:mt-0">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-xl outline-none focus-visible:ring-4 focus-visible:ring-brand/15">
+                <span className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#dce7d9] bg-white text-brand shadow-[0_3px_10px_rgba(31,74,54,0.05)]" aria-hidden="true">
+                    <IconAssessment size={17} />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold text-ink sm:text-base">Clinical explanation</span>
+                    <span className="mt-0.5 block text-xs leading-relaxed text-ink-muted sm:text-sm">View assessment reasoning</span>
+                  </span>
+                </span>
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#dce7d9] bg-white text-brand transition-transform duration-200 group-open:rotate-180" aria-hidden="true">
+                  <IconChevronDown size={16} />
+                </span>
               </summary>
-              <p className="mt-3 text-sm leading-6 text-ink-secondary sm:text-base sm:leading-7">{record.reason}</p>
+              <p className="mt-4 border-t border-[#e4ebe1] pt-4 text-sm leading-6 text-ink-secondary sm:text-base sm:leading-7">{record.reason}</p>
               {record.input_text && (
-                <p className="mt-3 border-t border-border/70 pt-3 text-xs leading-5 text-ink-faint sm:text-sm sm:leading-relaxed">
-                  Reported information: <span className="italic text-ink-muted">“{record.input_text}”</span>
+                <p className="mt-4 rounded-xl border border-[#e2e9de] bg-white/80 px-3.5 py-3 text-xs leading-5 text-ink-faint sm:text-sm sm:leading-relaxed">
+                  <span className="mb-1 block font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-ink-muted sm:text-[10px]">Reported information</span>
+                  <span className="italic text-ink-muted">“{record.input_text}”</span>
                 </p>
               )}
             </details>
 
-            <details className="group mt-4 overflow-hidden rounded-[18px] border border-[#d8e2d3] bg-[linear-gradient(145deg,#fbfcf8_0%,#f2f7ef_100%)] p-3 shadow-[0_12px_28px_rgba(31,74,54,0.05)] sm:p-5 xl:col-span-2 xl:mt-0">
-              <summary className="flex cursor-pointer list-none flex-wrap items-start justify-between gap-2 border-b border-[#d8e2d3]/80 pb-3 sm:gap-3 sm:pb-4">
-                <span>
-                  <span className="flex items-center gap-2.5">
-                    <span className="h-5 w-1 rounded-full bg-gradient-to-b from-brand-dark to-brand-light" aria-hidden="true" />
-                    <span className="font-mono text-xs font-semibold uppercase tracking-[0.12em] text-brand-dark lg:text-sm">Rules used</span>
+            <details className="group/rules mt-4 overflow-hidden rounded-2xl border border-[#d8e2d3] bg-[linear-gradient(145deg,#fbfcf8_0%,#f2f7ef_100%)] p-3 shadow-[0_12px_28px_rgba(31,74,54,0.05)] transition-[border-color,box-shadow] duration-200 open:border-[#c6d8c4] open:shadow-[0_16px_34px_rgba(31,74,54,0.08)] sm:p-5 xl:col-span-2 xl:mt-0">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 border-b border-[#d8e2d3]/80 pb-3 outline-none focus-visible:rounded-xl focus-visible:ring-4 focus-visible:ring-brand/15 sm:pb-4">
+                <span className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#d5e2d2] bg-white text-brand shadow-[0_3px_10px_rgba(31,74,54,0.06)]" aria-hidden="true">
+                    <IconCheck size={17} />
                   </span>
-                  <span className="mt-1 block pl-3.5 text-xs leading-5 text-ink-muted sm:text-sm">View applied rules</span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold text-ink sm:text-base">Rules used</span>
+                    <span className="mt-0.5 block text-xs leading-relaxed text-ink-muted sm:text-sm">View applied assessment rules</span>
+                  </span>
                 </span>
-                <span className="rounded-full border border-[#c9d8cb] bg-white/75 px-2 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-dark shadow-[0_2px_8px_rgba(31,74,54,0.05)] sm:px-2.5 sm:text-[11px]">{record.triggered_rules.length} applied</span>
+                <span className="flex shrink-0 items-center gap-2">
+                  <span className="rounded-full border border-[#c9d8cb] bg-white/85 px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-dark shadow-[0_2px_8px_rgba(31,74,54,0.05)] sm:text-[11px]">{record.triggered_rules.length} applied</span>
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full border border-[#d5e2d2] bg-white text-brand transition-transform duration-200 group-open/rules:rotate-180" aria-hidden="true">
+                    <IconChevronDown size={16} />
+                  </span>
+                </span>
               </summary>
-              <ol className="mt-3 space-y-2 sm:mt-4 sm:space-y-2.5">
+              <ol className="mt-4 space-y-2.5 sm:mt-5 sm:space-y-3">
                 {record.triggered_rules.map((rule) => (
-                    <li key={rule.name} className="group relative flex gap-2.5 overflow-hidden rounded-2xl border border-[#dfe8dc] bg-white/85 px-3 py-3 shadow-[0_4px_12px_rgba(31,74,54,0.035)] transition-colors duration-200 hover:border-[#b9ceb9] sm:gap-3 sm:px-5 sm:py-4">
-                    <span className="absolute inset-y-0 left-0 w-0.5 bg-brand/45 transition-colors duration-200 group-hover:bg-brand" aria-hidden="true" />
-                    <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#dce8d8] bg-[#f4f8f0] font-mono text-xs font-semibold text-brand-dark">
+                    <li key={rule.name} className="group relative flex gap-3 overflow-hidden rounded-xl border border-[#dfe8dc] bg-white/90 px-3.5 py-3 shadow-[0_3px_10px_rgba(31,74,54,0.03)] transition-colors duration-200 hover:border-[#b9ceb9] sm:px-4 sm:py-3.5">
+                    <span className="absolute inset-y-3 left-0 w-0.5 rounded-r-full bg-brand/45 transition-colors duration-200 group-hover:bg-brand" aria-hidden="true" />
+                    <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[#dce8d8] bg-[#f4f8f0] font-mono text-[11px] font-semibold text-brand-dark">
                       {record.triggered_rules.indexOf(rule) + 1}
                     </span>
                     <div className="min-w-0">
@@ -257,8 +288,8 @@ export default async function ResultPage({
                   <p className="text-sm text-[#FFE4DD]">Lying In</p>
                 </div>
                 <div className="rounded-2xl border border-white/25 bg-white/10 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] sm:p-3.5">
-                  <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-[#FFD2C8] sm:text-[10px] sm:tracking-[0.12em]">PDO</p>
-                  <p className="mt-1 whitespace-nowrap text-base font-semibold tracking-tight text-white sm:text-lg sm:tracking-normal">0902576740</p>
+                  <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-[#FFD2C8] sm:text-[10px] sm:tracking-[0.12em]">OPD</p>
+                  <p className="mt-1 whitespace-nowrap text-base font-semibold tracking-tight text-white sm:text-lg sm:tracking-normal">09702576740</p>
                 </div>
               </div>
               <p className="relative mt-4 text-sm leading-relaxed text-[#FFE4DD]">
