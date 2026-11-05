@@ -88,6 +88,9 @@ export interface DashboardAssessmentItem {
   handled_at?: string | null;
   case_status?: "New" | "In progress" | "Resolved";
   case_activities?: AssessmentCaseActivity[];
+  reason?: string;
+  recommendation?: string;
+  triggered_rules?: TriggeredRule[];
   case_summary: CaseSummary;
 }
 
@@ -105,6 +108,7 @@ export interface AssessmentCaseActivity {
   status?: "New" | "In progress" | "Resolved" | null;
   details?: string | null;
   created_at: string;
+  actor_name?: string | null;
 }
 
 export interface AssessmentCaseActivityPayload {
@@ -122,6 +126,9 @@ export interface WeeklyTrendItem {
   label: string;
   date: string;
   count: number;
+  green: number;
+  yellow: number;
+  red: number;
 }
 
 export interface BarangayStatItem {

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import Disclaimer from "../components/Disclaimer";
 import PageHeader from "../components/PageHeader";
 import {
@@ -20,7 +20,7 @@ import {
   Toast,
   TriageBadge,
 } from "@/app/components/ui/primitives";
-import { formatAssessmentRecordNumber, getDashboardSummary, getMe, getMhoLexicon, markLexiconReviewed, rejectLexiconEntry, type AdminModuleLexiconEntry, type User } from "@/lib/api";
+import { addAssessmentCaseActivity, formatAssessmentRecordNumber, getDashboardSummary, getMe, getMhoLexicon, markLexiconReviewed, rejectLexiconEntry, type AdminModuleLexiconEntry, type DashboardAssessmentItem, type User } from "@/lib/api";
 import { generateCommunityHealthReport } from "@/lib/communityHealthReport";
 
 const SECTIONS = [
@@ -37,6 +37,14 @@ type InsightTone = "neutral" | "positive" | "watch" | "urgent";
 
 const ASSESSMENT_PAGE_SIZE = 5;
 const RECENT_ASSESSMENT_PAGE_SIZE = 3;
+const SCORING_RULE_NAMES = new Set([
+  "duration-score",
+  "weighted-symptom-score",
+  "symptom-combination-score",
+  "high-severity-score",
+  "moderate-severity-score",
+  "mild-severity-score",
+]);
 
 function insightToneLabel(tone: InsightTone) {
   const labels: Record<InsightTone, string> = {
@@ -97,7 +105,7 @@ function WidgetCard({
   return (
     <div
       className={cn(
-        "flex flex-col rounded-[24px] border border-[#e1e7dc] bg-white/95 shadow-[0_18px_40px_rgba(17,39,28,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_48px_rgba(17,39,28,0.08)]",
+        "@container flex flex-col rounded-[24px] border border-[#e1e7dc] bg-white/95 shadow-[0_18px_40px_rgba(17,39,28,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_48px_rgba(17,39,28,0.08)]",
         urgent ? "border-red-200/80" : "border-[#e3e9df]",
       )}
     >
@@ -143,7 +151,30 @@ function formatSubmittedAgo(value: string) {
   return `Submitted ${elapsedDays}d ago`;
 }
 
-function AssessmentCaseCard({ item }: { item: DashboardState["recent_assessments"][number] }) {
+function formatAbsoluteDate(value: string) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "Date unavailable";
+  return date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
+
+function formatBarangay(value: string) {
+  const name = value.trim().replace(/^barangay\s+/i, "").replace(/^brgy\.?\s*/i, "");
+  return name ? `Brgy. ${name}` : value;
+}
+
+function AssessmentCaseCard({
+  item,
+  asOf,
+  onContactLogged,
+}: {
+  item: DashboardState["recent_assessments"][number];
+  asOf: string;
+  onContactLogged: (item: DashboardAssessmentItem) => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState(false);
+  const [loggingContact, setLoggingContact] = useState(false);
+  const [contactLogError, setContactLogError] = useState<string | null>(null);
   const riskLevel = item.risk_level.toUpperCase();
   const caseType = riskLevel === "RED"
     ? "Flagged"
@@ -152,73 +183,248 @@ function AssessmentCaseCard({ item }: { item: DashboardState["recent_assessments
       : riskLevel === "GREEN"
         ? "Routine"
         : "Needs info";
+  const residentInitial = item.resident_name.trim().charAt(0).toUpperCase() || "?";
+  const accent = riskLevel === "RED"
+    ? "from-[#a93627] via-[#d2614d] to-[#f0c2b5]"
+    : riskLevel === "YELLOW"
+      ? "from-[#9a6b13] via-[#d39b35] to-[#f2dfb6]"
+      : riskLevel === "GREEN"
+        ? "from-[#286447] via-[#4d8c68] to-[#c3deca]"
+        : "from-slate-400 via-slate-300 to-slate-100";
+  const lastContact = item.case_activities?.find((activity) => activity.kind === "contact_attempt");
+  const hasContactAttempt = Boolean(lastContact);
+  const overdue = riskLevel === "RED"
+    && !hasContactAttempt
+    && new Date(asOf).getTime() - new Date(item.created_at).getTime() >= 24 * 60 * 60 * 1000;
+  const urgencyTerms = item.case_summary.urgency_reasons.map((reason) => reason.toLocaleLowerCase());
+  const isUrgencySymptom = (symptom: string) => {
+    const normalized = symptom.toLocaleLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+    return urgencyTerms.some((reason) => {
+      const normalizedReason = reason.replace(/[^a-z0-9]+/g, " ").trim();
+      return normalizedReason.includes(normalized) || normalized.includes(normalizedReason);
+    });
+  };
+  const smsBody = "Kumusta po. This is the Municipal Health Unit following up about your recent HealthGuard assessment. Maaari po ba kayong makausap tungkol sa inyong kalagayan? Kung emergency o lumalala ang sintomas, pumunta agad sa pinakamalapit na ospital o tumawag sa 911.";
+  const smsHref = item.phone_number
+    ? `sms:${item.phone_number}?body=${encodeURIComponent(smsBody)}`
+    : undefined;
+  const explanationRules = item.triggered_rules
+    ?.filter((rule) => rule.description.trim() && !SCORING_RULE_NAMES.has(rule.name))
+    .slice(0, 2) ?? [];
+
+  async function copyPhoneNumber() {
+    if (!item.phone_number) return;
+    try {
+      await navigator.clipboard.writeText(item.phone_number);
+      setCopied(true);
+      setCopyError(false);
+    } catch (error) {
+      console.error("Could not copy the resident mobile number.", error);
+      setCopied(false);
+      setCopyError(true);
+    }
+  }
+
+  async function logContactAttempt() {
+    setLoggingContact(true);
+    setContactLogError(null);
+    try {
+      const updated = await addAssessmentCaseActivity(item.id, {
+        kind: "contact_attempt",
+        details: "Contact attempt logged from the dashboard.",
+      });
+      onContactLogged(updated);
+    } catch (error) {
+      console.error("Could not log the resident contact attempt.", error);
+      setContactLogError(error instanceof Error ? error.message : "Could not log contact attempt.");
+    } finally {
+      setLoggingContact(false);
+    }
+  }
 
   return (
-    <article className={cn(
-      "group relative overflow-hidden rounded-2xl border border-[#dce5d8] bg-[linear-gradient(145deg,#ffffff_0%,#fbfcf9_58%,#f4f8f1_100%)] p-5 shadow-[0_12px_28px_rgba(24,38,25,0.075)] transition duration-200 hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-[0_18px_36px_rgba(24,38,25,0.12)] sm:p-6",
-      riskLevel === "RED"
-        ? "border-l-[5px] border-l-triage-red"
-        : riskLevel === "YELLOW"
-          ? "border-l-[5px] border-l-triage-yellow"
-          : riskLevel === "GREEN"
-            ? "border-l-[5px] border-l-triage-green"
-            : "border-l-[5px] border-l-slate-400",
-    )}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate text-lg font-semibold leading-snug tracking-[-0.015em] text-[#182619] sm:text-xl">{item.resident_name}</p>
-          <p className="mt-1 font-mono text-xs font-medium uppercase tracking-[0.07em] text-[#52604f]">
-            {formatAssessmentRecordNumber(item.id)} <span aria-hidden="true">·</span> {caseType}
-          </p>
+    <article className="group relative @container overflow-hidden rounded-[24px] border border-[#dce5d8] bg-white shadow-[0_8px_24px_rgba(24,38,25,0.055)] transition duration-200 hover:-translate-y-0.5 hover:border-brand/25 hover:shadow-[0_18px_38px_rgba(24,38,25,0.11)]">
+      <div className={cn("h-1 bg-gradient-to-r", accent)} aria-hidden="true" />
+      <div className={cn(
+        "flex items-start justify-between gap-4 border-b border-[#e8ede5] px-5 py-5 sm:px-6",
+        riskLevel === "RED"
+          ? "bg-gradient-to-br from-[#fff8f6] via-white to-white"
+          : riskLevel === "YELLOW"
+            ? "bg-gradient-to-br from-[#fffcf5] via-white to-white"
+            : "bg-gradient-to-br from-[#f7faf6] via-white to-white",
+      )}>
+        <div className="flex min-w-0 items-center gap-3.5">
+          <span className={cn(
+            "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border text-lg font-semibold shadow-sm",
+            riskLevel === "RED"
+              ? "border-[#f0d7d1] bg-[#fff0ec] text-[#9e392b]"
+              : riskLevel === "YELLOW"
+                ? "border-[#efe2c7] bg-[#fff8e9] text-[#886014]"
+                : riskLevel === "GREEN"
+                  ? "border-[#d7e7d9] bg-[#eef7ef] text-[#286447]"
+                  : "border-slate-200 bg-slate-50 text-slate-600",
+          )} aria-hidden="true">
+            {residentInitial}
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-lg font-semibold leading-snug tracking-[-0.02em] text-[#182619] sm:text-xl">{item.resident_name}</p>
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="rounded-md border border-[#e2e8de] bg-white/80 px-2 py-0.5 font-mono text-[10px] font-semibold tracking-[0.1em] text-[#52604f] shadow-sm">
+                {formatAssessmentRecordNumber(item.id)}
+              </span>
+              <span className="text-xs font-medium text-[#687566]">{caseType}</span>
+              {overdue && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-[#efc5bb] bg-[#fff0ec] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-[#a33c2c]">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#bd4935]" aria-hidden="true" />
+                  Overdue
+                </span>
+              )}
+            </div>
+          </div>
         </div>
-        <TriageBadge level={item.risk_level} />
+        <div className="shrink-0 pt-0.5">
+          <TriageBadge level={item.risk_level} />
+        </div>
       </div>
 
-      <div className="mt-4 rounded-xl border border-[#e4eae0] bg-white/80 px-4 py-3">
-        <p className="text-base font-medium leading-relaxed text-[#263629]">
-          {item.detected_symptoms?.length ? item.detected_symptoms.join(" / ") : "Symptoms not recorded"}
-        </p>
-        <p className="mt-1.5 text-sm font-medium leading-relaxed text-[#52604f]">
-          Onset <span className="font-semibold text-[#344536]">{item.case_summary.onset_display}</span>
-        </p>
-      </div>
+      <div className="px-5 py-5 sm:px-6">
+        <div className="rounded-2xl border border-[#e5ebe2] bg-[linear-gradient(145deg,#fbfcfa_0%,#f6f9f4_100%)] px-4 py-4">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.15em] text-[#758171]">Reported symptoms</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {item.detected_symptoms?.length ? item.detected_symptoms.map((symptom) => {
+              const isUrgent = isUrgencySymptom(symptom);
+              return (
+                <span
+                  key={symptom}
+                  className={cn(
+                    "inline-flex items-center rounded-lg border px-2.5 py-1 text-sm font-semibold",
+                    isUrgent
+                      ? "border-[#efc9c1] bg-[#fff0ec] text-[#9e392b]"
+                      : "border-[#dfe8dc] bg-white text-[#344536]",
+                  )}
+                >
+                  {symptom}
+                </span>
+              );
+            }) : (
+              <span className="text-sm font-medium text-[#687566]">Symptoms not recorded</span>
+            )}
+          </div>
+          <div className="mt-3 flex items-start gap-2 border-t border-[#e4eae0] pt-3 text-sm leading-relaxed text-[#52604f]">
+            <svg className="mt-0.5 h-4 w-4 shrink-0 text-[#758171]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 7v5l3 2" />
+            </svg>
+            <span><span className="font-medium text-[#687566]">Onset</span><span className="mx-1.5 text-[#b3bdb0]">·</span><span className="font-semibold text-[#344536]">{item.case_summary.onset_display}</span></span>
+          </div>
+        </div>
 
-      <div className="mt-3 flex flex-wrap gap-2">
-        {item.age != null && (
-          <span className="rounded-full border border-[#dce6d8] bg-[#f2f6ef] px-3 py-1.5 text-sm font-semibold text-[#354638]">
-            Age {item.age}
-          </span>
+        {riskLevel === "RED" && (
+          <div className="mt-4 rounded-xl border border-[#efddd7] bg-[#fffaf8] px-4 py-3.5">
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[#8d5146]">Why RED?</p>
+            <p className="mt-2 text-sm font-medium leading-relaxed text-[#573b36]">
+              {item.reason || `${item.detected_symptoms.join(", ") || item.case_summary.chief_complaint_summary}; onset: ${item.case_summary.onset_display}.`}
+            </p>
+            {explanationRules.length > 0 && (
+              <ul className="mt-2 space-y-1 border-t border-[#efddd7] pt-2 text-xs leading-relaxed text-[#76564e]">
+                {explanationRules.map((rule) => <li key={rule.name}>{rule.description}</li>)}
+              </ul>
+            )}
+          </div>
         )}
-        {item.barangay && (
-          <span className="rounded-full border border-[#dce6d8] bg-[#f2f6ef] px-3 py-1.5 text-sm font-semibold text-[#354638]">
-            {item.barangay}
-          </span>
-        )}
-        {item.age == null && !item.barangay && (
-          <span className="text-sm font-medium text-[#52604f]">Resident details unavailable</span>
-        )}
-      </div>
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-[#e2e8de] pt-3 text-sm text-[#4d5a4b]">
-        <span className="font-medium">{formatSubmittedAgo(item.created_at)}</span>
-        {item.phone_number && (
-          <a href={`tel:${item.phone_number}`} className="font-semibold text-[#285d43] underline decoration-[#9bb49f] underline-offset-4 transition hover:text-brand">
-            Mobile: {item.phone_number}
-          </a>
+        {item.recommendation && (
+          <div className="mt-3 rounded-xl border border-[#dbe8dc] bg-[#f3f8f2] px-4 py-3">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.13em] text-[#5a765c]">Suggested next step</p>
+            <p className="mt-1 text-sm font-medium leading-relaxed text-[#2e4c36]">{item.recommendation}</p>
+          </div>
         )}
-      </div>
 
-      {item.case_summary.urgency_reasons.length > 0 && (
-        <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium leading-relaxed text-[#852d21]">
-          <span className="font-bold">Urgency flags:</span> {item.case_summary.urgency_reasons.join(" · ")}
-        </p>
-      )}
-      {item.case_summary.validation_note && (
-        <p role="status" className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm leading-relaxed text-amber-950">
-          <span className="font-semibold">Data validation warning: </span>
-          {item.case_summary.validation_note}
-        </p>
-      )}
+        <div className="mt-4 flex flex-wrap gap-2">
+          {item.age != null && (
+            <span className="inline-flex items-center gap-2 rounded-xl border border-[#e2e9df] bg-white px-3 py-2 text-sm font-semibold text-[#354638] shadow-[0_2px_8px_rgba(24,38,25,0.035)]">
+              <svg className="h-4 w-4 text-[#71816d]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+                <circle cx="12" cy="8" r="3.25" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5.5 20v-1.4a6.5 6.5 0 0 1 13 0V20z" />
+              </svg>
+              Age {item.age}
+            </span>
+          )}
+          {item.barangay && (
+            <span className="inline-flex items-center gap-2 rounded-xl border border-[#e2e9df] bg-white px-3 py-2 text-sm font-semibold text-[#354638] shadow-[0_2px_8px_rgba(24,38,25,0.035)]">
+              <svg className="h-4 w-4 text-[#71816d]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 10.2c0 5-7 10-7 10s-7-5-7-10a7 7 0 1 1 14 0Z" />
+                <circle cx="12" cy="10" r="2.2" />
+              </svg>
+              {formatBarangay(item.barangay)}
+            </span>
+          )}
+          {item.age == null && !item.barangay && (
+            <span className="text-sm font-medium text-[#687566]">Resident details unavailable</span>
+          )}
+        </div>
+
+        {item.case_summary.urgency_reasons.length > 0 && (
+          <p className="mt-4 rounded-xl border border-[#f1d6d0] bg-[#fff6f3] px-3.5 py-3 text-sm font-medium leading-relaxed text-[#852d21]">
+            <span className="font-bold">Urgency flags:</span> {item.case_summary.urgency_reasons.join(" · ")}
+          </p>
+        )}
+
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-[#e8ede5] pt-4 text-sm @md:flex-nowrap">
+          <div className="flex flex-col gap-1">
+            <time dateTime={item.created_at} title={new Date(item.created_at).toLocaleString()} className="inline-flex items-center gap-2 font-medium text-[#687566]">
+              <svg className="h-4 w-4 text-[#84917f]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 7v5l3 2" />
+              </svg>
+              {formatSubmittedAgo(item.created_at)}
+            </time>
+            <span className="pl-6 text-xs text-[#879184]">{formatAbsoluteDate(item.created_at)}</span>
+          </div>
+          {item.phone_number && (
+            <div className="flex flex-wrap items-center gap-2">
+              <a href={`tel:${item.phone_number}`} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[#dce7dc] bg-[#f5f9f4] px-3.5 font-semibold text-[#285d43] shadow-sm transition hover:border-[#b8ceb9] hover:bg-[#edf5eb] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15">
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.1 3.8 9.5 3l2.1 5-2.2 1.5a15 15 0 0 0 5.1 5.1l1.5-2.2 5 2.1-.8 2.4a3 3 0 0 1-3.3 2.1A17 17 0 0 1 5 7.1a3 3 0 0 1 2.1-3.3Z" />
+                </svg>
+                {item.phone_number}
+              </a>
+              <button type="button" onClick={copyPhoneNumber} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-[#e1e8df] bg-white px-3 text-xs font-semibold text-[#52604f] transition hover:bg-[#f7f9f6] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15" aria-label="Copy mobile number">
+                {copied ? "Copied" : "Copy"}
+              </button>
+              {smsHref && (
+                <a href={smsHref} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-[#dce7dc] bg-white px-3 text-xs font-semibold text-[#285d43] transition hover:bg-[#f5f9f4] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15">
+                  SMS
+                </a>
+              )}
+              {copyError && <span role="status" className="w-full text-xs text-[#9e392b]">Could not copy number.</span>}
+            </div>
+          )}
+        </div>
+        <div className="mt-3 flex items-start gap-2 rounded-xl border border-[#e8ede5] bg-[#fafbf9] px-3.5 py-2.5 text-xs text-[#687566]">
+          <svg className="mt-0.5 h-4 w-4 shrink-0 text-[#84917f]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 3 4.5 6v5.5c0 4.4 3.2 7.6 7.5 9.5 4.3-1.9 7.5-5.1 7.5-9.5V6z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6" />
+          </svg>
+          {lastContact ? (
+            <span>
+              Last contact attempt · <span className="font-semibold text-[#445443]">{lastContact.actor_name || "Staff"}</span>
+              {" · "}{formatSubmittedAgo(lastContact.created_at).replace(/^Submitted /, "")}
+              {lastContact.details ? <span className="block pt-0.5 text-[#849184]">{lastContact.details}</span> : null}
+            </span>
+          ) : (
+            <span className={cn(overdue ? "font-semibold text-[#9e392b]" : "font-medium")}>
+              {overdue ? "No contact yet · RED case overdue (24-hour contact target)" : "No contact yet"}
+            </span>
+          )}
+          {riskLevel === "RED" && (
+            <button type="button" onClick={logContactAttempt} disabled={loggingContact} className="ml-auto inline-flex min-h-8 items-center rounded-lg border border-[#e1e8df] bg-white px-2.5 text-xs font-semibold text-[#52604f] transition hover:bg-[#f5f8f3] disabled:cursor-wait disabled:opacity-60 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15">
+              {loggingContact ? "Saving…" : "Log contact attempt"}
+            </button>
+          )}
+        </div>
+        {contactLogError && <p role="alert" className="mt-2 text-xs text-[#9e392b]">{contactLogError}</p>}
+      </div>
     </article>
   );
 }
@@ -286,68 +492,154 @@ function SearchIcon() {
   );
 }
 
-function TrendSparkline({ data }: { data: DashboardState["weekly_trend"] }) {
+function WeeklySeverityChart({ data }: { data: DashboardState["weekly_trend"] }) {
   const [timeframe, setTimeframe] = useState<"4" | "8" | "all">("all");
+  const patternId = `current-week-${useId().replace(/:/g, "")}`;
   if (!data || data.length === 0) return null;
   const trendData = timeframe === "4" ? data.slice(-4) : timeframe === "8" ? data.slice(-8) : data;
-  const max = Math.max(...trendData.map((d) => d.count), 1);
-  const w = 320;
-  const h = 100;
-  const step = trendData.length > 1 ? w / (trendData.length - 1) : 0;
-  const points = trendData.map((d, i) => {
-    const x = i * step;
-    const y = h - (d.count / max) * (h - 20) - 10;
-    return { x, y };
-  });
-  const path = points.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
-  const areaPath = `${path} L ${w},${h} L 0,${h} Z`;
   const last = trendData[trendData.length - 1];
-  const prev = trendData.length > 1 ? trendData[trendData.length - 2] : null;
-  const delta = prev ? last.count - prev.count : 0;
   const totalCases = trendData.reduce((sum, week) => sum + week.count, 0);
   const averageCases = totalCases / trendData.length;
   const peakWeek = trendData.reduce((peak, week) => week.count > peak.count ? week : peak, trendData[0]);
-  const direction = delta > 0 ? "Rising" : delta < 0 ? "Cooling" : "Stable";
+  const maxCount = Math.max(...trendData.map((week) => week.count), 0);
+  const chartMax = Math.max(1, Math.ceil(Math.max(maxCount, averageCases) * 1.25));
+  const width = 520;
+  const height = 222;
+  const plot = { left: 24, right: 496, top: 22, bottom: 154 };
+  const plotWidth = plot.right - plot.left;
+  const plotHeight = plot.bottom - plot.top;
+  const slotWidth = plotWidth / trendData.length;
+  const barWidth = Math.min(40, slotWidth * 0.58);
+  const averageY = plot.bottom - (averageCases / chartMax) * plotHeight;
+  const formatWeek = (date: string) => new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const severityLegend = [
+    { key: "green", label: "Green", color: "#73977c" },
+    { key: "yellow", label: "Yellow", color: "#d5a843" },
+    { key: "red", label: "Red", color: "#bd4935" },
+  ] as const;
 
   return (
     <div className="space-y-5">
-      <div className="rounded-2xl border border-brand/15 bg-[radial-gradient(circle_at_top_right,_rgba(244,213,141,0.16),_transparent_32%),linear-gradient(145deg,#f8fbf6_0%,#ffffff_58%,#f1f7ef_100%)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_10px_24px_rgba(31,74,54,0.05)]">
+      <div className="overflow-hidden rounded-[22px] border border-[#dce7dc] bg-[radial-gradient(circle_at_85%_0%,rgba(199,179,122,0.16),transparent_32%),linear-gradient(145deg,#f7faf6_0%,#ffffff_54%,#f1f7ef_100%)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_14px_32px_rgba(31,74,54,0.07)] sm:p-5">
         <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.13em] text-brand-dark">Eight-week momentum</p>
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-dark">
+              {last.label === "This week" ? "Week to date" : "Latest completed week"}
+            </p>
             <div className="mt-1 flex items-baseline gap-2">
-              <p className="font-mono text-3xl font-semibold tracking-tight text-ink">{last.count}</p>
-              <p className="text-xs text-ink-muted">cases this week</p>
+              <p className="font-display text-3xl font-semibold tracking-tight text-ink tabular-nums sm:text-4xl">{last.count}</p>
+              <p className="text-xs text-ink-muted">
+                {last.label === "This week"
+                  ? `${last.count === 1 ? "case" : "cases"} so far this week`
+                  : `${last.count === 1 ? "case" : "cases"} in the latest week`}
+              </p>
             </div>
           </div>
-          {prev && <span className={`rounded-full border px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] ${delta > 0 ? "border-red-200 bg-red-50 text-emergency-red" : delta < 0 ? "border-brand/20 bg-brand-tint text-brand-dark" : "border-border-soft bg-white text-ink-muted"}`}>{delta === 0 ? "No change" : `${delta > 0 ? "+" : ""}${delta} vs last week`}</span>}
+          <span className="inline-flex items-center gap-2 rounded-full border border-[#dce7dc] bg-white/80 px-3 py-1.5 text-[10px] font-semibold text-ink-secondary shadow-sm">
+            <span className="h-2 w-2 rounded-full bg-[#286447]" aria-hidden="true" />
+            {totalCases} cases in view
+          </span>
         </div>
-        <svg viewBox={`0 0 ${w} ${h}`} className="h-28 w-full overflow-visible text-brand" preserveAspectRatio="none" role="img" aria-label="Eight-week assessment trend">
+        <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-[11px] text-ink-muted">Weekly assessments by triage severity</p>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1" aria-label="Severity legend">
+            {severityLegend.map((item) => (
+              <span key={item.key} className="inline-flex items-center gap-1.5 text-[10px] font-medium text-ink-secondary">
+                <span className="h-2.5 w-2.5 rounded-[3px]" style={{ backgroundColor: item.color }} aria-hidden="true" />
+                {item.label}
+              </span>
+            ))}
+            <span className="inline-flex items-center gap-1.5 text-[10px] font-medium text-ink-secondary">
+              <span className="w-4 border-t border-dashed border-[#526b5a]" aria-hidden="true" />
+              Avg {averageCases.toFixed(1)}
+            </span>
+          </div>
+        </div>
+        <svg viewBox={`0 0 ${width} ${height}`} className="h-52 w-full sm:h-60" preserveAspectRatio="none" role="img" aria-label={`Weekly stacked assessment counts by severity. Average ${averageCases.toFixed(1)} cases per week. ${trendData.map((week) => `${week.label}: ${week.count} total, ${week.green} green, ${week.yellow} yellow, ${week.red} red`).join("; ")}`}>
+          <title>Weekly assessments by triage severity</title>
+          <desc>Stacked columns show green, yellow, and red cases. Empty weeks have a baseline tick. The current week is week to date. A dashed line marks the weekly average.</desc>
           <defs>
-            <linearGradient id="trendAreaFill" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="currentColor" stopOpacity="0.24" />
-              <stop offset="100%" stopColor="currentColor" stopOpacity="0.02" />
-            </linearGradient>
-            <filter id="trendGlow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.5" result="blur" /><feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+            <pattern id={patternId} width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+              <rect width="6" height="6" fill="#ffffff" fillOpacity="0.42" />
+              <line x1="0" y1="0" x2="0" y2="6" stroke="#ffffff" strokeOpacity="0.78" strokeWidth="2" />
+            </pattern>
           </defs>
-          {[25, 50, 75].map((line) => <line key={line} x1="0" x2={w} y1={line} y2={line} stroke="currentColor" strokeOpacity="0.08" strokeDasharray="3 5" vectorEffect="non-scaling-stroke" />)}
-          <path d={areaPath} fill="url(#trendAreaFill)" />
-          <path d={path} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" filter="url(#trendGlow)" />
-          {points.map((point, index) => <circle key={trendData[index].date} cx={point.x} cy={point.y} r={index === points.length - 1 ? 5 : 2.5} fill="white" stroke="currentColor" strokeWidth={index === points.length - 1 ? 2.5 : 1.5} vectorEffect="non-scaling-stroke" />)}
+          <line x1={plot.left} x2={plot.right} y1={plot.bottom} y2={plot.bottom} stroke="#708070" strokeOpacity="0.3" vectorEffect="non-scaling-stroke" />
+          {trendData.map((week, index) => {
+            const centerX = plot.left + slotWidth * (index + 0.5);
+            const x = centerX - barWidth / 2;
+            const isCurrentWeek = index === trendData.length - 1 && week.label === "This week";
+            let segmentBottom = plot.bottom;
+            const segments = [
+              { value: week.green, color: "#73977c" },
+              { value: week.yellow, color: "#d5a843" },
+              { value: week.red, color: "#bd4935" },
+            ];
+            return (
+              <g key={week.date} tabIndex={0} role="img" aria-label={`${week.label}${isCurrentWeek ? ", week to date" : ""}: ${week.count} total, ${week.green} green, ${week.yellow} yellow, ${week.red} red cases`}>
+                <title>{`${isCurrentWeek ? "Week to date" : formatWeek(week.date)}: ${week.count} ${week.count === 1 ? "case" : "cases"} (Green ${week.green}, Yellow ${week.yellow}, Red ${week.red})`}</title>
+                {week.count === 0 ? (
+                  <line x1={centerX} x2={centerX} y1={plot.bottom - 5} y2={plot.bottom + 1} stroke="#9eaa9d" strokeWidth="2" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                ) : (
+                  <>
+                    {segments.map((segment) => {
+                      if (segment.value === 0) return null;
+                      const segmentHeight = (segment.value / chartMax) * plotHeight;
+                      const y = segmentBottom - segmentHeight;
+                      segmentBottom = y;
+                      return (
+                        <rect
+                          key={segment.color}
+                          x={x}
+                          y={y}
+                          width={barWidth}
+                          height={segmentHeight}
+                          fill={segment.color}
+                          opacity={isCurrentWeek ? 0.62 : 1}
+                          rx={2}
+                        />
+                      );
+                    })}
+                    {isCurrentWeek && (
+                      <rect x={x} y={segmentBottom} width={barWidth} height={plot.bottom - segmentBottom} fill={`url(#${patternId})`} rx={2} />
+                    )}
+                    <text x={centerX} y={segmentBottom - 7} textAnchor="middle" className="fill-[#263629] font-mono text-[11px] font-semibold">
+                      {week.count}
+                    </text>
+                  </>
+                )}
+                <text x={centerX} y={plot.bottom + 20} textAnchor="middle" className={`font-mono text-[9px] ${isCurrentWeek ? "fill-[#286447] font-semibold" : "fill-[#788575]"}`}>
+                  {isCurrentWeek ? "Week to date" : formatWeek(week.date)}
+                </text>
+              </g>
+            );
+          })}
+          <line x1={plot.left} x2={plot.right} y1={averageY} y2={averageY} stroke="#526b5a" strokeOpacity="0.85" strokeDasharray="5 4" vectorEffect="non-scaling-stroke" />
         </svg>
+        <p className="mt-1 text-center font-mono text-[9px] uppercase tracking-[0.08em] text-ink-faint">Week starting · current week is partial</p>
       </div>
       <div className="border-t border-border-soft pt-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-brand-dark">View timeframe</p>
-          <div className="flex rounded-xl border border-border-soft bg-surface/70 p-1" role="group" aria-label="Case volume timeframe">
-            {([{ value: "4", label: "4 weeks" }, { value: "8", label: "8 weeks" }, { value: "all", label: "All data" }] as const).map((option) => <button key={option.value} type="button" onClick={() => setTimeframe(option.value)} className={`rounded-lg px-2.5 py-1.5 text-[10px] font-semibold transition ${timeframe === option.value ? "bg-brand text-brand-foreground shadow-sm" : "text-ink-muted hover:bg-white hover:text-ink"}`}>{option.label}</button>)}
+          <div className="flex rounded-xl border border-[#dce7dc] bg-[#f6f9f5] p-1 shadow-inner" role="group" aria-label="Case volume timeframe">
+            {([{ value: "4", label: "4 weeks" }, { value: "8", label: "8 weeks" }, { value: "all", label: "All data" }] as const).map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setTimeframe(option.value)}
+                aria-pressed={timeframe === option.value}
+                className={`rounded-lg px-2.5 py-1.5 text-[10px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/35 ${timeframe === option.value ? "bg-white text-brand-dark shadow-sm ring-1 ring-brand/10" : "text-ink-muted hover:bg-white/70 hover:text-ink"}`}
+              >
+                {option.label}
+              </button>
+            ))}
           </div>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
           <div className="rounded-xl border border-brand/15 bg-brand-tint/55 px-3 py-2.5"><p className="font-mono text-[10px] uppercase tracking-[0.06em] text-ink-faint">Total cases</p><p className="mt-1 font-mono text-lg font-semibold text-ink">{totalCases}</p></div>
           <div className="rounded-xl border border-border-soft bg-surface/60 px-3 py-2.5"><p className="font-mono text-[10px] uppercase tracking-[0.06em] text-ink-faint">Weekly average</p><p className="mt-1 font-mono text-lg font-semibold text-ink">{averageCases.toFixed(1)}</p></div>
           <div className="rounded-xl border border-border-soft bg-surface/60 px-3 py-2.5"><p className="font-mono text-[10px] uppercase tracking-[0.06em] text-ink-faint">Peak week</p><p className="mt-1 font-mono text-lg font-semibold text-ink">{peakWeek.count}</p></div>
-          <div className={`rounded-xl border px-3 py-2.5 ${direction === "Rising" ? "border-red-200 bg-red-50" : direction === "Cooling" ? "border-brand/15 bg-brand-tint/50" : "border-border-soft bg-surface/60"}`}><p className="font-mono text-[10px] uppercase tracking-[0.06em] text-ink-faint">Direction</p><p className="mt-1 font-mono text-lg font-semibold text-ink">{direction}</p></div>
+          <div className="rounded-xl border border-border-soft bg-surface/60 px-3 py-2.5"><p className="font-mono text-[10px] uppercase tracking-[0.06em] text-ink-faint">Urgent cases</p><p className="mt-1 font-mono text-lg font-semibold text-emergency-red">{trendData.reduce((sum, week) => sum + week.red, 0)}</p></div>
         </div>
       </div>
     </div>
@@ -401,6 +693,9 @@ function RiskBreakdownBar({
 function BarangayRanking({ data }: { data: DashboardState["barangay_stats"] }) {
   const sorted = [...data].sort((a, b) => b.urgent - a.urgent || b.total - a.total);
   const max = Math.max(...sorted.map((item) => item.total), 1);
+  const totalAssessments = sorted.reduce((sum, item) => sum + item.total, 0);
+  const urgentAssessments = sorted.reduce((sum, item) => sum + item.urgent, 0);
+  const followUpAssessments = sorted.reduce((sum, item) => sum + item.follow_up, 0);
   const pageSize = 5;
   const [page, setPage] = useState(1);
   const pageCount = Math.max(1, Math.ceil(sorted.length / pageSize));
@@ -410,74 +705,103 @@ function BarangayRanking({ data }: { data: DashboardState["barangay_stats"] }) {
     setPage((currentPage) => Math.min(currentPage, pageCount));
   }, [pageCount]);
 
-  const getSeverity = (urgent: number, total: number) => {
+  const getSeverity = (urgent: number, followUp: number, total: number) => {
     if (urgent > 0 && total > 0) {
-      return { label: "High risk", tone: "text-emergency-red border-red-200 bg-red-50", bar: "bg-triage-red" };
+      return { label: "Urgent follow-up", tone: "border-[#efc5bb] bg-[#fff0ec] text-[#9e392b]" };
     }
-    if (total > 0) {
-      return { label: "Monitor", tone: "text-amber-700 border-yellow-200 bg-yellow-50", bar: "bg-triage-yellow" };
+    if (followUp > 0) {
+      return { label: "Follow-up", tone: "border-[#eee2bd] bg-[#fff8e6] text-[#80631b]" };
     }
-    return { label: "Stable", tone: "text-emerald-700 border-emerald-200 bg-emerald-50", bar: "bg-triage-green" };
+    return { label: total > 0 ? "Recorded" : "No activity", tone: "border-[#d7e5d8] bg-[#f2f8f2] text-[#385c43]" };
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className="rounded-2xl border border-[#dce7dc] bg-[linear-gradient(145deg,#f7faf6,#ffffff)] px-3 py-3 shadow-[0_5px_16px_rgba(24,38,25,0.035)]">
+          <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-ink-faint">Barangays</p>
+          <p className="mt-1 font-display text-2xl font-semibold leading-none tabular-nums text-ink">{sorted.length}</p>
+        </div>
+        <div className="rounded-2xl border border-[#dce7dc] bg-[linear-gradient(145deg,#f7faf6,#ffffff)] px-3 py-3 shadow-[0_5px_16px_rgba(24,38,25,0.035)]">
+          <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-ink-faint">Assessments</p>
+          <p className="mt-1 font-display text-2xl font-semibold leading-none tabular-nums text-ink">{totalAssessments}</p>
+        </div>
+        <div className="rounded-2xl border border-[#eee2bd] bg-[linear-gradient(145deg,#fffaf0,#ffffff)] px-3 py-3 shadow-[0_5px_16px_rgba(24,38,25,0.035)]">
+          <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-[#80631b]">Yellow follow-up</p>
+          <p className="mt-1 font-display text-2xl font-semibold leading-none tabular-nums text-[#80631b]">{followUpAssessments}</p>
+        </div>
+        <div className="rounded-2xl border border-[#efdbd5] bg-[linear-gradient(145deg,#fff7f4,#ffffff)] px-3 py-3 shadow-[0_5px_16px_rgba(24,38,25,0.035)]">
+          <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-[#9e392b]">Open urgent</p>
+          <p className="mt-1 font-display text-2xl font-semibold leading-none tabular-nums text-[#9e392b]">{urgentAssessments}</p>
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#e4ebe1] bg-[#f7faf6] px-3.5 py-2.5">
+        <p className="text-xs font-semibold text-[#405342]">Barangay assessment volume</p>
+        <span className="font-mono text-[9px] font-medium uppercase tracking-[0.08em] text-ink-faint">Bars scaled to highest</span>
+      </div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1 px-1" aria-label="Barangay chart legend">
+        {[
+          { label: "Other", color: "bg-[#dce7dc]" },
+          { label: "Follow-up", color: "bg-[#d5a843]" },
+          { label: "Open urgent", color: "bg-[#bd4935]" },
+        ].map((item) => (
+          <span key={item.label} className="inline-flex items-center gap-1.5 text-[10px] font-medium text-ink-muted">
+            <span className={`h-2.5 w-2.5 rounded-[3px] ${item.color}`} aria-hidden="true" />
+            {item.label}
+          </span>
+        ))}
+      </div>
       {visibleRows.map((item, index) => {
-        const percentage = (item.total / max) * 100;
-        const severity = getSeverity(item.urgent, item.total);
+        const totalWidth = (item.total / max) * 100;
+        const urgent = Math.min(item.urgent, item.total);
+        const followUp = Math.min(item.follow_up, Math.max(item.total - urgent, 0));
+        const other = Math.max(item.total - urgent - followUp, 0);
+        const severity = getSeverity(item.urgent, item.follow_up, item.total);
         const rank = (page - 1) * pageSize + index + 1;
 
         return (
           <div
             key={item.barangay}
-            className="group relative overflow-hidden rounded-[22px] border border-[#e4e9df] bg-[linear-gradient(180deg,#ffffff_0%,#f9faf5_100%)] p-3.5 shadow-[0_12px_28px_rgba(15,23,42,0.04)] transition-all duration-200 hover:-translate-y-0.5 hover:border-brand/25 hover:shadow-[0_18px_34px_rgba(31,74,54,0.1)]"
+            className="group relative overflow-hidden rounded-[20px] border border-[#e3e9df] bg-[linear-gradient(180deg,#ffffff_0%,#fbfcf9_100%)] p-3.5 shadow-[0_8px_22px_rgba(24,38,25,0.04)] transition-all duration-200 hover:-translate-y-0.5 hover:border-brand/25 hover:shadow-[0_16px_30px_rgba(31,74,54,0.085)] sm:p-4"
           >
-            <span className="pointer-events-none absolute -right-10 -top-12 h-28 w-20 rotate-[-28deg] bg-white/70 blur-xl opacity-0 transition-opacity duration-300 group-hover:opacity-100" aria-hidden="true" />
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-3">
-                <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] border font-mono text-xs font-bold shadow-sm", rank === 1 ? "border-[#ead79b] bg-[#fff8dc] text-[#927324]" : "border-brand/10 bg-brand/10 text-brand-dark")}>
-                  {rank}
-                </div>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border font-mono text-[11px] font-bold", rank === 1 ? "border-[#ead79b] bg-[#fff8dc] text-[#927324]" : "border-[#e1e9df] bg-[#f5f8f3] text-[#66736a]")}>
+                  {String(rank).padStart(2, "0")}
+                </span>
                 <div className="min-w-0">
-                  <p className="truncate font-semibold text-ink">{item.barangay}</p>
-                  <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint">
-                    {item.total} total • {item.follow_up} follow-up
-                  </p>
+                  <p className="truncate text-sm font-semibold text-ink">{item.barangay}</p>
+                  <p className="mt-0.5 text-[10px] text-ink-muted">{item.total} {item.total === 1 ? "assessment" : "assessments"}</p>
                 </div>
               </div>
-
-              <span className={`inline-flex rounded-full border px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] shadow-sm ${severity.tone}`}>
+              <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[9px] font-semibold uppercase tracking-[0.06em] ${severity.tone}`}>
+                <span className={`h-1.5 w-1.5 rounded-full ${item.urgent > 0 ? "bg-[#bd4935]" : item.follow_up > 0 ? "bg-[#d5a843]" : "bg-[#73977c]"}`} aria-hidden="true" />
                 {severity.label}
               </span>
             </div>
 
-            <div className="mt-3">
-              <div className="mb-1.5 flex items-center justify-between text-[11px] uppercase tracking-[0.08em] text-ink-faint">
-                <span>Coverage</span>
-                <span>{Math.round(percentage)}%</span>
+            <div className="mt-3.5">
+              <div className="mb-1.5 flex items-center justify-between gap-2 text-[10px]">
+                <span className="font-medium text-ink-muted">Volume vs. highest barangay</span>
+                <span className="font-mono font-semibold tabular-nums text-ink-secondary">{Math.round(totalWidth)}%</span>
               </div>
-              <div className="relative h-3 overflow-hidden rounded-full border border-white bg-slate-100 shadow-inner">
-                <div className="absolute inset-0 bg-gradient-to-r from-brand/10 via-brand/5 to-transparent" />
-                <div
-                  className={`relative h-full rounded-full shadow-[0_1px_4px_rgba(24,38,25,0.16)] ${severity.bar} transition-all duration-500`}
-                  style={{ width: `${Math.max(percentage, 8)}%` }}
-                />
+              <div
+                className="h-3 overflow-hidden rounded-full bg-[#edf1eb] shadow-inner"
+                role="img"
+                aria-label={`${item.barangay}: ${item.total} total; ${urgent} open urgent; ${followUp} follow-up; ${other} other assessments`}
+              >
+                <div className="flex h-full overflow-hidden rounded-full transition-[width] duration-500" style={{ width: `${Math.max(totalWidth, item.total > 0 ? 2 : 0)}%` }}>
+                  {other > 0 && <span className="h-full bg-[#b9cbb9]" style={{ width: `${(other / item.total) * 100}%` }} />}
+                  {followUp > 0 && <span className="h-full bg-[#d5a843]" style={{ width: `${(followUp / item.total) * 100}%` }} />}
+                  {urgent > 0 && <span className="h-full bg-[#bd4935]" style={{ width: `${(urgent / item.total) * 100}%` }} />}
+                </div>
               </div>
             </div>
 
-            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-xl border border-slate-100 bg-slate-50/80 px-2 py-2">
-                <div className="font-mono text-base font-semibold text-ink">{item.total}</div>
-                <div className="text-[10px] uppercase tracking-[0.08em] text-ink-faint">Total</div>
-              </div>
-              <div className="rounded-xl border border-red-100 bg-red-50/80 px-2 py-2">
-                <div className="font-mono text-base font-semibold text-emergency-red">{item.urgent}</div>
-                <div className="text-[10px] uppercase tracking-[0.08em] text-emergency-red/80">Urgent</div>
-              </div>
-              <div className="rounded-xl border border-amber-100 bg-amber-50/80 px-2 py-2">
-                <div className="font-mono text-base font-semibold text-amber-700">{item.follow_up}</div>
-                <div className="text-[10px] uppercase tracking-[0.08em] text-amber-700/80">Follow-up</div>
-              </div>
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-[#edf0eb] pt-2.5 text-[10px]">
+              <span className="font-medium text-ink-secondary"><span className="font-mono font-semibold text-[#9e392b]">{item.urgent}</span> open urgent</span>
+              <span className="font-medium text-ink-secondary"><span className="font-mono font-semibold text-[#80631b]">{item.follow_up}</span> follow-up</span>
+              <span className="ml-auto font-mono text-ink-faint">{item.total} total</span>
             </div>
           </div>
         );
@@ -485,16 +809,21 @@ function BarangayRanking({ data }: { data: DashboardState["barangay_stats"] }) {
       {sorted.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-border-soft bg-surface/60 p-5 text-sm text-ink-muted">No barangay data available.</p>
       ) : (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border-soft pt-3">
-          <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint">
-            Showing {(page - 1) * pageSize + 1}-{Math.min(page * pageSize, sorted.length)} of {sorted.length}
+        <>
+          <p className="px-1 text-[10px] leading-relaxed text-ink-faint">
+            Other includes assessments outside the open-urgent and Yellow follow-up counts; it is not a separate risk classification.
           </p>
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={() => setPage((currentPage) => Math.max(1, currentPage - 1))} disabled={page === 1} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">Previous</button>
-            <span className="min-w-14 text-center font-mono text-[10px] text-ink-muted">{page} / {pageCount}</span>
-            <button type="button" onClick={() => setPage((currentPage) => Math.min(pageCount, currentPage + 1))} disabled={page === pageCount} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">Next</button>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border-soft pt-3">
+            <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint">
+              Showing {(page - 1) * pageSize + 1}-{Math.min(page * pageSize, sorted.length)} of {sorted.length}
+            </p>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => setPage((currentPage) => Math.max(1, currentPage - 1))} disabled={page === 1} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">Previous</button>
+              <span className="min-w-14 text-center font-mono text-[10px] text-ink-muted">{page} / {pageCount}</span>
+              <button type="button" onClick={() => setPage((currentPage) => Math.min(pageCount, currentPage + 1))} disabled={page === pageCount} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">Next</button>
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );
@@ -598,6 +927,20 @@ function DashboardPageContent() {
   const [refreshing, setRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [stats, setStats] = useState<DashboardState | null>(null);
+  const topSymptoms = stats?.top_symptoms ?? [];
+  const maxSymptomCount = Math.max(...topSymptoms.map((item) => item.count), 1);
+
+  function updateAssessmentActivity(updated: DashboardAssessmentItem) {
+    setStats((current) => current
+      ? {
+          ...current,
+          recent_assessments: current.recent_assessments.map((assessment) =>
+            assessment.id === updated.id ? updated : assessment,
+          ),
+        }
+      : current);
+  }
+
   const communityReport = useMemo(
     () => stats ? generateCommunityHealthReport(stats) : null,
     [stats],
@@ -865,19 +1208,46 @@ function DashboardPageContent() {
         </div>
       )}
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {stats?.summary_cards.map((card) => (
-          <StatCard key={card.label} label={card.label} value={card.value} hint={card.hint} />
-        ))}
+      <section aria-labelledby="dashboard-at-a-glance">
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3 px-1">
+          <div>
+            <h2 id="dashboard-at-a-glance" className="font-display text-xl font-semibold text-ink sm:text-2xl">At a glance</h2>
+            <p className="mt-1 text-sm text-ink-muted">A snapshot of local screening activity</p>
+          </div>
+          {updatedLabel && (
+            <span className="inline-flex items-center gap-2 rounded-full border border-[#dce6da] bg-white/80 px-3 py-1.5 text-xs font-medium text-ink-muted shadow-sm">
+              <span className="h-1.5 w-1.5 rounded-full bg-brand" aria-hidden="true" />
+              Updated {updatedLabel}
+            </span>
+          )}
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {stats?.summary_cards.map((card) => {
+            const label = card.label.toLowerCase();
+            const isUrgent = label.includes("urgent");
+            const icon = isUrgent
+              ? widgetIcons.alert
+              : label.includes("today") || label.includes("week")
+                ? widgetIcons.trend
+                : widgetIcons.book;
+            return (
+              <StatCard
+                key={card.label}
+                label={card.label}
+                value={card.value}
+                hint={card.hint}
+                accent={isUrgent ? "urgent" : "brand"}
+                icon={<span aria-hidden="true"><WidgetIcon path={icon} /></span>}
+              />
+            );
+          })}
+        </div>
       </section>
 
-      {/* Primary row: the thing MHO staff need to see first (who needs
-          follow-up) gets the wide, left-hand position — mirrors the
-          reference's "widest card leads" pattern, but content priority is
-          flipped to match what actually matters here. */}
-      <section className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
-        <div className="flex flex-col rounded-xl border-0 bg-red-tint shadow-sm transition-shadow hover:shadow-md">
-          <div className="flex items-start justify-between gap-3 border-b border-red-200 px-5 py-4">
+      <section className="grid items-start gap-6 lg:grid-cols-2 2xl:grid-cols-12">
+        <div className="min-w-0 space-y-6 lg:col-span-1 2xl:col-span-7">
+          <div className="relative flex max-h-[70vh] flex-col overflow-y-auto rounded-xl border-0 bg-red-tint shadow-sm transition-shadow hover:shadow-md">
+          <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-red-200 bg-red-tint/95 px-5 py-4 backdrop-blur">
             <div className="flex items-start gap-3">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-triage-red/10 text-emergency-red">
                 <WidgetIcon path={widgetIcons.alert} />
@@ -891,10 +1261,10 @@ function DashboardPageContent() {
               {redCases.length}
             </span>
           </div>
-          <div className="flex-1 space-y-3 p-5">
+          <div className="grid flex-1 gap-3 p-5 2xl:grid-cols-2">
             {redCases.length > 0 ? (
-              redCases.slice(0, 3).map((item) => (
-                <AssessmentCaseCard key={item.id} item={item} />
+              redCases.map((item) => (
+                <AssessmentCaseCard key={item.id} item={item} asOf={stats?.generated_at ?? item.created_at} onContactLogged={updateAssessmentActivity} />
               ))
             ) : (
               <p className="rounded-md border border-dashed border-border bg-surface p-5 text-sm text-ink-muted">
@@ -904,83 +1274,6 @@ function DashboardPageContent() {
           </div>
         </div>
 
-        <WidgetCard icon="pie" title="Case mix" subtitle="Current triage breakdown" updated={updatedLabel}>
-          <div className="space-y-6">
-            <DonutChart
-              centerLabel={String(caseMixTotal)}
-              centerSub="total cases"
-              size={148}
-              segments={[
-                { label: "Green", value: greenBreakdown, colorClass: "stroke-triage-green", dotClass: "bg-triage-green" },
-                { label: "Yellow", value: yellowBreakdown, colorClass: "stroke-triage-yellow", dotClass: "bg-triage-yellow" },
-                { label: "Red", value: redBreakdown, colorClass: "stroke-triage-red", dotClass: "bg-triage-red" },
-              ]}
-            />
-            <div className="rounded-2xl border border-border-soft bg-[linear-gradient(145deg,#f7faf5_0%,#ffffff_52%,#f1f6ef_100%)] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-brand-dark">Distribution by risk</p>
-                <span className="rounded-full border border-brand/15 bg-white/80 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.08em] text-ink-faint">Live</span>
-              </div>
-              <div className="mb-3 flex h-2.5 overflow-hidden rounded-full border border-white bg-white/70 shadow-inner" aria-label={`Risk mix: ${redBreakdown} red, ${yellowBreakdown} yellow, ${greenBreakdown} green`}>
-                <span className="bg-triage-red transition-all duration-500" style={{ width: `${(redBreakdown / (caseMixTotal || 1)) * 100}%` }} />
-                <span className="bg-triage-yellow transition-all duration-500" style={{ width: `${(yellowBreakdown / (caseMixTotal || 1)) * 100}%` }} />
-                <span className="bg-triage-green transition-all duration-500" style={{ width: `${(greenBreakdown / (caseMixTotal || 1)) * 100}%` }} />
-              </div>
-              <div className="space-y-2.5">
-                {[
-                  { label: "Red", value: redBreakdown, colorClass: "bg-triage-red", bg: "bg-red-50" },
-                  { label: "Yellow", value: yellowBreakdown, colorClass: "bg-triage-yellow", bg: "bg-yellow-50" },
-                  { label: "Green", value: greenBreakdown, colorClass: "bg-triage-green", bg: "bg-emerald-50" },
-                ].map((row) => {
-                  const total = greenBreakdown + yellowBreakdown + redBreakdown || 1;
-                  const percentage = (row.value / total) * 100;
-                  return (
-                    <div key={row.label} className={`rounded-xl border border-white/80 ${row.bg} p-2.5 shadow-[0_3px_10px_rgba(24,38,25,0.025)]`}>
-                      <div className="mb-1 flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-muted">
-                        <span>{row.label}</span>
-                        <span className="font-mono">{row.value} ({Math.round(percentage)}%)</span>
-                      </div>
-                      <div className="h-2.5 overflow-hidden rounded-full border border-white/80 bg-white/60 shadow-inner">
-                        <div className={`h-full rounded-full shadow-[0_1px_4px_rgba(24,38,25,0.14)] ${row.colorClass} transition-all duration-500`} style={{ width: `${percentage}%` }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-            <div className="grid gap-2 sm:grid-cols-3">
-              <div className="rounded-xl border border-brand/15 bg-brand-tint/45 px-3 py-3">
-                <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-brand-dark">Readout</p>
-                <p className="mt-1 text-xs font-medium leading-relaxed text-ink-secondary">{caseMixRead}</p>
-              </div>
-              <div className="rounded-xl border border-yellow-200 bg-yellow-50/70 px-3 py-3">
-                <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-amber-700">Follow-up pressure</p>
-                <p className="mt-1 text-xs font-medium leading-relaxed text-ink-secondary">{yellowShare}% of cases may need consultation.</p>
-              </div>
-              <div className={`rounded-xl border px-3 py-3 ${redBreakdown > 0 ? "border-red-200 bg-red-50/70" : "border-emerald-200 bg-emerald-50/70"}`}>
-                <p className={`font-mono text-[9px] font-semibold uppercase tracking-[0.1em] ${redBreakdown > 0 ? "text-emergency-red" : "text-emerald-700"}`}>Urgency</p>
-                <p className="mt-1 text-xs font-medium leading-relaxed text-ink-secondary">{redBreakdown > 0 ? `${redBreakdown} urgent case${redBreakdown === 1 ? "" : "s"} to review.` : "No urgent cases in this view."}</p>
-              </div>
-            </div>
-          </div>
-        </WidgetCard>
-      </section>
-
-      <section className="grid gap-6 xl:grid-cols-2">
-        <WidgetCard icon="trend" title="Previous weeks" subtitle="Eight-week case volume trend" updated={updatedLabel}>
-          {stats && stats.weekly_trend.length > 0 ? (
-            <TrendSparkline data={stats.weekly_trend} />
-          ) : (
-            <p className="text-sm text-ink-muted">No trend data available yet.</p>
-          )}
-        </WidgetCard>
-
-        <WidgetCard icon="map" title="Barangay risk overview" subtitle="Case distribution by location" updated={updatedLabel}>
-          <BarangayRanking data={barangayStats} />
-        </WidgetCard>
-      </section>
-
-      <section className="grid gap-6 xl:grid-cols-2">
         <WidgetCard
           icon="list"
           title="Recent assessments"
@@ -1002,7 +1295,7 @@ function DashboardPageContent() {
           <div className="space-y-3">
             {recentAssessments.length > 0 ? (
               visibleRecentAssessments.map((item) => (
-                <AssessmentCaseCard key={item.id} item={item} />
+                <AssessmentCaseCard key={item.id} item={item} asOf={stats?.generated_at ?? item.created_at} onContactLogged={updateAssessmentActivity} />
               ))
             ) : (
               <p className="rounded-md border border-dashed border-border bg-surface p-5 text-sm text-ink-muted">
@@ -1023,6 +1316,81 @@ function DashboardPageContent() {
             )}
           </div>
         </WidgetCard>
+        </div>
+
+        <aside className="min-w-0 space-y-6 lg:sticky lg:top-4 lg:col-span-1 lg:self-start 2xl:col-span-5">
+        <WidgetCard icon="trend" title="Overall severity mix" subtitle="All recorded assessments · all-time snapshot" updated={updatedLabel}>
+          <div className="space-y-6">
+            <div className="flex flex-wrap items-end justify-between gap-2 rounded-2xl border border-[#dce7dc] bg-[linear-gradient(145deg,#f7faf5_0%,#ffffff_58%,#f1f6ef_100%)] px-4 py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)]">
+              <div>
+                <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-brand-dark">All recorded assessments</p>
+                <p className="mt-1 text-xs text-ink-muted">Counts grouped by final triage level</p>
+              </div>
+              <p className="font-mono text-2xl font-semibold tabular-nums text-ink">{caseMixTotal}<span className="ml-1.5 text-xs font-medium text-ink-muted">total</span></p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {[
+                { label: "Green", detail: "Routine", value: greenBreakdown, color: "#73977c", tone: "border-[#d7e5d8] bg-[#f2f8f2]", text: "text-[#385c43]" },
+                { label: "Yellow", detail: "Follow-up", value: yellowBreakdown, color: "#d5a843", tone: "border-[#eee2bd] bg-[#fffaf0]", text: "text-[#80631b]" },
+                { label: "Red", detail: "Urgent", value: redBreakdown, color: "#bd4935", tone: "border-[#efdbd5] bg-[#fff6f3]", text: "text-[#9e392b]" },
+              ].map((item) => {
+                const percentage = caseMixTotal > 0 ? (item.value / caseMixTotal) * 100 : 0;
+                return (
+                  <div key={item.label} className={`rounded-2xl border p-3.5 shadow-[0_6px_18px_rgba(24,38,25,0.035)] ${item.tone}`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className={`text-xs font-bold uppercase tracking-[0.08em] ${item.text}`}>{item.label}</p>
+                        <p className="mt-0.5 text-[11px] text-ink-muted">{item.detail}</p>
+                      </div>
+                      <span className="font-mono text-xs font-semibold tabular-nums text-ink-secondary">{Math.round(percentage)}%</span>
+                    </div>
+                    <p className={`mt-3 font-display text-3xl font-semibold leading-none tabular-nums ${item.text}`}>{item.value}</p>
+                    <p className="mt-1 text-[10px] text-ink-muted">{item.value === 1 ? "assessment" : "assessments"}</p>
+                    <div
+                      className="mt-3 h-2 overflow-hidden rounded-full bg-white/80 shadow-inner"
+                      role="progressbar"
+                      aria-label={`${item.label} share of all recorded assessments`}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={Math.round(percentage)}
+                    >
+                      <div className="h-full rounded-full transition-[width] duration-500" style={{ width: `${percentage}%`, backgroundColor: item.color }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="px-1 text-[11px] leading-relaxed text-ink-muted">
+              Unlike the weekly severity chart, this is a cumulative snapshot; it does not show when cases were recorded.
+            </p>
+            <div className="grid gap-2 sm:grid-cols-3">
+              <div className="rounded-xl border border-brand/15 bg-brand-tint/45 px-3 py-3">
+                <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-brand-dark">Readout</p>
+                <p className="mt-1 text-xs font-medium leading-relaxed text-ink-secondary">{caseMixRead}</p>
+              </div>
+              <div className="rounded-xl border border-yellow-200 bg-yellow-50/70 px-3 py-3">
+                <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-amber-700">Follow-up pressure</p>
+                <p className="mt-1 text-xs font-medium leading-relaxed text-ink-secondary">{yellowShare}% of cases may need consultation.</p>
+              </div>
+              <div className={`rounded-xl border px-3 py-3 ${redBreakdown > 0 ? "border-red-200 bg-red-50/70" : "border-emerald-200 bg-emerald-50/70"}`}>
+                <p className={`font-mono text-[9px] font-semibold uppercase tracking-[0.1em] ${redBreakdown > 0 ? "text-emergency-red" : "text-emerald-700"}`}>Urgency</p>
+                <p className="mt-1 text-xs font-medium leading-relaxed text-ink-secondary">{redBreakdown > 0 ? `${redBreakdown} RED assessment${redBreakdown === 1 ? "" : "s"} recorded overall.` : "No RED assessments recorded overall."}</p>
+              </div>
+            </div>
+          </div>
+        </WidgetCard>
+
+        <WidgetCard icon="trend" title="Weekly severity trend" subtitle="Severity changes over time · current week to date" updated={updatedLabel}>
+          {stats && stats.weekly_trend.length > 0 ? (
+            <WeeklySeverityChart data={stats.weekly_trend} />
+          ) : (
+            <p className="text-sm text-ink-muted">No trend data available yet.</p>
+          )}
+        </WidgetCard>
+
+        <WidgetCard icon="map" title="Barangay risk overview" subtitle="Case distribution by location" updated={updatedLabel}>
+          <BarangayRanking data={barangayStats} />
+        </WidgetCard>
 
         <WidgetCard 
           icon="pie" 
@@ -1042,45 +1410,96 @@ function DashboardPageContent() {
             </Link>
           }
         >
-          <div className="space-y-3">
-            {(stats?.top_symptoms.length ? stats.top_symptoms.slice(0, 3) : []).map((item, index) => {
-              const maxCount = Math.max(...(stats?.top_symptoms ?? []).map(s => s.count), 1);
-              const percentage = (item.count / maxCount) * 100;
-              
-              return (
-                <div
-                  key={item.symptom}
-                  className="rounded-2xl border border-border-soft bg-gradient-to-r from-white via-slate-50 to-white p-3 shadow-[0_8px_24px_rgba(15,23,42,0.04)]"
-                >
-                  <div className="flex items-start justify-between gap-3 mb-2">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand/10 font-mono text-xs font-bold text-brand-dark">
-                        {index + 1}
-                      </div>
-                      <p className="truncate font-medium text-ink">{item.symptom}</p>
-                    </div>
-                    <span className="inline-flex shrink-0 rounded-full bg-brand/10 px-2.5 py-1 font-mono text-xs font-semibold text-brand-dark">
-                      {item.count}
+          <div className="space-y-4">
+            {topSymptoms.length > 0 ? (
+              <>
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-[#e4ebe1] bg-[#f7faf6] px-3.5 py-2.5">
+                  <span className="inline-flex items-center gap-2 text-xs font-semibold text-[#405342]">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-white text-brand-dark shadow-sm ring-1 ring-[#e2e9df]">
+                      <WidgetIcon path={widgetIcons.trend} />
                     </span>
-                  </div>
-                  
-                  <div className="relative h-2.5 overflow-hidden rounded-full bg-slate-100">
-                    <div className="absolute inset-0 bg-gradient-to-r from-brand/10 via-brand/5 to-transparent" />
-                    <div
-                      className="relative h-full rounded-full bg-brand transition-all duration-500"
-                      style={{ width: `${Math.max(percentage, 8)}%` }}
-                    />
-                  </div>
+                    Ranked by reported frequency
+                  </span>
+                  <span className="shrink-0 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-[#788575]">
+                    Top {Math.min(topSymptoms.length, 3)}
+                  </span>
                 </div>
-              );
-            })}
-            {(!stats || stats.top_symptoms.length === 0) && (
-              <p className="rounded-md border border-dashed border-border bg-surface p-5 text-sm text-ink-muted">
-                No symptom data available.
-              </p>
+                <div className="space-y-2.5">
+                  {topSymptoms.slice(0, 3).map((item, index) => {
+                    const percentage = Math.min((item.count / maxSymptomCount) * 100, 100);
+                    const rankTone = index === 0
+                      ? {
+                          badge: "border-[#d4e4d6] bg-[#edf6ee] text-[#286447]",
+                          bar: "from-[#286447] to-[#70a47a]",
+                          track: "bg-[#eaf1e9]",
+                        }
+                      : index === 1
+                        ? {
+                            badge: "border-[#e8e1cf] bg-[#f8f5eb] text-[#79643a]",
+                            bar: "from-[#8c7950] to-[#c2ad78]",
+                            track: "bg-[#f1eee5]",
+                          }
+                        : {
+                            badge: "border-[#dfe5e0] bg-[#f2f5f2] text-[#66736a]",
+                            bar: "from-[#66786c] to-[#a9b7aa]",
+                            track: "bg-[#edf1ed]",
+                          };
+
+                    return (
+                      <div
+                        key={item.symptom}
+                        className="group/metric rounded-2xl border border-[#e7ece4] bg-white px-3.5 py-3 transition duration-200 hover:border-[#cbdacb] hover:bg-[#fcfdfb] hover:shadow-[0_8px_20px_rgba(24,38,25,0.045)] sm:px-4"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className={cn(
+                            "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border font-mono text-xs font-bold shadow-sm",
+                            rankTone.badge,
+                          )}>
+                            {String(index + 1).padStart(2, "0")}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold text-[#263629]">{item.symptom}</p>
+                            <div
+                              className={cn("mt-2 h-1.5 overflow-hidden rounded-full", rankTone.track)}
+                              role="progressbar"
+                              aria-label={`${item.symptom} relative to the most reported symptom`}
+                              aria-valuemin={0}
+                              aria-valuemax={100}
+                              aria-valuenow={Math.round(percentage)}
+                            >
+                              <div
+                                className={cn("h-full rounded-full bg-gradient-to-r transition-[width] duration-500", rankTone.bar)}
+                                style={{ width: `${percentage}%` }}
+                              />
+                            </div>
+                          </div>
+                          <span className="flex min-w-[68px] shrink-0 flex-col items-end">
+                            <span className="font-display text-lg font-semibold leading-none tracking-tight text-[#233328]">{item.count}</span>
+                            <span className="mt-1 font-mono text-[9px] font-medium uppercase tracking-[0.1em] text-[#899386]">
+                              {item.count === 1 ? "report" : "reports"}
+                            </span>
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="px-1 text-[11px] leading-relaxed text-[#7b8778]">
+                  Bar length compares each symptom with the most frequently reported one.
+                </p>
+              </>
+            ) : (
+              <div className="flex min-h-36 flex-col items-center justify-center rounded-2xl border border-dashed border-[#dce5d8] bg-[linear-gradient(145deg,#fbfcfa_0%,#f4f8f1_100%)] px-5 py-7 text-center">
+                <span className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#e2e9df] bg-white text-[#71816d] shadow-sm">
+                  <WidgetIcon path={widgetIcons.pie} />
+                </span>
+                <p className="mt-3 text-sm font-semibold text-[#344536]">No symptom data yet</p>
+                <p className="mt-1 max-w-xs text-xs leading-relaxed text-[#7b8778]">Reported symptoms will appear here as assessments are completed.</p>
+              </div>
             )}
           </div>
         </WidgetCard>
+        </aside>
       </section>
 
       <WidgetCard
@@ -1194,7 +1613,7 @@ function DashboardPageContent() {
       <div className="space-y-3">
         {filteredAssessments.length > 0 ? (
           paginatedAssessments.map((item) => (
-            <AssessmentCaseCard key={item.id} item={item} />
+            <AssessmentCaseCard key={item.id} item={item} asOf={stats?.generated_at ?? item.created_at} onContactLogged={updateAssessmentActivity} />
           ))
         ) : (
           <p className="rounded-md border border-dashed border-border bg-surface p-5 text-sm text-ink-muted">No assessment records match the selected filters.</p>
@@ -1219,8 +1638,8 @@ function DashboardPageContent() {
         <RiskBreakdownBar green={greenBreakdown} yellow={yellowBreakdown} red={redBreakdown} />
       </Panel>
       {stats && stats.weekly_trend.length > 0 && (
-        <Panel title="Case volume trend" subtitle="Current week and previous 7 weeks">
-          <TrendSparkline data={stats.weekly_trend} />
+        <Panel title="Weekly cases by severity" subtitle="Green, yellow, and red assessments; current week is week to date">
+          <WeeklySeverityChart data={stats.weekly_trend} />
         </Panel>
       )}
       <Panel title="Symptom frequency" badge={<TagBadge>Current patterns</TagBadge>}>
@@ -1384,7 +1803,7 @@ function DashboardPageContent() {
   if (loading) {
     return (
       <>
-        <PageMain wide>
+        <PageMain wide className="max-w-[1600px] xl:max-w-[1600px] 2xl:max-w-[1600px]">
           <div className="space-y-6" aria-busy="true" aria-label="Loading dashboard">
             <div className="premium-skeleton h-32 rounded-[24px]" />
             <div className="grid gap-6 xl:grid-cols-[220px_minmax(0,1fr)]">
@@ -1433,18 +1852,32 @@ function DashboardPageContent() {
       <div className="min-h-screen bg-surface">
         <PageHeader dashboardAlertCount={redCases.length} />
         <div>
-          <PageMain wide>
+          <PageMain wide className="max-w-[1600px] xl:max-w-[1600px] 2xl:max-w-[1600px]">
             <div className="overflow-hidden rounded-[30px] border border-[#d1d9cf] bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.28),_transparent_30%),linear-gradient(135deg,#183D2D_0%,#1F4A36_42%,#2E6A52_100%)] p-px shadow-[0_28px_60px_rgba(23,63,45,0.18)]">
               <HeroBanner
                 eyebrow="For municipal health office"
                 title="Community health overview"
                 subtitle="Track incoming risk signals, prioritize urgent cases, and understand community health trends across barangays."
+                meta={
+                  <>
+                    <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-medium text-white/90">
+                      <span className="h-1.5 w-1.5 rounded-full bg-[#c7dca8]" aria-hidden="true" />
+                      Dashboard snapshot
+                    </span>
+                    {redCases.length > 0 && (
+                      <span className="inline-flex items-center gap-2 rounded-full border border-red-100/25 bg-red-950/25 px-3 py-1.5 text-xs font-semibold text-red-50">
+                        <WidgetIcon path={widgetIcons.alert} />
+                        {redCases.length} urgent {redCases.length === 1 ? "case" : "cases"}
+                      </span>
+                    )}
+                  </>
+                }
                 actions={
                   <>
-                    <PrimaryButton type="button" onClick={() => void refreshSummary()} disabled={refreshing} className="rounded-xl border border-white/35 bg-white/12 px-5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(8,35,22,0.12)] hover:bg-white/20">
+                    <PrimaryButton type="button" onClick={() => void refreshSummary()} disabled={refreshing} className="rounded-xl border border-white/35 bg-white/12 px-5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(8,35,22,0.12)] hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70">
                       {refreshing ? "Refreshing…" : "Refresh data"}
                     </PrimaryButton>
-                    <PrimaryButton type="button" onClick={generateReport} disabled={!stats} className="dashboard-report-button w-full rounded-xl px-5 text-sm font-semibold sm:w-auto">
+                    <PrimaryButton type="button" onClick={generateReport} disabled={!stats} className="dashboard-report-button w-full rounded-xl px-5 text-sm font-semibold shadow-[0_8px_20px_rgba(8,35,22,0.15)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 sm:w-auto">
                       Generate report
                     </PrimaryButton>
                   </>
@@ -1453,17 +1886,17 @@ function DashboardPageContent() {
             </div>
 
             <div className="mt-6 hidden md:block">
-              <nav aria-label="Dashboard sections" className="mb-4 flex flex-wrap gap-2 rounded-full border border-[#d7e0d2] bg-[linear-gradient(180deg,#fbf9f2_0%,#f2f6ee_100%)] p-1.5 shadow-[0_8px_20px_rgba(20,31,25,0.04)]">
+              <nav aria-label="Dashboard sections" className="mb-4 flex flex-wrap gap-1.5 rounded-[22px] border border-[#d7e0d2] bg-white/80 p-1.5 shadow-[0_10px_28px_rgba(20,31,25,0.06)] backdrop-blur">
                 {SECTIONS.map((section) => (
                   <button
                     key={section.id}
                     type="button"
                     onClick={() => setActiveSection(section.id)}
                     className={cn(
-                      "rounded-full px-4 py-2 text-sm font-semibold transition-all duration-200",
+                      "rounded-[16px] px-4 py-2.5 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/35",
                       activeSection === section.id
-                        ? "bg-brand text-brand-foreground shadow-[0_8px_20px_rgba(47,107,79,0.18)]"
-                        : "text-ink-secondary hover:bg-white hover:text-ink",
+                        ? "bg-brand text-brand-foreground shadow-[0_8px_20px_rgba(47,107,79,0.2)]"
+                        : "text-ink-secondary hover:bg-brand-tint/55 hover:text-ink",
                     )}
                   >
                     {section.label}

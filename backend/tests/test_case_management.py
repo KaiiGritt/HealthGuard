@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 import pytest
 from fastapi import HTTPException
 from sqlalchemy import create_engine, event, select
@@ -8,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.database import Base
 from app.models import Assessment, AssessmentCaseActivity, PreMedication, User
 from app.routers import assessment
-from app.routers.assessment import _build_barangay_stats, add_assessment_case_activity, history
+from app.routers.assessment import _build_barangay_stats, _build_weekly_trend, add_assessment_case_activity, history
 from app.schemas import AssessmentCaseActivityIn
 
 
@@ -68,6 +70,7 @@ def test_case_activity_is_persisted_and_returned(db_session: Session) -> None:
     assert response.case_status == "New"
     assert response.case_activities[0].kind == "contact_attempt"
     assert response.case_activities[0].details == "Called; no answer."
+    assert response.case_activities[0].actor_name == "MHO Staff"
 
     updated = add_assessment_case_activity(
         assessment.id,
@@ -184,3 +187,29 @@ def test_resolved_red_case_is_removed_from_open_barangay_count(db_session: Sessi
     stats = _build_barangay_stats(db_session)
     sample_barangay = next(item for item in stats if item.barangay == "Sample")
     assert sample_barangay.urgent == 0
+
+
+def test_weekly_trend_includes_counts_by_triage_severity(
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        assessment,
+        "_utc_now",
+        lambda: datetime(2026, 11, 5, 12, 0, tzinfo=timezone.utc),
+    )
+    db_session.add_all(
+        [
+            Assessment(risk_level="GREEN", created_at=datetime(2026, 10, 26, 9, 0)),
+            Assessment(risk_level="RED", created_at=datetime(2026, 11, 2, 9, 0)),
+            Assessment(risk_level="YELLOW", created_at=datetime(2026, 11, 3, 9, 0)),
+        ]
+    )
+    db_session.commit()
+
+    trend = _build_weekly_trend(db_session)
+
+    assert trend[-2].count == 1
+    assert (trend[-2].green, trend[-2].yellow, trend[-2].red) == (1, 0, 0)
+    assert trend[-1].count == 2
+    assert (trend[-1].green, trend[-1].yellow, trend[-1].red) == (0, 1, 1)

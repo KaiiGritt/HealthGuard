@@ -134,14 +134,19 @@ def _build_weekly_trend(db: Session) -> list[WeeklyTrendItem]:
     current_week_start = today - timedelta(days=today.weekday())
     start = current_week_start - timedelta(weeks=7)
     rows = db.execute(
-        select(Assessment.created_at)
+        select(Assessment.created_at, Assessment.risk_level)
         .where(func.date(Assessment.created_at) >= start)
     ).all()
     counts: Counter[str] = Counter()
-    for (created_at,) in rows:
+    severity_counts: Counter[tuple[str, str]] = Counter()
+    for created_at, risk_level in rows:
         created_date = created_at.date() if hasattr(created_at, "date") else datetime.fromisoformat(str(created_at)).date()
         week_start = created_date - timedelta(days=created_date.weekday())
-        counts[week_start.isoformat()] += 1
+        week_key = week_start.isoformat()
+        counts[week_key] += 1
+        severity = str(risk_level).upper()
+        if severity in {"GREEN", "YELLOW", "RED"}:
+            severity_counts[(week_key, severity)] += 1
 
     trend: list[WeeklyTrendItem] = []
     for offset in range(7, -1, -1):
@@ -152,6 +157,9 @@ def _build_weekly_trend(db: Session) -> list[WeeklyTrendItem]:
                 label="This week" if offset == 0 else f"{offset} week{'s' if offset != 1 else ''} ago",
                 date=key,
                 count=counts.get(key, 0),
+                green=severity_counts[(key, "GREEN")],
+                yellow=severity_counts[(key, "YELLOW")],
+                red=severity_counts[(key, "RED")],
             )
         )
     return trend
@@ -403,6 +411,9 @@ def dashboard_summary(
                 Assessment.handled_at,
                 Assessment.symptom_extraction,
                 User.age,
+                Assessment.reason,
+                Assessment.recommendation,
+                Assessment.triggered_rules,
             )
             .join(User, Assessment.user_id == User.id, isouter=True)
             .order_by(Assessment.created_at.desc())
@@ -413,18 +424,18 @@ def dashboard_summary(
 
     activity_rows = (
         db.execute(
-            select(AssessmentCaseActivity)
+            select(AssessmentCaseActivity, User.full_name)
+            .join(User, AssessmentCaseActivity.user_id == User.id)
             .where(AssessmentCaseActivity.assessment_id.in_([row[0] for row in recent_rows]))
             .order_by(AssessmentCaseActivity.id.desc())
         )
-        .scalars()
         .all()
         if recent_rows
         else []
     )
-    activity_by_assessment: dict[int, list[AssessmentCaseActivity]] = {}
-    for activity in activity_rows:
-        activity_by_assessment.setdefault(activity.assessment_id, []).append(activity)
+    activity_by_assessment: dict[int, list[tuple[AssessmentCaseActivity, str]]] = {}
+    for activity, actor_name in activity_rows:
+        activity_by_assessment.setdefault(activity.assessment_id, []).append((activity, actor_name))
 
     recent_assessments = []
     for row in recent_rows:
@@ -450,15 +461,20 @@ def dashboard_summary(
                 case_status=next(
                     (
                         activity.status
-                        for activity in activity_by_assessment.get(row[0], [])
+                        for activity, _ in activity_by_assessment.get(row[0], [])
                         if activity.kind == "status"
                     ),
                     "New",
                 ),
                 case_activities=[
-                    AssessmentCaseActivityOut.model_validate(activity, from_attributes=True)
-                    for activity in activity_by_assessment.get(row[0], [])
+                    AssessmentCaseActivityOut.model_validate(activity, from_attributes=True).model_copy(
+                        update={"actor_name": actor_name}
+                    )
+                    for activity, actor_name in activity_by_assessment.get(row[0], [])
                 ],
+                reason=row[12] or "",
+                recommendation=row[13] or "",
+                triggered_rules=row[14] or [],
                 case_summary=CaseSummaryOut(
                     **build_case_summary(
                         chief_complaint=row[1],
@@ -1162,6 +1178,9 @@ def mark_assessment_handled(
             User.phone_number,
             Assessment.handled_at,
             Assessment.symptom_extraction,
+            Assessment.reason,
+            Assessment.recommendation,
+            Assessment.triggered_rules,
         )
         .join(User, Assessment.user_id == User.id, isouter=True)
         .where(Assessment.id == assessment_id)
@@ -1181,6 +1200,9 @@ def mark_assessment_handled(
         phone_number=row[8],
         handled=row[9] is not None,
         handled_at=row[9],
+        reason=row[11] or "",
+        recommendation=row[12] or "",
+        triggered_rules=row[13] or [],
         case_summary=CaseSummaryOut(
             **build_case_summary(
                 chief_complaint=row[1],
@@ -1229,17 +1251,20 @@ def add_assessment_case_activity(
             User.phone_number,
             Assessment.handled_at,
             Assessment.symptom_extraction,
+            Assessment.reason,
+            Assessment.recommendation,
+            Assessment.triggered_rules,
         )
         .join(User, Assessment.user_id == User.id, isouter=True)
         .where(Assessment.id == assessment_id)
     ).one()
     activities = (
         db.execute(
-            select(AssessmentCaseActivity)
+            select(AssessmentCaseActivity, User.full_name)
+            .join(User, AssessmentCaseActivity.user_id == User.id)
             .where(AssessmentCaseActivity.assessment_id == assessment_id)
             .order_by(AssessmentCaseActivity.id.desc())
         )
-        .scalars()
         .all()
     )
     note = (row[1] or "No details provided").strip() or "No details provided"
@@ -1256,11 +1281,16 @@ def add_assessment_case_activity(
         phone_number=row[8],
         handled=row[9] is not None,
         handled_at=row[9],
-        case_status=next((item.status for item in activities if item.kind == "status"), "New"),
+        case_status=next((item.status for item, _ in activities if item.kind == "status"), "New"),
         case_activities=[
-            AssessmentCaseActivityOut.model_validate(item, from_attributes=True)
-            for item in activities
+            AssessmentCaseActivityOut.model_validate(item, from_attributes=True).model_copy(
+                update={"actor_name": actor_name}
+            )
+            for item, actor_name in activities
         ],
+        reason=row[11] or "",
+        recommendation=row[12] or "",
+        triggered_rules=row[13] or [],
         case_summary=CaseSummaryOut(
             **build_case_summary(
                 chief_complaint=row[1],

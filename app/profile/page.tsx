@@ -439,14 +439,16 @@ export default function ProfilePage() {
       <PageHeader />
       <PageMain>
         {/* Record card */}
-        <section className="motion-safe:animate-[recordReveal_0.6s_ease-out] relative overflow-hidden rounded-[30px] border border-[#D1D9CF] bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.28),_transparent_30%),linear-gradient(135deg,#183D2D_0%,#1F4A36_42%,#2E6A52_100%)] text-brand-foreground shadow-[0_28px_60px_rgba(23,63,45,0.18)]">
-          <div className="absolute inset-x-0 top-0 h-1.5 bg-[#F4D58D]" />
-          <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-4 p-4 sm:gap-6 sm:p-7 md:grid-cols-[auto_1fr_auto] md:gap-10 lg:p-10">
+        <section aria-label="Profile identity" className="motion-safe:animate-[recordReveal_0.6s_ease-out] relative isolate overflow-hidden rounded-[30px] border border-[#D1D9CF] bg-[radial-gradient(ellipse_at_12%_0%,rgba(255,255,255,0.16),transparent_34%),radial-gradient(ellipse_at_92%_100%,rgba(199,179,122,0.15),transparent_35%),linear-gradient(135deg,#153727_0%,#1F4A36_48%,#326C53_100%)] text-brand-foreground shadow-[0_28px_60px_rgba(23,63,45,0.18)]">
+          <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-[#E9D28F] via-[#F4D58D] to-[#D5B96A]" aria-hidden="true" />
+          <div className="pointer-events-none absolute -right-20 -top-24 -z-10 h-72 w-72 rounded-full border border-white/10 bg-white/[0.03]" aria-hidden="true" />
+          <div className="pointer-events-none absolute -bottom-28 right-20 -z-10 h-64 w-64 rounded-full border border-white/[0.08]" aria-hidden="true" />
+          <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-4 p-5 sm:gap-7 sm:p-8 md:grid-cols-[auto_1fr_auto] md:gap-10 lg:p-10">
             <div className="relative flex w-fit flex-none">
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="group relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-[24px] border border-white/35 bg-white/10 font-display text-2xl font-semibold shadow-[0_16px_34px_rgba(8,35,22,0.22)] ring-4 ring-white/10 transition duration-200 hover:scale-[1.03] hover:ring-white/25 sm:h-28 sm:w-28 sm:rounded-[28px] sm:text-3xl"
+                className="group relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-[24px] border border-white/40 bg-white/10 font-display text-2xl font-semibold shadow-[0_18px_38px_rgba(8,35,22,0.28)] ring-4 ring-white/10 transition duration-200 hover:scale-[1.03] hover:ring-white/25 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#F4D58D]/60 sm:h-28 sm:w-28 sm:rounded-[28px] sm:text-3xl"
                 aria-label="Upload profile photo"
               >
                 {photoUrl ? (
@@ -465,27 +467,28 @@ export default function ProfilePage() {
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoSelect} />
 
             <div className="min-w-0">
-              <h1 className="mt-1 break-words font-display text-xl font-semibold leading-tight sm:text-4xl">
+              <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-[#E5D69F] sm:text-[10px]">Account profile</p>
+              <h1 className="mt-2 break-words font-display text-2xl font-semibold leading-tight tracking-[-0.025em] text-white sm:text-4xl">
                 {user.full_name}
               </h1>
-              <p className="mt-2 max-w-md text-xs leading-relaxed text-brand-foreground/80 sm:mt-3 sm:text-sm">
+              <p className="mt-2 max-w-xl text-xs leading-relaxed text-white/75 sm:mt-3 sm:text-sm">
                 These details travel with every assessment you run, so a case can be traced back
                 to the right patient and barangay.
               </p>
             </div>
 
-            <div className="col-span-2 grid grid-cols-2 gap-2 border-t border-white/20 pt-4 text-sm min-[420px]:grid-cols-3 sm:pt-6 md:col-span-1 md:grid-cols-1 md:border-t-0 md:border-l md:pl-8 md:pt-0">
-              <div className="min-w-0 rounded-2xl border border-white/15 bg-white/10 px-2.5 py-2.5 backdrop-blur-sm sm:px-3">
-                <p className="font-mono text-[8px] uppercase tracking-[0.08em] text-brand-foreground/60 sm:text-[9px] sm:tracking-[0.1em]">Role</p>
-                <p className="mt-1 font-semibold capitalize text-white">{user.role}</p>
+            <div className="col-span-2 grid grid-cols-2 gap-2 border-t border-white/15 pt-4 text-sm min-[420px]:grid-cols-3 sm:gap-2.5 sm:pt-6 md:col-span-1 md:grid-cols-1 md:border-t-0 md:border-l md:pl-8 md:pt-0">
+              <div className="min-w-0 rounded-2xl border border-white/15 bg-white/[0.08] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-sm sm:px-3.5">
+                <p className="font-mono text-[8px] font-medium uppercase tracking-[0.12em] text-white/55 sm:text-[9px]">Role</p>
+                <p className="mt-1.5 font-semibold capitalize text-white">{user.role}</p>
               </div>
-              <div className="min-w-0 rounded-2xl border border-white/15 bg-white/10 px-2.5 py-2.5 backdrop-blur-sm sm:px-3">
-                <p className="font-mono text-[8px] uppercase tracking-[0.08em] text-brand-foreground/60 sm:text-[9px] sm:tracking-[0.1em]">Record no.</p>
-                <p className="mt-1 break-all font-mono text-[11px] font-semibold tracking-tight text-white sm:text-xs">{recordNo}</p>
+              <div className="min-w-0 rounded-2xl border border-white/15 bg-white/[0.08] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-sm sm:px-3.5">
+                <p className="font-mono text-[8px] font-medium uppercase tracking-[0.12em] text-white/55 sm:text-[9px]">Record no.</p>
+                <p className="mt-1.5 break-all font-mono text-[11px] font-semibold tracking-tight text-white sm:text-xs">{recordNo}</p>
               </div>
-              <div className="min-w-0 rounded-2xl border border-white/15 bg-white/10 px-2.5 py-2.5 backdrop-blur-sm sm:px-3">
-                <p className="font-mono text-[8px] uppercase tracking-[0.08em] text-brand-foreground/60 sm:text-[9px] sm:tracking-[0.1em]">Joined</p>
-                <p className="mt-1 font-semibold text-white">{joinedDate}</p>
+              <div className="min-w-0 rounded-2xl border border-white/15 bg-white/[0.08] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-sm sm:px-3.5">
+                <p className="font-mono text-[8px] font-medium uppercase tracking-[0.12em] text-white/55 sm:text-[9px]">Joined</p>
+                <p className="mt-1.5 font-semibold text-white">{joinedDate}</p>
               </div>
             </div>
           </div>
@@ -507,7 +510,7 @@ export default function ProfilePage() {
         <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_340px]">
           <div className="space-y-6">
             {/* Profile form */}
-            <div className="relative overflow-hidden rounded-[24px] border border-[#D5E0D3] bg-[linear-gradient(145deg,#FFFFFF_0%,#FBFCF9_54%,#F2F7EF_100%)] p-5 shadow-[0_22px_48px_rgba(15,23,42,0.07)] ring-1 ring-white/80 sm:p-7 lg:p-8">
+            <div className="relative overflow-hidden rounded-[26px] border border-[#D5E0D3] bg-[radial-gradient(circle_at_100%_0%,rgba(199,179,122,0.10),transparent_28%),linear-gradient(145deg,#FFFFFF_0%,#FBFCF9_54%,#F2F7EF_100%)] p-5 shadow-[0_22px_48px_rgba(15,23,42,0.07)] ring-1 ring-white/80 transition-shadow duration-200 hover:shadow-[0_26px_56px_rgba(15,23,42,0.09)] sm:p-7 lg:p-8">
               <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" />
               <div className="flex items-start gap-3 border-b border-[#E1E9DF] pb-5">
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-brand/15 bg-brand-tint text-brand shadow-[0_6px_16px_rgba(47,107,79,0.1)]">
@@ -601,7 +604,7 @@ export default function ProfilePage() {
             </div>
 
             {/* Password */}
-            <div className="relative overflow-hidden rounded-[24px] border border-[#DDE7DB] bg-[radial-gradient(circle_at_top_right,_rgba(244,213,141,0.14),_transparent_28%),linear-gradient(180deg,#FFFFFF_0%,#F7FAF4_100%)] p-5 shadow-[0_18px_40px_rgba(15,23,42,0.05)] sm:p-7 lg:p-8">
+            <div className="relative overflow-hidden rounded-[26px] border border-[#DDE7DB] bg-[radial-gradient(circle_at_top_right,_rgba(244,213,141,0.14),_transparent_28%),linear-gradient(180deg,#FFFFFF_0%,#F7FAF4_100%)] p-5 shadow-[0_18px_40px_rgba(15,23,42,0.05)] transition-shadow duration-200 hover:shadow-[0_24px_48px_rgba(15,23,42,0.075)] sm:p-7 lg:p-8">
               <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" />
               <div className="flex items-start gap-4">
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-brand/15 bg-brand-tint text-brand-dark shadow-sm">

@@ -164,6 +164,7 @@ class AssessmentCaseActivityOut(BaseModel):
     status: str | None = None
     details: str | None = None
     created_at: datetime
+    actor_name: str | None = None
 
 
 class CaseSummaryOut(BaseModel):
@@ -188,6 +189,9 @@ class DashboardAssessmentItem(BaseModel):
     handled_at: datetime | None = None
     case_status: str = "New"
     case_activities: list["AssessmentCaseActivityOut"] = Field(default_factory=list)
+    reason: str = ""
+    recommendation: str = ""
+    triggered_rules: list[TriggeredRule] = Field(default_factory=list)
     case_summary: CaseSummaryOut
 
 
@@ -230,6 +234,9 @@ class WeeklyTrendItem(BaseModel):
     label: str
     date: str
     count: int
+    green: int = 0
+    yellow: int = 0
+    red: int = 0
 
 
 class BarangayStatItem(BaseModel):
