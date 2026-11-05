@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import and_, case, func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from ..case_summary import build_case_summary
 from ..database import get_db
@@ -1082,22 +1082,29 @@ def history(
 ) -> list[Assessment]:
     if user is None:
         return []
-    stmt = select(Assessment).order_by(Assessment.created_at.desc()).limit(limit)
-    if user is not None:
-        # Logged-in users see only their own assessments.
-        stmt = (
-            select(Assessment)
-            .where(Assessment.user_id == user.id)
-            .order_by(Assessment.created_at.desc())
-            .limit(limit)
+    stmt = (
+        select(Assessment)
+        .options(
+            selectinload(Assessment.assessment_symptoms).joinedload(AssessmentSymptom.symptom),
+            selectinload(Assessment.pre_medications),
         )
+        .where(Assessment.user_id == user.id)
+        .order_by(Assessment.created_at.desc())
+        .limit(limit)
+    )
 
     records = list(db.execute(stmt).scalars().all())
     response = []
     for record in records:
-        terms = _assessment_symptom_terms(db, record)
+        terms = [
+            str(item.symptom.name).strip().lower()
+            for item in record.assessment_symptoms
+            if item.symptom and str(item.symptom.name).strip()
+        ]
+        if not terms:
+            terms = [str(item).strip().lower() for item in (record.detected_symptoms or []) if str(item).strip()]
         guide = build_premedication_guide(record.risk_level, terms)
-        db_guide = get_premedication_for_assessment(db, record.id)
+        db_guide = record.pre_medications[0] if record.pre_medications else None
         response.append(
             AssessmentOut(
                 id=record.id,

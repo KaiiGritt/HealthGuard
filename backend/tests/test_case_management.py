@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import pytest
 from fastapi import HTTPException
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, event, select
 from sqlalchemy.orm import Session
 
 from app.database import Base
-from app.models import Assessment, AssessmentCaseActivity, User
+from app.models import Assessment, AssessmentCaseActivity, PreMedication, User
 from app.routers import assessment
-from app.routers.assessment import _build_barangay_stats, add_assessment_case_activity
+from app.routers.assessment import _build_barangay_stats, add_assessment_case_activity, history
 from app.schemas import AssessmentCaseActivityIn
 
 
@@ -77,6 +77,57 @@ def test_case_activity_is_persisted_and_returned(db_session: Session) -> None:
     )
     assert updated.case_status == "In progress"
     assert len(updated.case_activities) == 2
+
+
+def test_history_loads_related_data_without_per_record_queries(db_session: Session) -> None:
+    resident = User(
+        full_name="Resident",
+        email="resident@example.test",
+        password_hash="test",
+        role="resident",
+    )
+    records = [
+        Assessment(
+            risk_level="GREEN",
+            detected_symptoms=["cough"],
+        )
+        for _ in range(3)
+    ]
+    db_session.add(resident)
+    db_session.flush()
+    for record in records:
+        record.user_id = resident.id
+    db_session.add_all(records)
+    db_session.flush()
+    db_session.add_all(
+        [
+            PreMedication(
+                assessment_id=record.id,
+                medication_name="Guidance",
+                dosage="As directed",
+            )
+            for record in records
+        ]
+    )
+    db_session.commit()
+    db_session.refresh(resident)
+
+    statements: list[str] = []
+
+    def count_selects(_connection, _cursor, statement, _parameters, _context, _executemany):
+        if statement.lstrip().lower().startswith("select"):
+            statements.append(statement)
+
+    bind = db_session.get_bind()
+    event.listen(bind, "before_cursor_execute", count_selects)
+    try:
+        response = history(50, db_session, resident)
+    finally:
+        event.remove(bind, "before_cursor_execute", count_selects)
+
+    assert len(response) == 3
+    assert all(item.pre_medication and item.pre_medication.medication_name == "Guidance" for item in response)
+    assert len(statements) == 3
 
 
 def test_case_activity_rejects_non_red_assessments(db_session: Session) -> None:

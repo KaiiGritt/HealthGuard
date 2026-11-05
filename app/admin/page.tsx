@@ -17,7 +17,6 @@ import {
   TriageBadge,
 } from "@/app/components/ui/primitives";
 import { createLexiconEntry, getAdminModules, getAdminSummary, getMe, previewAdminRules, updateUserRole, updateUserStatus, type AdminRulePreview, type User } from "@/lib/api";
-import { downloadReport } from "@/lib/report";
 import { IconClipboard } from "@/app/components/ui/icons";
 
 const adminNav = [
@@ -111,34 +110,40 @@ export default function AdminPage() {
     return () => window.removeEventListener("hashchange", syncFromHash);
   }, []);
 
-  function generateReport() {
+  async function generateReport() {
     if (!modules) return;
 
-    const downloaded = downloadReport({
-      title: "System Administration Report",
-      subtitle: "HealthGuard admin summary",
-      generatedAt: new Date().toLocaleString(),
-      filename: `healthguard-admin-report-${new Date().toISOString().slice(0, 10)}`,
-      sections: [
-        {
-          heading: "Users",
-          rows: modules.users.map((item) => [item.full_name, `${item.role} • ${item.is_active ? "Active" : "Inactive"} • ${item.barangay ?? "No barangay"}`]),
-        },
-        {
-          heading: "Lexicon",
-          rows: modules.lexicon_entries.map((item) => [item.local_term, `${item.language} • ${item.medical_term} • ${item.category}`]),
-        },
-        {
-          heading: "Triage rules",
-          rows: modules.triage_rules.map((item) => [item.name, `${item.severity} • ${item.condition}`]),
-        },
-      ],
-    });
+    try {
+      const { downloadReport } = await import("@/lib/report");
+      const downloaded = downloadReport({
+        title: "System Administration Report",
+        subtitle: "HealthGuard admin summary",
+        generatedAt: new Date().toLocaleString(),
+        filename: `healthguard-admin-report-${new Date().toISOString().slice(0, 10)}`,
+        sections: [
+          {
+            heading: "Users",
+            rows: modules.users.map((item) => [item.full_name, `${item.role} • ${item.is_active ? "Active" : "Inactive"} • ${item.barangay ?? "No barangay"}`]),
+          },
+          {
+            heading: "Lexicon",
+            rows: modules.lexicon_entries.map((item) => [item.local_term, `${item.language} • ${item.medical_term} • ${item.category}`]),
+          },
+          {
+            heading: "Triage rules",
+            rows: modules.triage_rules.map((item) => [item.name, `${item.severity} • ${item.condition}`]),
+          },
+        ],
+      });
 
-    setToast({
-      message: downloaded ? "PDF report downloaded successfully." : "Could not download the report.",
-      tone: downloaded ? "success" : "error",
-    });
+      setToast({
+        message: downloaded ? "PDF report downloaded successfully." : "Could not download the report.",
+        tone: downloaded ? "success" : "error",
+      });
+    } catch (error) {
+      console.error("Could not generate the administration report.", error);
+      setToast({ message: "Could not download the report.", tone: "error" });
+    }
   }
 
   const refreshAdminData = async () => {

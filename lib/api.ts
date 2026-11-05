@@ -563,11 +563,27 @@ export function getProfileAudit(): Promise<ProfileAuditEntry[]> {
   return request<ProfileAuditEntry[]>("/auth/profile/audit");
 }
 
+let currentUserRequest: Promise<User | null> | null = null;
+
 // Returns the current user, or null if not authenticated (401).
-export async function getMe(): Promise<User | null> {
-  try {
-    return await request<User>("/auth/me");
-  } catch {
-    return null;
+export function getMe(): Promise<User | null> {
+  const loadCurrentUser = async (): Promise<User | null> => {
+    try {
+      return await request<User>("/auth/me");
+    } catch {
+      return null;
+    }
+  };
+
+  if (typeof window === "undefined") {
+    return loadCurrentUser();
   }
+  if (currentUserRequest) {
+    return currentUserRequest;
+  }
+
+  currentUserRequest = loadCurrentUser().finally(() => {
+    currentUserRequest = null;
+  });
+  return currentUserRequest;
 }

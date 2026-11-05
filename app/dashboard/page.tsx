@@ -22,7 +22,6 @@ import {
 } from "@/app/components/ui/primitives";
 import { formatAssessmentRecordNumber, getDashboardSummary, getMe, getMhoLexicon, markLexiconReviewed, rejectLexiconEntry, type AdminModuleLexiconEntry, type User } from "@/lib/api";
 import { generateCommunityHealthReport } from "@/lib/communityHealthReport";
-import { downloadReport } from "@/lib/report";
 
 const SECTIONS = [
   { id: "overview", label: "Overview" },
@@ -629,11 +628,12 @@ function DashboardPageContent() {
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
   }
 
-  function generateReport() {
+  async function generateReport() {
     if (!communityReport) return;
 
     let downloaded: "downloaded" | "opened" | false = false;
     try {
+      const { downloadReport } = await import("@/lib/report");
       downloaded = downloadReport({
         title: "Community Health Report",
         subtitle: communityReport.report_period,
@@ -674,7 +674,8 @@ function DashboardPageContent() {
           },
         ],
       });
-    } catch {
+    } catch (error) {
+      console.error("Could not generate the community health report.", error);
       downloaded = false;
     }
 
