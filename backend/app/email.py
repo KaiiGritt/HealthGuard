@@ -21,7 +21,10 @@ from .email_templates import (
 
 def _from_header() -> str:
     """Sender shown in the inbox — use the app name, not a personal name."""
-    address = settings.sendgrid_from_email or settings.smtp_from_email or settings.admin_email
+    if settings.smtp_enabled:
+        address = settings.smtp_from_email or settings.smtp_username or settings.admin_email
+    else:
+        address = settings.sendgrid_from_email or settings.smtp_from_email or settings.admin_email
     return formataddr((settings.smtp_from_name, address))
 
 
@@ -63,20 +66,19 @@ def send_password_reset_code(email: str, code: str) -> EmailMessage:
 
 def send_message(message: EmailMessage) -> bool:
     """Send an email message using the configured HTTPS provider or SMTP."""
-    if settings.sendgrid_api_key:
-        return _send_with_sendgrid(message)
+    if settings.smtp_enabled:
+        with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as client:
+            if settings.smtp_host.lower().endswith("gmail.com") or settings.smtp_port == 587:
+                client.starttls()
+            if settings.smtp_username:
+                client.login(settings.smtp_username, settings.smtp_password)
+            client.send_message(message)
+        return True
     if settings.resend_api_key:
         return _send_with_resend(message)
-    if not settings.smtp_enabled:
-        return False
-
-    with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as client:
-        if settings.smtp_host.lower().endswith("gmail.com") or settings.smtp_port == 587:
-            client.starttls()
-        if settings.smtp_username:
-            client.login(settings.smtp_username, settings.smtp_password)
-        client.send_message(message)
-    return True
+    if settings.sendgrid_api_key:
+        return _send_with_sendgrid(message)
+    return False
 
 
 def _message_parts(message: EmailMessage) -> tuple[str, str]:

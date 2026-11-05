@@ -3,12 +3,13 @@ from unittest.mock import Mock
 
 import pytest
 from fastapi import HTTPException
+from pydantic import ValidationError
 
 from app.nlp.lexicon import LexiconEntry, Match, match_text
 from app.nlp.engine import analyze
 from app.nlp.rules import build_premedication_guide, classify, emergency_terms_from_text, has_supported_symptom_input
 from app.routers.assessment import analyze_symptoms
-from app.schemas import AnalyzeRequest
+from app.schemas import AnalyzeRequest, LexiconCreateRequest
 from app.seed import LEXICON_SEED, SELECTABLE_SYMPTOMS
 
 
@@ -25,6 +26,14 @@ def test_analyze_request_accepts_age_and_sex() -> None:
     assert payload.age == 30
     assert payload.sex == "female"
     assert payload.pregnancy_status == "yes"
+
+
+def test_lexicon_severity_weight_is_capped_at_six() -> None:
+    payload = LexiconCreateRequest(local_term="severe symptom", medical_term="severe symptom", severity_weight=6)
+
+    assert payload.severity_weight == 6
+    with pytest.raises(ValidationError):
+        LexiconCreateRequest(local_term="severe symptom", medical_term="severe symptom", severity_weight=7)
 
 
 def test_confirmed_pregnancy_with_fever_requires_health_worker_review() -> None:
@@ -516,6 +525,35 @@ def test_canonical_lexicon_contains_only_selectable_symptoms() -> None:
         "dizziness",
         "blood in stool",
     } <= lexicon_terms
+
+
+def test_biomedical_lexicon_covers_multiple_systems_and_local_phrases() -> None:
+    entries = [LexiconEntry(**entry) for entry in LEXICON_SEED]
+    matches = match_text("masakit an tutunlan, pirmi mag-ihi, at pamamanhid", entries)
+    dehydration = analyze("", ["dehydration"], entries)
+
+    assert {
+        "sore throat",
+        "frequent urination",
+        "numbness or tingling",
+    } <= {match.medical_term for match in matches}
+    assert next(match for match in matches if match.medical_term == "sore throat").language == "bcl"
+    assert next(match for match in matches if match.medical_term == "frequent urination").language == "bcl"
+    assert {
+        "otorhinolaryngologic",
+        "genitourinary",
+        "neurological",
+    } <= {match.category for match in matches}
+    assert {
+        "sore throat",
+        "blood in urine",
+        "palpitations",
+        "menstrual pain",
+        "excessive thirst",
+        "easy bruising",
+        "dehydration",
+    } <= set(SELECTABLE_SYMPTOMS)
+    assert "dehydration" in {match.medical_term for match in dehydration.matches}
 
 
 def test_duration_and_worsening_rules_raise_mild_symptoms() -> None:

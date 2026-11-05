@@ -12,6 +12,7 @@ from ..case_summary import build_case_summary
 from ..database import get_db
 from ..deps import get_current_user, get_current_user_optional, require_role
 from ..models import Assessment, AssessmentCaseActivity, AssessmentSymptom, Symptom, SymptomLexicon, User
+from ..nlp import scispacy_adapter
 from ..nlp.engine import analyze
 from ..nlp.extractor import (
     extract_patient_age,
@@ -27,6 +28,8 @@ from ..schemas import (
     AdminModulesOut,
     AdminPrivacyItem,
     AdminRuleItem,
+    AdminRulePreviewOut,
+    AdminRulePreviewRequest,
     AdminSettingItem,
     AdminSummaryOut,
     AdminToolItem,
@@ -598,6 +601,7 @@ def admin_modules(
             )
             for row in lexicon_rows
         ],
+        biomedical_lexicon_active=scispacy_adapter.is_available(),
         triage_rules=[
             AdminRuleItem(
                 name="Respiratory distress",
@@ -763,6 +767,86 @@ def _load_entries(db: Session) -> list[LexiconEntry]:
     ]
 
 
+def _analyze_assessment_input(
+    payload: AnalyzeRequest,
+    db: Session,
+):
+    if not payload.selected_symptoms and is_non_symptom_question(payload.input_text):
+        raise HTTPException(
+            status_code=422,
+            detail="This appears to be a question rather than a report of current symptoms. Please describe the symptoms happening now.",
+        )
+    if not payload.input_text.strip() and not payload.selected_symptoms:
+        raise HTTPException(
+            status_code=422,
+            detail="No recognized symptom was detected. Please select a supported symptom or describe one of the supported symptoms.",
+        )
+
+    text_age = extract_patient_age(payload.input_text)
+    patient_age = text_age if text_age is not None else payload.age
+    if patient_age is None and payload.age_months is not None:
+        patient_age = payload.age_months // 12
+    result = analyze(
+        payload.input_text,
+        payload.selected_symptoms,
+        _load_entries(db),
+        age=patient_age,
+        age_months=payload.age_months,
+        sex=payload.sex,
+        duration_days=payload.duration_days,
+        pregnancy_status=payload.pregnancy_status,
+    )
+    if not result.matches:
+        if result.symptom_extraction["detected_symptoms"]:
+            recognized_terms = ", ".join(dict.fromkeys(
+                item["canonical_term"] for item in result.symptom_extraction["detected_symptoms"]
+            ))
+            detail = f"Recognized {recognized_terms}, but it is not yet supported by the triage rules. Please contact a health worker for review."
+        elif result.symptom_extraction["negated_symptoms"]:
+            detail = "The message only reports symptoms as absent. Please describe a symptom that is currently present."
+        else:
+            detail = "No recognized symptom was detected. Please select a supported symptom or describe one of the supported symptoms."
+        raise HTTPException(status_code=422, detail=detail)
+    return result, patient_age
+
+
+@router.post("/admin/rule-preview", response_model=AdminRulePreviewOut)
+def preview_admin_triage_rules(
+    payload: AdminRulePreviewRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("admin")),
+) -> AdminRulePreviewOut:
+    result, _ = _analyze_assessment_input(
+        AnalyzeRequest(input_text=payload.input_text, method="text"),
+        db,
+    )
+    extracted_confidence = {
+        item["canonical_term"]: item["confidence"]
+        for item in result.symptom_extraction["detected_symptoms"]
+    }
+    return AdminRulePreviewOut(
+        risk_level=result.classification.risk_level,
+        score=result.classification.score,
+        detected_symptoms=[
+            DetectedSymptom(
+                medical_term=match.medical_term,
+                matched_text=match.matched_text,
+                language=match.language,
+                category=match.category,
+                severity_weight=match.severity_weight,
+                confidence=extracted_confidence.get(match.medical_term, 0.5),
+            )
+            for match in result.matches
+        ],
+        triggered_rules=[
+            TriggeredRule(name=rule.name, description=rule.description)
+            for rule in result.classification.triggered_rules
+        ],
+        reason=result.classification.reason,
+        recommendation=result.classification.recommendation,
+    )
+
+
 def _assessment_symptom_terms(db: Session, assessment: Assessment) -> list[str]:
     rows = (
         db.execute(
@@ -858,43 +942,7 @@ def analyze_symptoms(
     db: Session = Depends(get_db),
     user: User | None = Depends(get_current_user_optional),
 ) -> AnalyzeResult:
-    if not payload.selected_symptoms and is_non_symptom_question(payload.input_text):
-        raise HTTPException(
-            status_code=422,
-            detail="This appears to be a question rather than a report of current symptoms. Please describe the symptoms happening now.",
-        )
-    if not payload.input_text.strip() and not payload.selected_symptoms:
-        raise HTTPException(
-            status_code=422,
-            detail="No recognized symptom was detected. Please select a supported symptom or describe one of the supported symptoms.",
-        )
-
-    entries = _load_entries(db)
-    text_age = extract_patient_age(payload.input_text)
-    patient_age = text_age if text_age is not None else payload.age
-    if patient_age is None and payload.age_months is not None:
-        patient_age = payload.age_months // 12
-    result = analyze(
-        payload.input_text,
-        payload.selected_symptoms,
-        entries,
-        age=patient_age,
-        age_months=payload.age_months,
-        sex=payload.sex,
-        duration_days=payload.duration_days,
-        pregnancy_status=payload.pregnancy_status,
-    )
-    if not result.matches:
-        if result.symptom_extraction["detected_symptoms"]:
-            recognized_terms = ", ".join(dict.fromkeys(
-                item["canonical_term"] for item in result.symptom_extraction["detected_symptoms"]
-            ))
-            detail = f"Recognized {recognized_terms}, but it is not yet supported by the triage rules. Please contact a health worker for review."
-        elif result.symptom_extraction["negated_symptoms"]:
-            detail = "The message only reports symptoms as absent. Please describe a symptom that is currently present."
-        else:
-            detail = "No recognized symptom was detected. Please select a supported symptom or describe one of the supported symptoms."
-        raise HTTPException(status_code=422, detail=detail)
+    result, patient_age = _analyze_assessment_input(payload, db)
     _apply_repeat_assessment_rule(db, user, result)
 
     extracted_confidence = {

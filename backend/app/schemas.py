@@ -20,7 +20,7 @@ class AnalyzeRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    input_text: str = Field(default="", description="Free-text symptoms in English or Tagalog.")
+    input_text: str = Field(default="", description="Free-text symptoms in English, Tagalog, or Bikol.")
     selected_symptoms: list[str] = Field(
         default_factory=list, description="Standard symptom terms chosen from chips."
     )
@@ -31,6 +31,10 @@ class AnalyzeRequest(BaseModel):
     sex: str | None = Field(default=None, max_length=16, description="Patient sex for contextual risk weighting.")
     pregnancy_status: Literal["yes", "no", "not_sure", "prefer_not_to_say"] | None = None
     user_id: int | None = None
+
+
+class AdminRulePreviewRequest(BaseModel):
+    input_text: str = Field(min_length=1, max_length=5000)
 
 
 class SymptomExtractionRequest(BaseModel):
@@ -119,6 +123,15 @@ class AnalyzeResult(BaseModel):
     created_at: datetime
     disclaimer: str = DISCLAIMER
     pre_medication: PreMedicationOut | None = None
+
+
+class AdminRulePreviewOut(BaseModel):
+    risk_level: str
+    score: int
+    detected_symptoms: list[DetectedSymptom]
+    triggered_rules: list[TriggeredRule]
+    reason: str
+    recommendation: str
 
 
 class AssessmentOut(BaseModel):
@@ -328,6 +341,7 @@ class AdminPrivacyItem(BaseModel):
 class AdminModulesOut(BaseModel):
     users: list[AdminUserItem]
     lexicon_entries: list[AdminLexiconItem]
+    biomedical_lexicon_active: bool
     triage_rules: list[AdminRuleItem]
     system_settings: list[AdminSettingItem]
     privacy_controls: list[AdminPrivacyItem]
@@ -345,7 +359,7 @@ class LexiconCreateRequest(BaseModel):
     local_term: str = Field(min_length=1, max_length=128)
     language: str = Field(default="en", max_length=8)
     medical_term: str = Field(min_length=1, max_length=128)
-    severity_weight: int = Field(default=1, ge=0, le=10)
+    severity_weight: int = Field(default=1, ge=0, le=6)
     category: str = Field(default="general", max_length=64)
 
 

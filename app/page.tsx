@@ -14,7 +14,7 @@ const STEPS = [
   {
     n: "01",
     title: "Describe how you feel",
-    body: "Type in English or Tagalog, or tap the symptoms that match after signing in.",
+    body: "Type in English, Tagalog, or Bikol, or tap the symptoms that match after signing in.",
   },
   {
     n: "02",
@@ -163,10 +163,10 @@ export default function Home() {
           : "Know what to do next.",
     subhead:
       language === "fil"
-        ? "Ilarawan ang iyong mga sintomas sa Ingles o Tagalog. Makakakuha ka ng malinaw na gabay kung dapat mag-monitor, kumonsulta, o humingi agad ng tulong."
+        ? "Ilarawan ang iyong mga sintomas sa Ingles, Tagalog, o Bikol. Makakakuha ka ng malinaw na gabay kung dapat mag-monitor, kumonsulta, o humingi agad ng tulong."
         : language === "both"
-          ? "Describe your symptoms in English or Tagalog. Get a clear next step: monitor, consult, or seek urgent help. / Ilarawan ang iyong mga sintomas sa Ingles o Tagalog. Makakakuha ng malinaw na gabay: mag-monitor, kumonsulta, o humingi agad ng tulong."
-          : "Describe your symptoms in English or Tagalog. Get a clear next step: monitor, consult, or seek urgent help.",
+          ? "Describe your symptoms in English, Tagalog, or Bikol. Get a clear next step: monitor, consult, or seek urgent help. / Ilarawan ang iyong mga sintomas sa Ingles, Tagalog, o Bikol. Makakakuha ng malinaw na gabay: mag-monitor, kumonsulta, o humingi agad ng tulong."
+          : "Describe your symptoms in English, Tagalog, or Bikol. Get a clear next step: monitor, consult, or seek urgent help.",
     cta:
       language === "fil"
         ? "Simulan ang assessment"

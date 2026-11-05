@@ -1,15 +1,26 @@
-"""Optional Layer-1 biomedical normalization (SPECIALIST lexicon via scispaCy).
+"""Optional biomedical entity extraction via scispaCy.
 
 scispaCy has no wheels for Python 3.14, so this adapter is dormant by default. On a
 Python 3.11/3.12 venv with spaCy + scispaCy installed, `is_available()` returns True
-and `normalize_terms()` maps detected terms to canonical biomedical entities. The rest
-of the pipeline works identically whether or not this layer is active.
+and `extract_entities()` returns biomedical entity spans recognized by the model. The
+recognized spans are only useful to triage when they match an existing symptom lexicon
+entry; scispaCy does not itself assign urgency or recommendations.
 """
 from __future__ import annotations
 
+from dataclasses import dataclass
 from functools import lru_cache
 
+from .tokenizer import normalize
+
 _MODEL_NAME = "en_core_sci_sm"
+
+
+@dataclass(frozen=True)
+class BiomedicalEntity:
+    text: str
+    lemma: str
+    start_char: int
 
 
 @lru_cache(maxsize=1)
@@ -28,7 +39,7 @@ def is_available() -> bool:
 
 
 def normalize_terms(terms: list[str]) -> dict[str, str]:
-    """Map each term to a normalized biomedical form. Identity map if layer is dormant."""
+    """Return each term's first recognized entity, or itself if none is recognized."""
     nlp = _load_nlp()
     if nlp is None:
         return {t: t for t in terms}
@@ -38,3 +49,26 @@ def normalize_terms(terms: list[str]) -> dict[str, str]:
         ents = [e.text for e in doc.ents]
         result[term] = ents[0].lower() if ents else term
     return result
+
+
+def extract_entities(text: str) -> list[BiomedicalEntity]:
+    """Return recognized English biomedical spans with their model lemmas and offsets."""
+    if not text.strip():
+        return []
+    nlp = _load_nlp()
+    if nlp is None:
+        return []
+    entities: list[BiomedicalEntity] = []
+    for entity in nlp(text).ents:
+        surface = normalize(entity.text)
+        if not surface:
+            continue
+        lemma = normalize(" ".join(token.lemma_ or token.text for token in entity))
+        entities.append(
+            BiomedicalEntity(
+                text=surface,
+                lemma=lemma or surface,
+                start_char=entity.start_char,
+            )
+        )
+    return entities

@@ -92,3 +92,5 @@ The added Bikol candidate aliases for rash, body aches, cold symptoms, and stoma
 5. Do not use the pending TB threshold in S12 until its exact manual text is confirmed.
 6. Do not generalize pediatric medication evidence in S8 to adults.
 7. Grow the Irosin symptom lexicon only from sourced or locally reviewed phrase forms. Keep user-provided and machine-inferred suggestions separate from verified translations.
+
+The expanded biomedical symptom entries add English, Tagalog, and Bikol candidate phrases across multiple body systems. Treat the new Tagalog and Bikol mappings as pending local-language review; passing matching tests confirms software behavior only, not translation quality or clinical validation.

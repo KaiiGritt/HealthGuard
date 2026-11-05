@@ -8,6 +8,7 @@ Each standard medical_term is reported at most once, keeping the highest-severit
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from .tokenizer import normalize, tokenize
@@ -96,7 +97,11 @@ def match_text(text: str, entries: list[LexiconEntry]) -> list[Match]:
     for entry in entries:
         term = normalize(entry.local_term)
         is_phrase = " " in term
-        found = (term in normalized) if is_phrase else (term in tokens)
+        if is_phrase:
+            pattern = r"(?<!\w)" + re.escape(term).replace(r"\ ", r"\s+") + r"(?!\w)"
+            found = re.search(pattern, normalized) is not None
+        else:
+            found = term in tokens
         if not found:
             continue
         candidate = Match(

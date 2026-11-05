@@ -42,6 +42,20 @@ RESEND_FROM_EMAIL=onboarding@resend.dev
 
 Verify a sender/domain in Resend before using a custom `RESEND_FROM_EMAIL`. The default
 Resend sender is intended for initial testing and may only deliver to the account email.
+SMTP is used whenever `SMTP_ENABLED=true`, ahead of Resend and SendGrid. For Gmail, use
+an app password (not your regular account password) and configure these values in
+`backend/.env`:
+
+```env
+SMTP_ENABLED=true
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=your-sender@gmail.com
+SMTP_PASSWORD=your-16-character-app-password
+SMTP_FROM_EMAIL=your-sender@gmail.com
+```
+
+Keep the app password private. Restart the backend after changing `.env`.
 
 ### 3. Python environment
 ```bash
@@ -88,7 +102,18 @@ python run_engine_smoketest.py
 Runs the full NLP + rule pipeline against representative English/Tagalog inputs and asserts
 the expected Green/Yellow/Red outcomes.
 
-## Activating the optional scispaCy layer (later)
-scispaCy needs Python 3.11/3.12. Create a separate venv on that version and install the
-extras listed at the bottom of `requirements.txt`. The `scispacy_adapter` auto-activates
-when spaCy + the model are importable.
+## Activating the optional scispaCy entity matcher
+scispaCy needs Python 3.11/3.12. Install the optional dependencies and model into the
+Python environment used to run the backend:
+
+```powershell
+py -3.12 -m pip install -r requirements-scispacy.txt
+```
+
+When the model is loadable, recognized biomedical entity phrases are matched against
+existing symptom lexicon entries after English lemmatization. Only matched lexicon entries
+are passed to the existing triage rules; unmatched entities are ignored. scispaCy does
+not supply severity, diagnoses, or recommendations. Without the model, the existing
+lexicon and triage flow continues unchanged. The small model is English-focused and does
+not perform synonym/concept linking; only inflected phrases whose lemma matches an
+existing lexicon entry can add a match. Restart the backend after installation.

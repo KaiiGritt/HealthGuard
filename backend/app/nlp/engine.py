@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from . import scispacy_adapter
-from .extractor import extract_symptoms
+from .extractor import extract_symptoms, is_negated_prefix
 from .lexicon import LexiconEntry, Match, match_selected, match_text
 from .rules import Classification, classify, emergency_terms_from_text
 
@@ -80,11 +80,20 @@ def analyze(
     if selected_symptoms:
         add(match_selected(selected_symptoms, entries))
 
-    # Layer 1 (optional): normalize detected terms via scispaCy if available.
-    # Dormant on Python 3.14 — leaves matches unchanged.
+    # Biomedical entities can only resolve through existing symptom lexicon entries.
+    # The model never supplies severity or triage recommendations.
     active = scispacy_adapter.is_available()
-    if active and matches:
-        _ = scispacy_adapter.normalize_terms([m.medical_term for m in matches])
+    if active and input_text:
+        biomedical_matches: list[Match] = []
+        for entity in scispacy_adapter.extract_entities(input_text):
+            if is_negated_prefix(input_text[:entity.start_char]):
+                continue
+            biomedical_matches.extend(
+                match
+                for match in match_text(entity.lemma, entries)
+                if match.medical_term not in negated_terms
+            )
+        add(biomedical_matches)
 
     effective_duration_days = duration_days
     if effective_duration_days is None:

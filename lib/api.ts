@@ -33,6 +33,15 @@ export interface AnalyzeResult {
   pre_medication?: PreMedicationOut | null;
 }
 
+export interface AdminRulePreview {
+  risk_level: RiskLevel;
+  score: number;
+  detected_symptoms: DetectedSymptom[];
+  triggered_rules: TriggeredRule[];
+  reason: string;
+  recommendation: string;
+}
+
 export interface PreMedicationOut {
   medication_name: string;
   dosage: string;
@@ -220,6 +229,7 @@ export interface AdminPrivacyItem {
 export interface AdminModulesData {
   users: AdminModuleUser[];
   lexicon_entries: AdminModuleLexiconEntry[];
+  biomedical_lexicon_active: boolean;
   triage_rules: AdminRuleItem[];
   system_settings: AdminSettingItem[];
   privacy_controls: AdminPrivacyItem[];
@@ -401,6 +411,14 @@ export async function getAdminModules(): Promise<AdminModulesData> {
   const data = await request<AdminModulesData>("/assessment/admin/modules");
   return data;
 }
+
+export function previewAdminRules(input_text: string): Promise<AdminRulePreview> {
+  return request<AdminRulePreview>("/assessment/admin/rule-preview", {
+    method: "POST",
+    body: JSON.stringify({ input_text }),
+  });
+}
+
 export function updateUserStatus(userId: number, isActive: boolean): Promise<{ ok: boolean; user_id: number; is_active: boolean }> {
   return request<{ ok: boolean; user_id: number; is_active: boolean }>(`/assessment/admin/users/${userId}/status`, {
     method: "PATCH",

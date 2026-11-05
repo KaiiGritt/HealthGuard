@@ -148,7 +148,7 @@ class Symptom(Base):
 
 
 class SymptomLexicon(Base):
-    """Two-layer bilingual lexicon entry (Layer 2: custom Filipino/English symptom terms)."""
+    """Two-layer multilingual lexicon entry for English, Tagalog, and Bikol terms."""
 
     __tablename__ = "symptom_lexicon"
 

@@ -14,9 +14,5 @@ nltk>=3.9
 PyJWT>=2.9
 argon2-cffi>=23.1
 
-# --- Optional biomedical-normalization layer (Layer 1 / SPECIALIST lexicon) ---
-# scispaCy has no wheels for Python 3.14. Install these ONLY on a Python 3.11/3.12 venv
-# to activate the scispacy_adapter. The app runs fully without them.
-#   spacy==3.7.5
-#   scispacy==0.5.5
-#   https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/releases/v0.5.4/en_core_sci_sm-0.5.4.tar.gz
+# Optional biomedical entity extraction dependencies are listed in
+# requirements-scispacy.txt. Install them only in a Python 3.11/3.12 environment.

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.database import Base
 from app.models import Assessment, AssessmentCaseActivity, User
+from app.routers import assessment
 from app.routers.assessment import _build_barangay_stats, add_assessment_case_activity
 from app.schemas import AssessmentCaseActivityIn
 
@@ -18,6 +19,28 @@ def db_session():
     with Session(engine) as session:
         yield session
     engine.dispose()
+
+
+def test_admin_modules_reports_biomedical_model_availability(
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    admin = User(
+        full_name="Admin",
+        email="admin@example.test",
+        password_hash="test",
+        role="admin",
+    )
+    db_session.add(admin)
+    db_session.commit()
+
+    monkeypatch.setattr(assessment.scispacy_adapter, "is_available", lambda: False)
+    dormant = assessment.admin_modules(db_session, admin)
+    assert dormant.biomedical_lexicon_active is False
+
+    monkeypatch.setattr(assessment.scispacy_adapter, "is_available", lambda: True)
+    active = assessment.admin_modules(db_session, admin)
+    assert active.biomedical_lexicon_active is True
 
 
 def test_case_activity_is_persisted_and_returned(db_session: Session) -> None:

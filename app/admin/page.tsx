@@ -16,7 +16,7 @@ import {
   Toast,
   TriageBadge,
 } from "@/app/components/ui/primitives";
-import { createLexiconEntry, getAdminModules, getAdminSummary, getMe, updateUserRole, updateUserStatus, type User } from "@/lib/api";
+import { createLexiconEntry, getAdminModules, getAdminSummary, getMe, previewAdminRules, updateUserRole, updateUserStatus, type AdminRulePreview, type User } from "@/lib/api";
 import { downloadReport } from "@/lib/report";
 import { IconClipboard } from "@/app/components/ui/icons";
 
@@ -55,6 +55,7 @@ type AdminPageState = {
     reviewed_by: string | null;
     reviewed_at: string | null;
   }>;
+  biomedical_lexicon_active: boolean;
   triage_rules: Array<{
     name: string;
     severity: string;
@@ -72,10 +73,14 @@ export default function AdminPage() {
   const [modules, setModules] = useState<AdminPageState | null>(null);
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [userSearch, setUserSearch] = useState("");
   const [userPage, setUserPage] = useState(1);
   const [lexiconQuery, setLexiconQuery] = useState("");
   const [lexiconPage, setLexiconPage] = useState(1);
-  const [rulePreview, setRulePreview] = useState("difficulty breathing and cough");
+  const [rulePreview, setRulePreview] = useState("");
+  const [rulePreviewResult, setRulePreviewResult] = useState<AdminRulePreview | null>(null);
+  const [rulePreviewError, setRulePreviewError] = useState<string | null>(null);
+  const [rulePreviewLoading, setRulePreviewLoading] = useState(false);
   const [pendingAction, setPendingAction] = useState<number | null>(null);
   const [confirmingDeactivate, setConfirmingDeactivate] = useState<number | null>(null);
   const [activeSection, setActiveSection] = useState("overview");
@@ -142,6 +147,7 @@ export default function AdminPage() {
     setModules({
       users: moduleData.users,
       lexicon_entries: moduleData.lexicon_entries,
+      biomedical_lexicon_active: moduleData.biomedical_lexicon_active,
       triage_rules: moduleData.triage_rules,
       system_settings: moduleData.system_settings,
       privacy_controls: moduleData.privacy_controls,
@@ -163,6 +169,7 @@ export default function AdminPage() {
           setModules({
             users: moduleData.users,
             lexicon_entries: moduleData.lexicon_entries,
+            biomedical_lexicon_active: moduleData.biomedical_lexicon_active,
             triage_rules: moduleData.triage_rules,
             system_settings: moduleData.system_settings,
             privacy_controls: moduleData.privacy_controls,
@@ -181,13 +188,20 @@ export default function AdminPage() {
 
   const filteredUsers = useMemo(() => {
     if (!modules) return [];
+    const query = userSearch.trim().toLowerCase();
     return modules.users.filter((userItem) => {
       const matchesRole = roleFilter === "all" || userItem.role === roleFilter;
       const matchesStatus =
         statusFilter === "all" || (statusFilter === "active" ? userItem.is_active : !userItem.is_active);
-      return matchesRole && matchesStatus;
+      const matchesSearch =
+        !query ||
+        [userItem.full_name, userItem.email, userItem.role, userItem.barangay ?? ""]
+          .join(" ")
+          .toLowerCase()
+          .includes(query);
+      return matchesRole && matchesStatus && matchesSearch;
     });
-  }, [modules, roleFilter, statusFilter]);
+  }, [modules, roleFilter, statusFilter, userSearch]);
   const userPageCount = Math.max(1, Math.ceil(filteredUsers.length / USER_PAGE_SIZE));
   const paginatedUsers = filteredUsers.slice(
     (userPage - 1) * USER_PAGE_SIZE,
@@ -217,7 +231,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     setUserPage(1);
-  }, [roleFilter, statusFilter]);
+  }, [roleFilter, statusFilter, userSearch]);
 
   useEffect(() => {
     setUserPage((page) => Math.min(page, userPageCount));
@@ -231,15 +245,6 @@ export default function AdminPage() {
     setLexiconPage((page) => Math.min(page, lexiconPageCount));
   }, [lexiconPageCount]);
   const pendingReviewCount = modules?.lexicon_entries.filter((entry) => !entry.reviewed).length ?? 0;
-
-  const rulePreviewMatches = useMemo(() => {
-    if (!modules) return [];
-    const text = rulePreview.toLowerCase();
-    return modules.triage_rules.filter((rule) => {
-      const haystack = `${rule.name} ${rule.condition} ${rule.action}`.toLowerCase();
-      return haystack.includes(text.split(" ").filter(Boolean)[0] ?? "") || text.includes(rule.name.toLowerCase().split(" ")[0] ?? "");
-    });
-  }, [modules, rulePreview]);
 
   const handleToggleUserStatus = async (userId: number, nextStatus: boolean) => {
     if (!nextStatus && confirmingDeactivate !== userId) {
@@ -270,6 +275,22 @@ export default function AdminPage() {
       setToast({ message: "Could not update user role.", tone: "error" });
     } finally {
       setPendingAction(null);
+    }
+  };
+
+  const handleRulePreview = async () => {
+    const inputText = rulePreview.trim();
+    if (!inputText || rulePreviewLoading) return;
+
+    setRulePreviewLoading(true);
+    setRulePreviewError(null);
+    setRulePreviewResult(null);
+    try {
+      setRulePreviewResult(await previewAdminRules(inputText));
+    } catch (error) {
+      setRulePreviewError(error instanceof Error ? error.message : "Could not run the triage preview.");
+    } finally {
+      setRulePreviewLoading(false);
     }
   };
 
@@ -338,7 +359,7 @@ export default function AdminPage() {
           <HeroBanner
             eyebrow="For administrators"
             title="Administration center"
-            subtitle="Oversee accounts, govern the bilingual symptom lexicon, tune rule logic, and protect platform integrity for the municipal health system."
+            subtitle="Oversee accounts, govern the multilingual biomedical symptom lexicon, tune rule logic, and protect platform integrity for the municipal health system."
             actions={
               <PrimaryButton type="button" onClick={generateReport} disabled={!modules} className="dashboard-report-button rounded-xl px-5 text-sm font-semibold">
                 <IconClipboard size={17} />
@@ -395,32 +416,75 @@ export default function AdminPage() {
             <section id="admin-users" className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
               <Panel
                 title="User account management"
-                subtitle="Review access, roles, and account status across the health system."
-                badge={<TagBadge tone="neutral">{modules?.users.length ?? 0} accounts</TagBadge>}
+                subtitle="A clear view of every account, its access level, and status."
+                badge={<TagBadge tone="neutral">{modules?.users.length ?? 0} total accounts</TagBadge>}
               >
-                <div className="mb-5 grid gap-3 rounded-2xl border border-[#E4EBDD] bg-[#F7F9F5] p-3 sm:grid-cols-2">
-                  <PremiumSelect value={roleFilter} onChange={setRoleFilter} ariaLabel="Filter users by role" options={[{ value: "all", label: "All roles" }, { value: "resident", label: "Resident" }, { value: "mho", label: "MHO" }, { value: "admin", label: "Admin" }]} />
-                  <PremiumSelect value={statusFilter} onChange={setStatusFilter} ariaLabel="Filter users by account status" options={[{ value: "all", label: "All statuses" }, { value: "active", label: "Active" }, { value: "inactive", label: "Deactivated" }]} />
+                <div className="mb-5 rounded-2xl border border-[#E3E9DF] bg-[linear-gradient(145deg,#F7FAF5_0%,#F0F5EE_100%)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] sm:p-4">
+                  <label className="relative block">
+                    <span className="sr-only">Search accounts by name, email, role, or barangay</span>
+                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className="pointer-events-none absolute left-3.5 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-ink-muted">
+                      <circle cx="10.8" cy="10.8" r="6.8" stroke="currentColor" strokeWidth="1.7" />
+                      <path d="m16 16 4.2 4.2" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                    </svg>
+                    <input
+                      type="search"
+                      value={userSearch}
+                      onChange={(event) => setUserSearch(event.target.value)}
+                      placeholder="Search name, email, or barangay"
+                      className="min-h-11 w-full rounded-xl border border-[#DDE7DB] bg-white pl-10 pr-3.5 text-sm text-ink shadow-[0_4px_12px_rgba(24,38,25,0.035)] outline-none transition placeholder:text-ink-faint hover:border-brand/40 focus:border-brand focus:ring-4 focus:ring-brand/10"
+                    />
+                  </label>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    <PremiumSelect value={roleFilter} onChange={setRoleFilter} ariaLabel="Filter users by role" options={[{ value: "all", label: "All roles" }, { value: "resident", label: "Resident" }, { value: "mho", label: "MHO" }, { value: "admin", label: "Admin" }]} />
+                    <PremiumSelect value={statusFilter} onChange={setStatusFilter} ariaLabel="Filter users by account status" options={[{ value: "all", label: "All statuses" }, { value: "active", label: "Active" }, { value: "inactive", label: "Deactivated" }]} />
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[#DFE7DA] pt-3">
+                    <p className="text-xs font-medium text-ink-muted" aria-live="polite">
+                      Showing <span className="font-semibold tabular-nums text-ink">{filteredUsers.length}</span> of {modules?.users.length ?? 0} accounts
+                    </p>
+                    {userSearch || roleFilter !== "all" || statusFilter !== "all" ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUserSearch("");
+                          setRoleFilter("all");
+                          setStatusFilter("all");
+                        }}
+                        className="rounded-lg px-2 py-1 text-xs font-semibold text-brand-dark transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30"
+                      >
+                        Clear filters
+                      </button>
+                    ) : (
+                      <p className="text-xs text-ink-faint">
+                        <span className="font-semibold text-brand-dark">{modules?.users.filter((user) => user.is_active).length ?? 0}</span> active
+                        <span className="px-1.5 text-[#B6C2B2]">·</span>
+                        <span className="font-semibold text-ink-secondary">{modules?.users.filter((user) => !user.is_active).length ?? 0}</span> deactivated
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 <div className="space-y-3">
                   {filteredUsers.length > 0 ? (
                     paginatedUsers.map((entry) => (
-                      <ListRow key={entry.id} className="flex flex-col gap-4 border-[#E0E8DC] bg-[linear-gradient(135deg,#F8FAF6_0%,#F1F5EE_100%)] p-4 shadow-[0_8px_20px_rgba(24,38,25,0.035)] transition hover:border-brand/25 hover:shadow-[0_12px_24px_rgba(24,38,25,0.07)] sm:flex-row sm:items-center sm:justify-between sm:p-5">
+                      <ListRow key={entry.id} className="flex flex-col gap-4 border-[#E0E8DC] bg-white/80 p-4 shadow-[0_6px_18px_rgba(24,38,25,0.035)] transition duration-200 hover:-translate-y-0.5 hover:border-brand/25 hover:bg-white hover:shadow-[0_14px_28px_rgba(24,38,25,0.08)] sm:flex-row sm:items-center sm:justify-between sm:p-5">
                         <div className="flex min-w-0 flex-1 items-start gap-3">
-                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-brand/15 bg-white font-display text-lg font-semibold text-brand shadow-sm" aria-hidden="true">
+                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/80 bg-gradient-to-br from-[#E7F0E7] to-[#D4E5D6] font-display text-lg font-semibold text-brand-dark shadow-[0_4px_12px_rgba(31,74,54,0.12)] ring-1 ring-brand/10" aria-hidden="true">
                             {entry.full_name.charAt(0).toUpperCase()}
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
                               <p className="truncate font-semibold text-ink">{entry.full_name}</p>
-                              <TagBadge tone={entry.is_active ? "brand" : "neutral"}>
+                              <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] ${entry.is_active ? "border-[#C9E2CB] bg-[#EFF7EF] text-[#28613B]" : "border-[#E1E5DF] bg-[#F3F4F1] text-ink-muted"}`}>
+                                <span className={`h-1.5 w-1.5 rounded-full ${entry.is_active ? "bg-[#3F8A52]" : "bg-[#9AA39A]"}`} aria-hidden="true" />
                                 {entry.is_active ? "Active" : "Deactivated"}
-                              </TagBadge>
+                              </span>
                             </div>
                             <p className="mt-1 truncate text-sm text-ink-muted">{entry.email}</p>
-                            <p className="mt-2 text-xs font-medium uppercase tracking-[0.08em] text-ink-faint">
-                              {entry.role} <span className="px-1 text-[#B6C2B2]">•</span> {entry.barangay ?? "No barangay recorded"}
+                            <p className="mt-2 flex flex-wrap items-center gap-x-1.5 text-xs font-medium text-ink-faint">
+                              <span className="rounded-md bg-[#F0F4EF] px-2 py-0.5 font-semibold uppercase tracking-[0.06em] text-ink-secondary">{entry.role}</span>
+                              <span aria-hidden="true" className="text-[#B6C2B2]">·</span>
+                              <span className="truncate">{entry.barangay ?? "No barangay recorded"}</span>
                             </p>
                           </div>
                         </div>
@@ -449,9 +513,16 @@ export default function AdminPage() {
                       </ListRow>
                     ))
                   ) : (
-                    <p className="rounded-md border border-dashed border-border p-4 text-sm text-ink-muted">
-                      No user accounts match the current filters.
-                    </p>
+                    <div className="rounded-2xl border border-dashed border-[#D7E2D4] bg-[#FAFCF9] px-5 py-8 text-center">
+                      <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl border border-[#E2EADF] bg-white text-ink-muted shadow-sm" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5">
+                          <circle cx="10.8" cy="10.8" r="6.8" stroke="currentColor" strokeWidth="1.7" />
+                          <path d="m16 16 4.2 4.2" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                        </svg>
+                      </span>
+                      <p className="mt-3 font-semibold text-ink">No matching accounts</p>
+                      <p className="mt-1 text-sm text-ink-muted">Try another search or clear the selected filters.</p>
+                    </div>
                   )}
                 </div>
                 {filteredUsers.length > 0 ? (
@@ -482,47 +553,91 @@ export default function AdminPage() {
             </section>
 
             <section id="admin-lexicon" className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-              <Panel title="Bilingual symptom lexicon" badge={<TagBadge>Layer 1 & 2</TagBadge>}>
-                <div className="mb-4">
-                  <input
-                    value={lexiconQuery}
-                    onChange={(event) => setLexiconQuery(event.target.value)}
-                    placeholder="Search English, Tagalog, category, or language"
-                    className="w-full rounded-sm border border-border bg-surface px-4 py-3 text-sm text-ink outline-none focus:border-brand"
-                  />
-                </div>
-                <div className="mb-4 grid gap-3 md:grid-cols-5">
-                  <input
-                    value={newLexicon.local_term}
-                    onChange={(event) => setNewLexicon((prev) => ({ ...prev, local_term: event.target.value }))}
-                    placeholder="Local term"
-                    className="rounded-sm border border-border bg-white px-3 py-2 text-sm text-ink"
-                  />
-                  <input
-                    value={newLexicon.medical_term}
-                    onChange={(event) => setNewLexicon((prev) => ({ ...prev, medical_term: event.target.value }))}
-                    placeholder="Medical term"
-                    className="rounded-sm border border-border bg-white px-3 py-2 text-sm text-ink"
-                  />
-                  <PremiumSelect value={newLexicon.language} onChange={(value) => setNewLexicon((prev) => ({ ...prev, language: value }))} ariaLabel="Lexicon language" className="w-full" options={[{ value: "en", label: "English" }, { value: "tl", label: "Tagalog" }]} />
-                  <input
-                    type="number"
-                    min={0}
-                    max={10}
-                    value={newLexicon.severity_weight}
-                    onChange={(event) => setNewLexicon((prev) => ({ ...prev, severity_weight: Number(event.target.value) || 1 }))}
-                    className="rounded-sm border border-border bg-white px-3 py-2 text-sm text-ink"
-                  />
-                  <button type="button" onClick={() => void handleAddLexiconEntry()} className="rounded-sm bg-brand px-3 py-2 text-sm font-medium text-white">
-                    Add term
-                  </button>
-                </div>
-                <div>
-                  <section id="admin-custom-lexicon" className="min-w-0 overflow-hidden rounded-md border border-border bg-surface">
-                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-4">
+              <Panel title="Multilingual biomedical symptom lexicon" badge={<TagBadge>Layer 1 & 2</TagBadge>} className="hover:-translate-y-0.5">
+                <div className="space-y-5">
+                  <label className="relative block">
+                    <span className="sr-only">Search the symptom lexicon</span>
+                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-muted">
+                      <circle cx="10.8" cy="10.8" r="6.8" stroke="currentColor" strokeWidth="1.7" />
+                      <path d="m16 16 4.2 4.2" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                    </svg>
+                    <input
+                      value={lexiconQuery}
+                      onChange={(event) => setLexiconQuery(event.target.value)}
+                      placeholder="Search English, Tagalog, Bikol, category, or language"
+                      className="min-h-12 w-full rounded-xl border border-[#DDE7DB] bg-white pl-12 pr-4 text-sm text-ink shadow-[0_6px_18px_rgba(24,38,25,0.035)] outline-none transition placeholder:text-ink-faint hover:border-brand/40 focus:border-brand focus:ring-4 focus:ring-brand/10"
+                    />
+                  </label>
+                  <div className="rounded-2xl border border-[#E3E9DF] bg-[linear-gradient(135deg,#F7FAF5_0%,#F0F5EE_100%)] p-4 sm:p-5">
+                    <div className="mb-4 flex items-center justify-between gap-3">
                       <div>
-                        <h3 className="font-display text-xl text-ink">Custom bilingual layer</h3>
-                        <p className="mt-1 text-xs text-ink-muted">Terms available for review and editing</p>
+                        <h3 className="font-display text-base font-semibold text-ink">Add a lexicon term</h3>
+                        <p className="mt-1 text-xs leading-relaxed text-ink-muted">Connect a local phrase to its medical meaning.</p>
+                      </div>
+                      <span className="hidden rounded-xl border border-brand/10 bg-white p-2 text-brand-dark shadow-sm sm:inline-flex" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5">
+                          <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5v-15Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+                          <path d="M4 18.5A2.5 2.5 0 0 1 6.5 16H20M8 7h8M8 10h6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                        </svg>
+                      </span>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-5">
+                      <label className="block min-w-0">
+                        <span className="mb-1.5 block text-xs font-semibold text-ink-secondary">Local term</span>
+                        <input
+                          value={newLexicon.local_term}
+                          onChange={(event) => setNewLexicon((prev) => ({ ...prev, local_term: event.target.value }))}
+                          placeholder="e.g. sakit an tiyan"
+                          className="min-h-11 w-full rounded-xl border border-[#DDE7DB] bg-white px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-ink-faint focus:border-brand focus:ring-4 focus:ring-brand/10"
+                        />
+                      </label>
+                      <label className="block min-w-0">
+                        <span className="mb-1.5 block text-xs font-semibold text-ink-secondary">Medical term</span>
+                        <input
+                          value={newLexicon.medical_term}
+                          onChange={(event) => setNewLexicon((prev) => ({ ...prev, medical_term: event.target.value }))}
+                          placeholder="e.g. chest pain"
+                          className="min-h-11 w-full rounded-xl border border-[#DDE7DB] bg-white px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-ink-faint focus:border-brand focus:ring-4 focus:ring-brand/10"
+                        />
+                      </label>
+                      <label className="block min-w-0">
+                        <span className="mb-1.5 block text-xs font-semibold text-ink-secondary">Language</span>
+                        <PremiumSelect value={newLexicon.language} onChange={(value) => setNewLexicon((prev) => ({ ...prev, language: value }))} ariaLabel="Lexicon language" className="w-full" options={[{ value: "en", label: "English" }, { value: "tl", label: "Tagalog" }, { value: "bcl", label: "Bikol" }]} />
+                      </label>
+                      <label className="block min-w-0">
+                        <span className="mb-1.5 block text-xs font-semibold text-ink-secondary">Severity weight</span>
+                        <input
+                          type="number"
+                          min={0}
+                          max={6}
+                          value={newLexicon.severity_weight}
+                          onChange={(event) => setNewLexicon((prev) => ({ ...prev, severity_weight: Math.min(6, Number(event.target.value) || 1) }))}
+                          className="min-h-11 w-full rounded-xl border border-[#DDE7DB] bg-white px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10"
+                        />
+                      </label>
+                      <div className="flex items-end">
+                        <button type="button" onClick={() => void handleAddLexiconEntry()} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#183D2D] to-[#2E6A52] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(31,74,54,0.2)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_24px_rgba(31,74,54,0.25)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/20">
+                          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className="h-4 w-4">
+                            <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                          </svg>
+                          Add term
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <section id="admin-custom-lexicon" className="min-w-0 overflow-hidden rounded-2xl border border-[#DDE7DB] bg-white shadow-[0_12px_30px_rgba(24,38,25,0.045)]">
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E7ECE3] bg-[linear-gradient(135deg,#FFFFFF_0%,#F6F9F4_100%)] px-4 py-4 sm:px-5">
+                      <div className="flex items-center gap-3">
+                        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-tint text-brand-dark" aria-hidden="true">
+                          <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5">
+                            <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5v-15Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+                            <path d="M4 18.5A2.5 2.5 0 0 1 6.5 16H20M8 7h8M8 10h6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                          </svg>
+                        </span>
+                        <div>
+                          <h3 className="font-display text-lg font-semibold text-ink sm:text-xl">Custom bilingual layer</h3>
+                          <p className="mt-0.5 text-xs text-ink-muted">Terms available for review and editing</p>
+                        </div>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         <TagBadge>{filteredLexicon.length} records</TagBadge>
@@ -533,7 +648,7 @@ export default function AdminPage() {
                       <>
                         <div className="hidden max-h-[32rem] overflow-auto md:block">
                         <table className="w-full min-w-[560px] text-left text-sm">
-                          <thead className="sticky top-0 bg-white text-xs uppercase tracking-wide text-ink-muted">
+                          <thead className="sticky top-0 z-10 bg-[#F7FAF5] text-[11px] uppercase tracking-[0.12em] text-ink-muted">
                             <tr>
                               <th className="px-4 py-3 font-medium">Term</th>
                               <th className="px-4 py-3 font-medium">Normalized to</th>
@@ -543,15 +658,15 @@ export default function AdminPage() {
                           </thead>
                           <tbody className="divide-y divide-border">
                             {paginatedLexicon.map((entry) => (
-                              <tr key={entry.id} className="bg-card hover:bg-white">
+                              <tr key={entry.id} className="bg-white transition-colors hover:bg-[#F7FAF5]">
                                 <td className="px-4 py-3">
-                                  <p className="font-medium text-ink">{entry.local_term}</p>
-                                  <p className="mt-1 text-xs uppercase text-ink-muted">{entry.language} · {entry.category}</p>
+                                  <p className="font-semibold text-ink">{entry.local_term}</p>
+                                  <p className="mt-1 text-[11px] font-medium uppercase tracking-wide text-ink-muted">{entry.language} · {entry.category}</p>
                                 </td>
-                                <td className="px-4 py-3 text-ink-secondary">{entry.medical_term}</td>
-                                <td className="px-4 py-3 text-ink-secondary">{entry.severity_weight}</td>
+                                <td className="px-4 py-3 text-ink-secondary"><span className="rounded-lg bg-[#F2F6F0] px-2.5 py-1 font-medium text-ink">{entry.medical_term}</span></td>
+                                <td className="px-4 py-3"><span className="inline-flex min-w-8 justify-center rounded-lg border border-[#E2E9DF] bg-[#F8FAF7] px-2 py-1 font-mono text-xs font-semibold text-ink-secondary">{entry.severity_weight}</span></td>
                                 <td className="px-4 py-3 text-xs text-ink-muted">
-                                  {entry.reviewed ? <span className={entry.review_status === "rejected" ? "text-emergency-red" : "text-brand-dark"}>{entry.review_status === "rejected" ? "Not approved" : "Reviewed"} by {entry.reviewed_by ?? "reviewer"}</span> : "Pending review by MHO"}
+                                  {entry.reviewed ? <span className={`inline-flex rounded-full px-2.5 py-1 font-medium ${entry.review_status === "rejected" ? "bg-red-tint text-emergency-red" : "bg-brand-tint text-brand-dark"}`}>{entry.review_status === "rejected" ? "Not approved" : "Reviewed"} · {entry.reviewed_by ?? "reviewer"}</span> : <span className="inline-flex rounded-full bg-yellow-tint px-2.5 py-1 font-medium text-warn-amber">Pending review</span>}
                                 </td>
                               </tr>
                             ))}
@@ -560,7 +675,7 @@ export default function AdminPage() {
                         </div>
                         <div className="space-y-2 p-3 md:hidden">
                         {paginatedLexicon.map((entry) => (
-                          <article key={entry.id} className="rounded-xl border border-[#E0E8DC] bg-white p-3.5 shadow-sm">
+                          <article key={entry.id} className="rounded-xl border border-[#E0E8DC] bg-[linear-gradient(135deg,#FFFFFF_0%,#F8FAF6_100%)] p-4 shadow-[0_6px_16px_rgba(24,38,25,0.04)] transition hover:border-brand/30 hover:shadow-md">
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
                                 <p className="break-words font-semibold text-ink">{entry.local_term}</p>
@@ -601,39 +716,119 @@ export default function AdminPage() {
                   ))}
                 </div>
               </Panel>
+
             </section>
 
-            <section id="admin-rules" className="rounded-md border border-border bg-card p-5">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="font-display text-lg text-ink">Rule preview</h2>
-                <TagBadge>Transparent logic</TagBadge>
-              </div>
-              <div className="mt-4 rounded-md border border-border bg-surface p-4">
-                <label htmlFor="rule-preview" className="block text-sm font-medium text-ink-secondary">Sample symptom phrase</label>
-                <input
-                  id="rule-preview"
-                  name="rule-preview"
-                  autoComplete="off"
-                  value={rulePreview}
-                  onChange={(event) => setRulePreview(event.target.value)}
-                  className="mt-2 w-full rounded-sm border border-border bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-brand"
-                />
-                <div className="mt-4 space-y-2">
-                  {rulePreviewMatches.length > 0 ? (
-                    rulePreviewMatches.map((rule) => (
-                      <div key={rule.name} className="rounded-sm border border-border bg-white p-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="font-medium text-ink">{rule.name}</p>
-                          <TriageBadge level={rule.severity === "Critical" || rule.severity === "High" ? "RED" : rule.severity === "Medium" ? "YELLOW" : "GREEN"} />
-                        </div>
-                        <p className="mt-2 text-sm text-ink-secondary">{rule.condition}</p>
+            <section id="admin-rules">
+              <Panel
+                title="Rule preview"
+                subtitle="Test the live triage engine against the current symptom lexicon."
+                badge={<TagBadge>Live engine</TagBadge>}
+              >
+                <form
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void handleRulePreview();
+                  }}
+                  className="rounded-2xl border border-[#E3E9DF] bg-[linear-gradient(145deg,#F7FAF5_0%,#F0F5EE_100%)] p-4 sm:p-5"
+                >
+                  <label htmlFor="rule-preview" className="block text-sm font-semibold text-ink">
+                    Symptom description
+                  </label>
+                  <p className="mt-1 text-xs leading-relaxed text-ink-muted">
+                    Enter a current symptom description. The preview runs real symptom matching and triage rules without saving an assessment.
+                  </p>
+                  <textarea
+                    id="rule-preview"
+                    name="rule-preview"
+                    autoComplete="off"
+                    required
+                    maxLength={5000}
+                    rows={3}
+                    value={rulePreview}
+                    disabled={rulePreviewLoading}
+                    placeholder="For example: I have had a fever and cough for two days"
+                    onChange={(event) => {
+                      setRulePreview(event.target.value);
+                      setRulePreviewResult(null);
+                      setRulePreviewError(null);
+                    }}
+                    className="mt-3 w-full resize-y rounded-xl border border-[#DDE7DB] bg-white px-3.5 py-3 text-sm leading-relaxed text-ink shadow-[0_4px_12px_rgba(24,38,25,0.035)] outline-none transition placeholder:text-ink-faint hover:border-brand/40 focus:border-brand focus:ring-4 focus:ring-brand/10 disabled:cursor-wait disabled:opacity-70"
+                  />
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-xs text-ink-muted">Up to 5,000 characters · Preview only, no record is created</p>
+                    <button
+                      type="submit"
+                      disabled={!rulePreview.trim() || rulePreviewLoading}
+                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#183D2D] to-[#2E6A52] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(31,74,54,0.18)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_24px_rgba(31,74,54,0.24)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/20 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
+                    >
+                      {rulePreviewLoading ? (
+                        <>
+                          <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true" />
+                          Running preview…
+                        </>
+                      ) : "Run triage preview"}
+                    </button>
+                  </div>
+                </form>
+
+                {rulePreviewError ? (
+                  <p role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-relaxed text-red-900">
+                    {rulePreviewError}
+                  </p>
+                ) : null}
+
+                {rulePreviewResult ? (
+                  <div className="mt-4 space-y-4 rounded-2xl border border-[#DDE7DB] bg-white p-4 shadow-[0_8px_22px_rgba(24,38,25,0.045)] sm:p-5" aria-live="polite">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">Engine result</p>
+                        <p className="mt-1 font-display text-lg font-semibold text-ink">{rulePreviewResult.risk_level} risk</p>
                       </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-ink-muted">No active rule matches this sample phrase.</p>
-                  )}
-                </div>
-              </div>
+                      <div className="flex items-center gap-2">
+                        <TriageBadge level={rulePreviewResult.risk_level} />
+                        <span className="rounded-lg border border-[#E3E9DF] bg-[#F7FAF5] px-3 py-1.5 font-mono text-sm font-semibold tabular-nums text-ink">
+                          Score {rulePreviewResult.score}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.1em] text-ink-muted">Detected symptoms</p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {rulePreviewResult.detected_symptoms.map((symptom) => (
+                          <span key={symptom.medical_term} className="rounded-lg border border-[#DDE7DB] bg-[#F7FAF5] px-2.5 py-1 text-sm font-medium text-ink">
+                            {symptom.medical_term}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-[#E5EBE1] bg-[#FAFCF9] p-3.5">
+                      <p className="text-sm font-semibold text-ink">Why this result</p>
+                      <p className="mt-1 text-sm leading-relaxed text-ink-secondary">{rulePreviewResult.reason}</p>
+                      <p className="mt-3 text-sm font-semibold text-ink">Recommendation</p>
+                      <p className="mt-1 text-sm leading-relaxed text-ink-secondary">{rulePreviewResult.recommendation}</p>
+                    </div>
+
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.1em] text-ink-muted">Triggered rules</p>
+                      {rulePreviewResult.triggered_rules.length > 0 ? (
+                        <ul className="mt-2 space-y-2">
+                          {rulePreviewResult.triggered_rules.map((rule, index) => (
+                            <li key={`${rule.name}-${index}`} className="rounded-xl border border-[#E5EBE1] bg-white p-3">
+                              <p className="text-sm font-semibold text-ink">{rule.name.replaceAll("-", " ")}</p>
+                              <p className="mt-1 text-sm leading-relaxed text-ink-secondary">{rule.description}</p>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="mt-2 text-sm text-ink-muted">No individual rule explanation was returned.</p>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+              </Panel>
             </section>
 
             <section id="admin-settings" className="rounded-md border border-border bg-card p-5">
