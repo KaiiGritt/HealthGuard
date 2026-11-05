@@ -54,6 +54,22 @@ class Settings(BaseSettings):
         default="",
         validation_alias=AliasChoices("SENDGRID_FROM_EMAIL", "sendgrid_from_email"),
     )
+    mailjet_api_key_public: str = Field(
+        default="",
+        validation_alias=AliasChoices("MJ_APIKEY_PUBLIC", "MAILJET_API_KEY_PUBLIC", "mailjet_api_key_public"),
+    )
+    mailjet_api_key_private: str = Field(
+        default="",
+        validation_alias=AliasChoices("MJ_APIKEY_PRIVATE", "MAILJET_API_KEY_PRIVATE", "mailjet_api_key_private"),
+    )
+    mailjet_from_email: str = Field(
+        default="",
+        validation_alias=AliasChoices("MAIL_FROM_EMAIL", "MAILJET_FROM_EMAIL", "mailjet_from_email"),
+    )
+    mailjet_from_name: str = Field(
+        default="HealthGuard",
+        validation_alias=AliasChoices("MAIL_FROM_NAME", "MAILJET_FROM_NAME", "mailjet_from_name"),
+    )
 
     model_config = SettingsConfigDict(env_file=BACKEND_DIR / ".env", env_file_encoding="utf-8")
 

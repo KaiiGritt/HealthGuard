@@ -32,19 +32,32 @@ Keep the password URL-encoded if it contains characters such as `@`, `:`, `/`, o
 The backend creates its tables and seeds the lexicon on startup. Existing SQLite data is
 not copied automatically; export/import it separately if needed.
 
-Render free services may block outbound SMTP connections. For deployed email delivery,
-use Resend over HTTPS instead of SMTP:
+Render services may not be able to connect to external SMTP hosts. For deployed email
+delivery, use an HTTPS email API instead. Mailjet is supported with its API key pair:
 
 ```env
-RESEND_API_KEY=re_your_api_key
-RESEND_FROM_EMAIL=onboarding@resend.dev
+SMTP_ENABLED=false
+MJ_APIKEY_PUBLIC=your-mailjet-public-api-key
+MJ_APIKEY_PRIVATE=your-mailjet-private-api-key
+MAIL_FROM_EMAIL=verified-sender@your-domain.com
+MAIL_FROM_NAME=HealthGuard
 ```
 
-Verify a sender/domain in Resend before using a custom `RESEND_FROM_EMAIL`. The default
-Resend sender is intended for initial testing and may only deliver to the account email.
-SMTP is used whenever `SMTP_ENABLED=true`, ahead of Resend and SendGrid. For Gmail, use
-an app password (not your regular account password) and configure these values in
-`backend/.env`:
+Create the API key pair in Mailjet and validate the sender address before sending.
+Add these values to the Render backend service environment, then redeploy. The values in
+your local `backend/.env` are not automatically copied to Render. When both Mailjet keys
+are set, Mailjet is used ahead of Resend and SendGrid; SMTP is used first whenever
+`SMTP_ENABLED=true`.
+
+Resend is also supported over HTTPS:
+
+```env
+SMTP_ENABLED=false
+RESEND_API_KEY=re_your_api_key
+RESEND_FROM_EMAIL=verified-sender@your-domain.com
+```
+
+For local Gmail SMTP, use an app password (not your regular account password):
 
 ```env
 SMTP_ENABLED=true

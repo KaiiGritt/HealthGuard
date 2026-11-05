@@ -32,7 +32,7 @@ class PendingRegistrationTests(unittest.TestCase):
             phone_number="09946206773",
         )
 
-        with patch.object(auth_router, "_require_smtp"), patch.object(auth_router, "_send_verification_email"):
+        with patch.object(auth_router, "_require_email_provider"), patch.object(auth_router, "_send_verification_email"):
             response = auth_router.register(payload, db=db)
 
         self.assertEqual(response.email, "jane@example.com")

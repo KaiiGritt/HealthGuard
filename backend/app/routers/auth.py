@@ -103,11 +103,13 @@ def _add_profile_audit(db: Session, user_id: int, action: str, **details: object
     )
 
 
-def _require_smtp() -> None:
+def _require_email_provider() -> None:
     if settings.sendgrid_api_key or settings.resend_api_key:
         return
+    if settings.mailjet_api_key_public and settings.mailjet_api_key_private and settings.mailjet_from_email:
+        return
     if not settings.smtp_enabled:
-        print("[email] SMTP is disabled; set SMTP_ENABLED=true in the deployment environment")
+        print("[email] No email provider is configured; configure Mailjet, Resend, SendGrid, or SMTP")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Email delivery is not configured. Registration is unavailable.",
@@ -152,7 +154,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> Registe
     if "@" not in email:
         raise HTTPException(status_code=422, detail="Invalid email address.")
 
-    _require_smtp()
+    _require_email_provider()
 
     existing_user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
     if existing_user is not None:
@@ -274,7 +276,7 @@ def forgot_password(payload: PasswordResetRequest, db: Session = Depends(get_db)
     _record_email_attempt(RESET_ATTEMPTS, email)
     if "@" not in email:
         raise HTTPException(status_code=422, detail="Invalid email address.")
-    _require_smtp()
+    _require_email_provider()
     user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
     if user is not None:
         code = f"{secrets.randbelow(1_000_000):06d}"
