@@ -4,13 +4,113 @@ from unittest.mock import Mock
 import pytest
 from fastapi import HTTPException
 from pydantic import ValidationError
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import Session
 
+from app.database import Base
+from app.models import Assessment, AssessmentSymptom, Symptom, SymptomLexicon
 from app.nlp.lexicon import LexiconEntry, Match, match_text
 from app.nlp.engine import analyze
 from app.nlp.rules import build_premedication_guide, classify, emergency_terms_from_text, has_supported_symptom_input
-from app.routers.assessment import analyze_symptoms
+from app.routers.assessment import analyze_symptoms, create_lexicon_entry
 from app.schemas import AnalyzeRequest, LexiconCreateRequest
-from app.seed import LEXICON_SEED, SELECTABLE_SYMPTOMS
+from app.seed import LEXICON_SEED, SELECTABLE_SYMPTOMS, seed_lexicon, seed_symptoms
+
+
+def test_sore_throat_is_only_available_as_a_cold_classification() -> None:
+    entries = [LexiconEntry(**entry) for entry in LEXICON_SEED]
+    standalone = analyze("sore throat", [], entries)
+    cold_with_sore_throat_type = analyze(
+        "Selected symptom types: Sore throat.",
+        ["colds / rhinitis"],
+        entries,
+    )
+
+    assert not any(entry["medical_term"] == "sore throat" for entry in LEXICON_SEED)
+    assert "sore throat" not in SELECTABLE_SYMPTOMS
+    assert standalone.matches == []
+    assert {match.medical_term for match in cold_with_sore_throat_type.matches} == {
+        "colds / rhinitis"
+    }
+
+
+def test_standalone_sore_throat_text_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    entries = [LexiconEntry(**entry) for entry in LEXICON_SEED]
+    monkeypatch.setattr(
+        "app.routers.assessment._load_entries",
+        lambda _db: entries,
+    )
+
+    with pytest.raises(HTTPException) as error:
+        analyze_symptoms(AnalyzeRequest(input_text="sore throat"), Mock(), None)
+
+    assert error.value.status_code == 422
+
+
+def test_admin_cannot_recreate_standalone_sore_throat() -> None:
+    with pytest.raises(HTTPException) as error:
+        create_lexicon_entry(
+            LexiconCreateRequest(
+                local_term="sore throat",
+                medical_term="Sore Throat",
+            ),
+            Mock(),
+            None,
+        )
+
+    assert error.value.status_code == 422
+
+
+@pytest.mark.parametrize("has_assessment_history", [False, True])
+def test_seed_retires_standalone_sore_throat_from_database(
+    has_assessment_history: bool,
+) -> None:
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        legacy_symptom = Symptom(name="sore throat", description="sore throat")
+        db.add(legacy_symptom)
+        db.flush()
+        if has_assessment_history:
+            assessment = Assessment(risk_level="GREEN")
+            db.add(assessment)
+            db.flush()
+            db.add(
+                AssessmentSymptom(
+                    assessment_id=assessment.id,
+                    symptom_id=legacy_symptom.id,
+                    matched_text="sore throat",
+                )
+            )
+        db.add(
+            SymptomLexicon(
+                medical_term="sore throat",
+                local_term="sore throat",
+                language="en",
+                severity_weight=1,
+                category="otorhinolaryngologic",
+            )
+        )
+        db.commit()
+
+        seed_symptoms(db)
+        seed_lexicon(db)
+
+        retired_symptom = db.execute(
+            select(Symptom).where(Symptom.name == "sore throat")
+        ).scalar_one_or_none()
+        if has_assessment_history:
+            assert retired_symptom is not None
+            assert retired_symptom.is_active is False
+        else:
+            assert retired_symptom is None
+        assert db.execute(
+            select(SymptomLexicon).where(SymptomLexicon.medical_term == "sore throat")
+        ).scalars().all() == []
+        assert len(db.execute(select(AssessmentSymptom)).scalars().all()) == int(
+            has_assessment_history
+        )
+    engine.dispose()
 
 
 def test_analyze_request_accepts_age_and_sex() -> None:
@@ -562,19 +662,15 @@ def test_biomedical_lexicon_covers_multiple_systems_and_local_phrases() -> None:
     dehydration = analyze("", ["dehydration"], entries)
 
     assert {
-        "sore throat",
         "frequent urination",
         "numbness or tingling",
     } <= {match.medical_term for match in matches}
-    assert next(match for match in matches if match.medical_term == "sore throat").language == "bcl"
     assert next(match for match in matches if match.medical_term == "frequent urination").language == "bcl"
     assert {
-        "otorhinolaryngologic",
         "genitourinary",
         "neurological",
     } <= {match.category for match in matches}
     assert {
-        "sore throat",
         "blood in urine",
         "palpitations",
         "menstrual pain",

@@ -694,6 +694,11 @@ def create_lexicon_entry(
     db: Session = Depends(get_db),
     user: User = Depends(require_role("admin")),
 ) -> SymptomLexicon:
+    if payload.medical_term.strip().casefold() == "sore throat":
+        raise HTTPException(
+            status_code=422,
+            detail="Sore throat is supported only as a cold symptom classification, not as a standalone symptom.",
+        )
     entry = SymptomLexicon(
         local_term=payload.local_term.strip(),
         language=payload.language.strip() or "en",
@@ -771,7 +776,12 @@ def mho_lexicon(
 
 
 def _load_entries(db: Session) -> list[LexiconEntry]:
-    rows = db.execute(select(SymptomLexicon).where(SymptomLexicon.review_status != "rejected")).scalars().all()
+    rows = db.execute(
+        select(SymptomLexicon).where(
+            SymptomLexicon.review_status != "rejected",
+            func.lower(func.trim(SymptomLexicon.medical_term)) != "sore throat",
+        )
+    ).scalars().all()
     return [
         LexiconEntry(
             local_term=r.local_term,
@@ -1088,7 +1098,10 @@ def get_medication_catalog_entry(
 
 def _load_extraction_entries(db: Session) -> list[LexiconEntry]:
     approved_rows = db.execute(
-        select(SymptomLexicon).where(SymptomLexicon.review_status == "approved")
+        select(SymptomLexicon).where(
+            SymptomLexicon.review_status == "approved",
+            func.lower(func.trim(SymptomLexicon.medical_term)) != "sore throat",
+        )
     ).scalars().all()
     entries = [LexiconEntry(**entry) for entry in LEXICON_SEED]
     entries.extend(

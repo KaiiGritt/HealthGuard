@@ -270,9 +270,7 @@ export default function PageHeader({ dashboardAlertCount = 0 }: { dashboardAlert
                 </Link>
               )}
 
-              {!authReady ? (
-                <div className="h-10 w-28 animate-pulse rounded-full bg-card" aria-label="Loading user menu" />
-              ) : user ? (
+              {user ? (
                 <>
                   <Link href="/profile" className={linkClass("/profile")}>
                     <IconWrapper>

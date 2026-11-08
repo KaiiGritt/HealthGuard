@@ -20,6 +20,13 @@ const SYMPTOM_TRANSLATIONS: Record<string, string> = {
   "difficulty breathing": "Hirap huminga",
 };
 
+const CLASSIFICATION_CATEGORY_TRANSLATIONS: Record<string, string> = {
+  "Cough type": "Uri ng ubo",
+  "Fever type": "Uri ng lagnat",
+  "Headache type": "Uri ng sakit ng ulo",
+  "Cold and allergy symptoms": "Mga sintomas ng sipon at allergy",
+};
+
 interface SymptomSummaryChipProps {
   symptom: string;
   reportedTypes?: SymptomClassification[];
@@ -61,7 +68,10 @@ export default function SymptomSummaryChip({
         return (
           <div key={type.en} className="flex max-w-full flex-col gap-1 border-t border-[#DCE7D8] pl-1 pt-2">
             <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
-              <ResultText english={type.categoryLabel} filipino={type.categoryLabel === "Cough type" ? "Uri ng ubo" : type.categoryLabel === "Fever type" ? "Uri ng lagnat" : type.categoryLabel === "Headache type" ? "Uri ng sakit ng ulo" : type.categoryLabel} />
+              <ResultText
+                english={type.categoryLabel}
+                filipino={CLASSIFICATION_CATEGORY_TRANSLATIONS[type.categoryLabel] ?? type.categoryLabel}
+              />
             </span>
             <span className="min-w-0 break-words text-xs font-semibold text-brand-dark">
               <ResultText english={type.en} filipino={type.tl} />

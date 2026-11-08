@@ -1198,10 +1198,6 @@ LEXICON_SEED: list[dict] = [
     {"medical_term": "dehydration", "local_term": "dehydrated", "language": "en", "severity_weight": 3, "category": "systemic"},
     {"medical_term": "dehydration", "local_term": "kulang sa tubig sa katawan", "language": "tl", "severity_weight": 3, "category": "systemic"},
     {"medical_term": "dehydration", "local_term": "kulang sa tubig an lawas", "language": "bcl", "severity_weight": 3, "category": "systemic"},
-    {"medical_term": "sore throat", "local_term": "sore throat", "language": "en", "severity_weight": 1, "category": "otorhinolaryngologic"},
-    {"medical_term": "sore throat", "local_term": "masakit ang lalamunan", "language": "tl", "severity_weight": 1, "category": "otorhinolaryngologic"},
-    {"medical_term": "sore throat", "local_term": "pananakit ng lalamunan", "language": "tl", "severity_weight": 1, "category": "otorhinolaryngologic"},
-    {"medical_term": "sore throat", "local_term": "masakit an tutunlan", "language": "bcl", "severity_weight": 1, "category": "otorhinolaryngologic"},
     {"medical_term": "ear pain", "local_term": "ear pain", "language": "en", "severity_weight": 1, "category": "otorhinolaryngologic"},
     {"medical_term": "ear pain", "local_term": "earache", "language": "en", "severity_weight": 1, "category": "otorhinolaryngologic"},
     {"medical_term": "ear pain", "local_term": "sakit ng tenga", "language": "tl", "severity_weight": 1, "category": "otorhinolaryngologic"},
@@ -1307,7 +1303,6 @@ SELECTABLE_SYMPTOMS: list[str] = [
     "difficulty breathing",
     "dehydration",
     "fatigue",
-    "sore throat",
     "ear pain",
     "blurred vision",
     "eye pain",
@@ -1333,18 +1328,34 @@ SELECTABLE_SYMPTOMS: list[str] = [
 
 
 def seed_symptoms(db: Session) -> int:
-    """Seed the canonical symptom registry used by the class diagram."""
-    from sqlalchemy import select
+    """Seed selectable symptoms and retire the former standalone sore-throat entry."""
+    from sqlalchemy import func, select
 
-    from .models import Symptom
+    from .models import AssessmentSymptom, Symptom
 
     inserted = 0
+    removed = False
+    standalone_sore_throat = db.execute(
+        select(Symptom).where(func.lower(func.trim(Symptom.name)) == "sore throat")
+    ).scalar_one_or_none()
+    if standalone_sore_throat is not None:
+        has_assessment_history = db.execute(
+            select(AssessmentSymptom.id)
+            .where(AssessmentSymptom.symptom_id == standalone_sore_throat.id)
+            .limit(1)
+        ).first() is not None
+        if has_assessment_history:
+            standalone_sore_throat.is_active = False
+        else:
+            db.delete(standalone_sore_throat)
+        removed = True
+
     for name in SELECTABLE_SYMPTOMS:
         existing = db.execute(select(Symptom).where(Symptom.name == name)).scalar_one_or_none()
         if existing is None:
             db.add(Symptom(name=name, description=name, category="general", is_active=True))
             inserted += 1
-    if inserted:
+    if inserted or removed:
         db.commit()
     return inserted
 

@@ -458,26 +458,39 @@ export function getReportedSymptomClassifications(
   inputText: string,
 ): SymptomClassification[] {
   const normalizedSymptom = symptom.trim().toLowerCase();
-  const classifications =
-    normalizedSymptom === "cough"
-      ? COUGH_CLASSIFICATIONS
-      : normalizedSymptom === "fever"
-        ? FEVER_CLASSIFICATIONS
-        : normalizedSymptom === "headache"
-          ? HEADACHE_CLASSIFICATIONS
-            : normalizedSymptom === "abdominal pain"
-              ? ABDOMINAL_PAIN_CLASSIFICATIONS
-              : normalizedSymptom === "diarrhea"
-                ? DIARRHEA_CLASSIFICATIONS
-                : normalizedSymptom === "vomiting"
-                  ? VOMITING_CLASSIFICATIONS
-                  : normalizedSymptom === "colds / rhinitis"
-                    ? COLD_SYMPTOM_CLASSIFICATIONS
-                    : normalizedSymptom === "muscle ache / body soreness" || normalizedSymptom === "body pain"
-                      ? BODY_PAIN_CLASSIFICATIONS
-                      : normalizedSymptom === "rash"
-                        ? RASH_CLASSIFICATIONS
-                    : [];
+  let classifications: SymptomClassification[];
+  switch (normalizedSymptom) {
+    case "cough":
+      classifications = COUGH_CLASSIFICATIONS;
+      break;
+    case "fever":
+      classifications = FEVER_CLASSIFICATIONS;
+      break;
+    case "headache":
+      classifications = HEADACHE_CLASSIFICATIONS;
+      break;
+    case "abdominal pain":
+      classifications = ABDOMINAL_PAIN_CLASSIFICATIONS;
+      break;
+    case "diarrhea":
+      classifications = DIARRHEA_CLASSIFICATIONS;
+      break;
+    case "vomiting":
+      classifications = VOMITING_CLASSIFICATIONS;
+      break;
+    case "colds / rhinitis":
+      classifications = COLD_SYMPTOM_CLASSIFICATIONS;
+      break;
+    case "muscle ache / body soreness":
+    case "body pain":
+      classifications = BODY_PAIN_CLASSIFICATIONS;
+      break;
+    case "rash":
+      classifications = RASH_CLASSIFICATIONS;
+      break;
+    default:
+      classifications = [];
+  }
   if (classifications.length === 0) return [];
 
   const parsedTypes = [
