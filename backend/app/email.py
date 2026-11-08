@@ -11,8 +11,6 @@ from email.utils import formataddr
 
 from .config import settings
 from .email_templates import (
-    login_alert_email_html,
-    login_alert_email_text,
     password_reset_email_html,
     password_reset_email_text,
     verification_email_html,
@@ -20,33 +18,25 @@ from .email_templates import (
 )
 
 
+def _normalize_display_name(name: str | None) -> str:
+    cleaned = (name or "HealthGuard").strip() or "HealthGuard"
+    if cleaned.lower() == "healthguard":
+        return "HealthGuard"
+    return cleaned
+
+
 def _from_header() -> str:
     """Sender shown in the inbox — use the app name, not a personal name."""
     if settings.smtp_enabled:
         address = settings.smtp_from_email or settings.smtp_username or settings.admin_email
-        name = settings.smtp_from_name
+        name = _normalize_display_name(settings.smtp_from_name)
     elif settings.mailjet_api_key_public and settings.mailjet_api_key_private:
         address = settings.mailjet_from_email
-        name = settings.mailjet_from_name
+        name = _normalize_display_name(settings.mailjet_from_name)
     else:
         address = settings.sendgrid_from_email or settings.smtp_from_email or settings.admin_email
-        name = settings.smtp_from_name
+        name = _normalize_display_name(settings.smtp_from_name)
     return formataddr((name, address))
-
-
-def _build_login_alert_message(email: str, ip_address: str | None = None) -> EmailMessage:
-    msg = EmailMessage()
-    msg["Subject"] = "HealthGuard — Login alert"
-    msg["From"] = _from_header()
-    msg["To"] = email
-    msg.set_content(login_alert_email_text(email, ip_address))
-    msg.add_alternative(login_alert_email_html(email, ip_address), subtype="html")
-    return msg
-
-
-def send_login_alert(email: str, ip_address: str | None = None) -> EmailMessage:
-    """Build an email message for login notification."""
-    return _build_login_alert_message(email, ip_address)
 
 
 def send_verification_code(email: str, code: str) -> EmailMessage:
@@ -96,8 +86,9 @@ def _send_with_mailjet(message: EmailMessage) -> bool:
 
     plain_body = message.get_body(preferencelist=("plain",))
     html_body = message.get_body(preferencelist=("html",))
+    display_name = _normalize_display_name(settings.mailjet_from_name)
     mailjet_message = {
-        "From": {"Email": settings.mailjet_from_email, "Name": settings.mailjet_from_name},
+        "From": {"Email": settings.mailjet_from_email, "Name": display_name},
         "To": [{"Email": message["To"]}],
         "Subject": message["Subject"],
     }

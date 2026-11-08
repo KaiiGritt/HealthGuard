@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from ..case_summary import build_case_summary
 from ..database import get_db
 from ..deps import get_current_user, get_current_user_optional, require_role
-from ..models import Assessment, AssessmentCaseActivity, AssessmentSymptom, Symptom, SymptomLexicon, User
+from ..models import Assessment, AssessmentCaseActivity, AssessmentSymptom, MedicationCatalog, Symptom, SymptomLexicon, User
 from ..nlp import scispacy_adapter
 from ..nlp.engine import analyze
 from ..nlp.extractor import (
@@ -49,6 +49,7 @@ from ..schemas import (
     DetectedSymptom,
     LexiconCreateRequest,
     MethodBreakdownItem,
+    MedicationCatalogOut,
     PreMedicationOut,
     SymptomStatItem,
     SymptomExtractionRequest,
@@ -924,6 +925,167 @@ def list_selectable_symptoms(db: Session = Depends(get_db)) -> list[str]:
     return SELECTABLE_SYMPTOMS
 
 
+@router.get("/medications/productive-cough", response_model=list[MedicationCatalogOut])
+def list_productive_cough_medications(
+    db: Session = Depends(get_db),
+) -> list[MedicationCatalog]:
+    """Return the reference options for productive cough in the UI's display order."""
+    names = [
+        "Guaifenesin",
+        "Carbocisteine",
+        "Ambroxol",
+        "Bromhexine",
+        "Acetylcysteine (NAC)",
+        "Erdosteine",
+    ]
+    records = db.execute(
+        select(MedicationCatalog).where(MedicationCatalog.generic_name.in_(names))
+    ).scalars().all()
+    by_name = {record.generic_name: record for record in records}
+    return [by_name[name] for name in names if name in by_name]
+
+
+@router.get("/medications/dry-cough", response_model=list[MedicationCatalogOut])
+def list_dry_cough_medications(
+    db: Session = Depends(get_db),
+) -> list[MedicationCatalog]:
+    """Return reference options for dry cough in the UI's display order."""
+    names = [
+        "Dextromethorphan",
+        "Diphenhydramine",
+        "Chlorpheniramine",
+        "Cetirizine",
+        "Loratadine",
+    ]
+    records = db.execute(
+        select(MedicationCatalog).where(MedicationCatalog.generic_name.in_(names))
+    ).scalars().all()
+    by_name = {record.generic_name: record for record in records}
+    return [by_name[name] for name in names if name in by_name]
+
+
+@router.get("/medications/diarrhea", response_model=list[MedicationCatalogOut])
+def list_diarrhea_medications(
+    db: Session = Depends(get_db),
+) -> list[MedicationCatalog]:
+    """Return diarrhea-support options in the UI's display order."""
+    names = [
+        "Oral Rehydration Salts (ORS)",
+        "Zinc sulfate",
+        "Saccharomyces boulardii",
+        "Lactobacillus species",
+        "Loperamide",
+        "Bismuth subsalicylate",
+    ]
+    records = db.execute(
+        select(MedicationCatalog).where(MedicationCatalog.generic_name.in_(names))
+    ).scalars().all()
+    by_name = {record.generic_name: record for record in records}
+    return [by_name[name] for name in names if name in by_name]
+
+
+@router.get("/medications/vomiting", response_model=list[MedicationCatalogOut])
+def list_vomiting_medications(
+    db: Session = Depends(get_db),
+) -> list[MedicationCatalog]:
+    """Return vomiting-support references in the UI's display order."""
+    names = ["Oral Rehydration Salts (ORS)", "Meclizine Hydrochloride"]
+    records = db.execute(
+        select(MedicationCatalog).where(MedicationCatalog.generic_name.in_(names))
+    ).scalars().all()
+    by_name = {record.generic_name: record for record in records}
+    return [by_name[name] for name in names if name in by_name]
+
+
+@router.get("/medications/cold", response_model=list[MedicationCatalogOut])
+def list_cold_medications(
+    db: Session = Depends(get_db),
+) -> list[MedicationCatalog]:
+    """Return cold-symptom references in the UI's display order."""
+    names = [
+        "Pseudoephedrine",
+        "Oxymetazoline",
+        "Xylometazoline",
+        "Phenylephrine",
+        "Cetirizine",
+        "Loratadine",
+        "Chlorpheniramine",
+        "Paracetamol",
+        "Dextromethorphan",
+        "Guaifenesin",
+    ]
+    records = db.execute(
+        select(MedicationCatalog).where(MedicationCatalog.generic_name.in_(names))
+    ).scalars().all()
+    by_name = {record.generic_name: record for record in records}
+    return [by_name[name] for name in names if name in by_name]
+
+
+@router.get("/medications/headache", response_model=list[MedicationCatalogOut])
+def list_headache_medications(
+    db: Session = Depends(get_db),
+) -> list[MedicationCatalog]:
+    """Return headache medicine references in the UI's display order."""
+    names = [
+        "Paracetamol",
+        "Ibuprofen",
+        "Naproxen Sodium",
+        "Acetylsalicylic Acid (Aspirin)",
+    ]
+    records = db.execute(
+        select(MedicationCatalog).where(MedicationCatalog.generic_name.in_(names))
+    ).scalars().all()
+    by_name = {record.generic_name: record for record in records}
+    return [by_name[name] for name in names if name in by_name]
+
+
+@router.get("/medications/abdominal", response_model=list[MedicationCatalogOut])
+def list_abdominal_medications(
+    db: Session = Depends(get_db),
+) -> list[MedicationCatalog]:
+    """Return abdominal support references in the UI's display order."""
+    names = [
+        "Antacids (Aluminum hydroxide and Magnesium hydroxide)",
+        "Calcium carbonate",
+        "Simethicone",
+        "Hyoscine butylbromide",
+    ]
+    records = db.execute(
+        select(MedicationCatalog).where(MedicationCatalog.generic_name.in_(names))
+    ).scalars().all()
+    by_name = {record.generic_name: record for record in records}
+    return [by_name[name] for name in names if name in by_name]
+
+
+@router.get("/medications/rash", response_model=list[MedicationCatalogOut])
+def list_rash_medications(
+    db: Session = Depends(get_db),
+) -> list[MedicationCatalog]:
+    """Return antihistamine references for itch-classified rash cases."""
+    names = ["Cetirizine", "Loratadine"]
+    records = db.execute(
+        select(MedicationCatalog).where(MedicationCatalog.generic_name.in_(names))
+    ).scalars().all()
+    by_name = {record.generic_name: record for record in records}
+    return [by_name[name] for name in names if name in by_name]
+
+
+@router.get("/medications/{generic_name}", response_model=MedicationCatalogOut)
+def get_medication_catalog_entry(
+    generic_name: str,
+    db: Session = Depends(get_db),
+) -> MedicationCatalog:
+    """Return reference medicine information from the database catalog."""
+    medication = db.execute(
+        select(MedicationCatalog).where(
+            func.lower(MedicationCatalog.generic_name) == generic_name.strip().lower()
+        )
+    ).scalar_one_or_none()
+    if medication is None:
+        raise HTTPException(status_code=404, detail="Medication information was not found.")
+    return medication
+
+
 def _load_extraction_entries(db: Session) -> list[LexiconEntry]:
     approved_rows = db.execute(
         select(SymptomLexicon).where(SymptomLexicon.review_status == "approved")
@@ -1044,7 +1206,7 @@ def analyze_symptoms(
     _sync_assessment_symptoms(db, record, result.matches)
     db.commit()
     db.refresh(record)
-    create_assessment_premedication(db, record)
+    create_assessment_premedication(db, record, payload.age)
 
     guide = build_premedication_guide(record.risk_level, _assessment_symptom_terms(db, record), record.input_text, payload.age)
     db_guide = get_premedication_for_assessment(db, record.id)
@@ -1119,7 +1281,7 @@ def history(
         ]
         if not terms:
             terms = [str(item).strip().lower() for item in (record.detected_symptoms or []) if str(item).strip()]
-        guide = build_premedication_guide(record.risk_level, terms)
+        guide = build_premedication_guide(record.risk_level, terms, record.input_text)
         db_guide = record.pre_medications[0] if record.pre_medications else None
         response.append(
             AssessmentOut(
@@ -1135,12 +1297,12 @@ def history(
                 created_at=record.created_at,
                 pre_medication=(
                     PreMedicationOut(
-                        medication_name=db_guide.medication_name if db_guide else (guide.medication_name if guide else ""),
-                        dosage=db_guide.dosage if db_guide else (guide.dosage if guide else ""),
+                        medication_name=guide.medication_name if guide else (db_guide.medication_name if db_guide else ""),
+                        dosage=guide.dosage if guide else (db_guide.dosage if db_guide else ""),
                         contraindications=list(guide.contraindications) if guide else [],
                         side_effects=list(guide.side_effects) if guide else [],
                         precautions=list(guide.precautions) if guide else [],
-                        note=(db_guide.instruction if db_guide else (guide.note if guide else "")),
+                        note=guide.note if guide else (db_guide.instruction if db_guide else ""),
                     )
                     if (db_guide is not None or guide is not None)
                     else None
@@ -1319,7 +1481,7 @@ def get_assessment(
 
     terms = _assessment_symptom_terms(db, record)
     resident = db.get(User, record.user_id) if record.user_id is not None else None
-    guide = build_premedication_guide(record.risk_level, terms)
+    guide = build_premedication_guide(record.risk_level, terms, record.input_text)
     db_guide = get_premedication_for_assessment(db, record.id)
     return AssessmentOut(
         id=record.id,
@@ -1337,12 +1499,12 @@ def get_assessment(
         created_at=record.created_at,
         pre_medication=(
             PreMedicationOut(
-                medication_name=db_guide.medication_name if db_guide else (guide.medication_name if guide else ""),
-                dosage=db_guide.dosage if db_guide else (guide.dosage if guide else ""),
+                medication_name=guide.medication_name if guide else (db_guide.medication_name if db_guide else ""),
+                dosage=guide.dosage if guide else (db_guide.dosage if db_guide else ""),
                 contraindications=list(guide.contraindications) if guide else [],
                 side_effects=list(guide.side_effects) if guide else [],
                 precautions=list(guide.precautions) if guide else [],
-                note=(db_guide.instruction if db_guide else (guide.note if guide else "")),
+                note=guide.note if guide else (db_guide.instruction if db_guide else ""),
             )
             if (db_guide is not None or guide is not None)
             else None

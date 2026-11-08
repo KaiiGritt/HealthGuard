@@ -215,6 +215,9 @@ def test_chest_pain_and_tightness_trigger_red_flag_override() -> None:
         ("Thunderclap headache", "thunderclap headache"),
         ("yellow-green vomit", "green vomit"),
         ("nagsuka ng berdeng suka", "green vomit"),
+        ("bilious vomiting", "green vomit"),
+        ("coffee-ground vomiting", "coffee-ground vomit"),
+        ("Hematemesis (bloody vomiting)", "blood in vomit"),
     ],
 )
 def test_emergency_text_overrides_normal_symptom_extraction(text: str, expected: str) -> None:
@@ -231,6 +234,12 @@ def test_negated_green_vomit_does_not_trigger_emergency() -> None:
 
     assert "green vomit" not in emergency_terms_from_text("no green vomit, vomited once")
     assert result.classification.risk_level != "RED"
+
+
+def test_negated_coffee_ground_vomit_does_not_trigger_emergency() -> None:
+    text = "no coffee-ground vomiting"
+
+    assert "coffee-ground vomit" not in emergency_terms_from_text(text)
 
 
 @pytest.mark.parametrize(
@@ -494,6 +503,26 @@ def test_blood_in_stool_chip_requires_review_and_blocks_loperamide() -> None:
 
     assert blood_only.classification.risk_level == "YELLOW"
     assert bloody_diarrhea.classification.risk_level == "YELLOW"
+    assert guide is not None
+    assert guide.medication_name == "Oral Rehydration Solution (ORS)"
+
+
+def test_bloody_diarrhea_classification_resolves_to_existing_blood_safety_rule() -> None:
+    entries = [LexiconEntry(**entry) for entry in LEXICON_SEED]
+    result = analyze(
+        "Selected symptom types: Bloody diarrhea (dysentery).",
+        ["diarrhea"],
+        entries,
+    )
+    detected_terms = [match.medical_term for match in result.matches]
+    guide = build_premedication_guide(
+        result.classification.risk_level,
+        detected_terms,
+        "Selected symptom types: Bloody diarrhea (dysentery).",
+    )
+
+    assert result.classification.risk_level == "YELLOW"
+    assert "blood in stool" in detected_terms
     assert guide is not None
     assert guide.medication_name == "Oral Rehydration Solution (ORS)"
 

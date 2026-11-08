@@ -6,6 +6,8 @@ import { Suspense } from "react";
 import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import Disclaimer from "../components/Disclaimer";
 import PageHeader from "../components/PageHeader";
+import { useDashboardText } from "../components/dashboardLanguage";
+import { useInterfaceLanguage } from "../components/LanguageProvider";
 import {
   AccessGate,
   cn,
@@ -22,6 +24,8 @@ import {
 } from "@/app/components/ui/primitives";
 import { addAssessmentCaseActivity, formatAssessmentRecordNumber, getDashboardSummary, getMe, getMhoLexicon, markLexiconReviewed, rejectLexiconEntry, type AdminModuleLexiconEntry, type DashboardAssessmentItem, type User } from "@/lib/api";
 import { generateCommunityHealthReport } from "@/lib/communityHealthReport";
+import { getReportedSymptomClassifications } from "@/lib/coughClassifications";
+import { getMedicalTerm } from "../assessment/medicalTerms";
 
 const SECTIONS = [
   { id: "overview", label: "Overview" },
@@ -102,6 +106,7 @@ function WidgetCard({
   urgent?: boolean;
   children: ReactNode;
 }) {
+  const t = useDashboardText();
   return (
     <div
       className={cn(
@@ -120,8 +125,8 @@ function WidgetCard({
             <WidgetIcon path={widgetIcons[icon]} />
           </span>
           <div>
-            <h3 className="font-display text-base font-semibold text-ink lg:text-lg">{title}</h3>
-            {subtitle && <p className="mt-0.5 text-xs text-ink-muted">{subtitle}</p>}
+            <h3 className="font-display text-base font-semibold text-ink lg:text-lg">{t(title)}</h3>
+            {subtitle && <p className="mt-0.5 text-xs text-ink-muted">{t(subtitle)}</p>}
           </div>
         </div>
         {action}
@@ -129,26 +134,26 @@ function WidgetCard({
       <div className="flex-1 p-5">{children}</div>
       {updated && (
         <div className="border-t border-border/60 px-5 py-2.5">
-          <p className="font-mono text-[10px] uppercase tracking-wide text-ink-faint">Updated {updated}</p>
+          <p className="font-mono text-[10px] uppercase tracking-wide text-ink-faint">{t("Updated")} {updated}</p>
         </div>
       )}
     </div>
   );
 }
 
-function formatSubmittedAgo(value: string) {
+function formatSubmittedAgo(value: string, t: (phrase: string) => string) {
   const submittedAt = new Date(value).getTime();
-  if (!Number.isFinite(submittedAt)) return "Submitted date unavailable";
+  if (!Number.isFinite(submittedAt)) return t("Submitted date unavailable");
 
   const elapsedMinutes = Math.max(0, Math.floor((Date.now() - submittedAt) / 60_000));
-  if (elapsedMinutes < 1) return "Submitted just now";
-  if (elapsedMinutes < 60) return `Submitted ${elapsedMinutes}m ago`;
+  if (elapsedMinutes < 1) return t("Submitted just now");
+  if (elapsedMinutes < 60) return `${t("Submitted")} ${elapsedMinutes} ${t("minutes ago")}`;
 
   const elapsedHours = Math.floor(elapsedMinutes / 60);
-  if (elapsedHours < 24) return `Submitted ${elapsedHours}h ago`;
+  if (elapsedHours < 24) return `${t("Submitted")} ${elapsedHours} ${t("hours ago")}`;
 
   const elapsedDays = Math.floor(elapsedHours / 24);
-  return `Submitted ${elapsedDays}d ago`;
+  return `${t("Submitted")} ${elapsedDays} ${t("days ago")}`;
 }
 
 function formatAbsoluteDate(value: string) {
@@ -171,18 +176,17 @@ function AssessmentCaseCard({
   asOf: string;
   onContactLogged: (item: DashboardAssessmentItem) => void;
 }) {
-  const [copied, setCopied] = useState(false);
-  const [copyError, setCopyError] = useState(false);
+  const t = useDashboardText();
   const [loggingContact, setLoggingContact] = useState(false);
   const [contactLogError, setContactLogError] = useState<string | null>(null);
   const riskLevel = item.risk_level.toUpperCase();
   const caseType = riskLevel === "RED"
-    ? "Flagged"
+    ? t("Flagged", "Minarkahan")
     : riskLevel === "YELLOW"
-      ? "Follow-up"
+      ? t("Follow-up")
       : riskLevel === "GREEN"
-        ? "Routine"
-        : "Needs info";
+        ? t("Routine")
+        : t("Needs info", "Kailangan ng impormasyon");
   const residentInitial = item.resident_name.trim().charAt(0).toUpperCase() || "?";
   const accent = riskLevel === "RED"
     ? "from-[#a93627] via-[#d2614d] to-[#f0c2b5]"
@@ -191,7 +195,8 @@ function AssessmentCaseCard({
       : riskLevel === "GREEN"
         ? "from-[#286447] via-[#4d8c68] to-[#c3deca]"
         : "from-slate-400 via-slate-300 to-slate-100";
-  const lastContact = item.case_activities?.find((activity) => activity.kind === "contact_attempt");
+  const lastContact = item.case_activities?.find((activity) => activity.kind === "contacted" || activity.kind === "contact_attempt");
+  const lastFollowUp = item.case_activities?.find((activity) => activity.kind === "follow_up");
   const hasContactAttempt = Boolean(lastContact);
   const overdue = riskLevel === "RED"
     && !hasContactAttempt
@@ -204,39 +209,24 @@ function AssessmentCaseCard({
       return normalizedReason.includes(normalized) || normalized.includes(normalizedReason);
     });
   };
-  const smsBody = "Kumusta po. This is the Municipal Health Unit following up about your recent HealthGuard assessment. Maaari po ba kayong makausap tungkol sa inyong kalagayan? Kung emergency o lumalala ang sintomas, pumunta agad sa pinakamalapit na ospital o tumawag sa 911.";
-  const smsHref = item.phone_number
-    ? `sms:${item.phone_number}?body=${encodeURIComponent(smsBody)}`
-    : undefined;
   const explanationRules = item.triggered_rules
     ?.filter((rule) => rule.description.trim() && !SCORING_RULE_NAMES.has(rule.name))
     .slice(0, 2) ?? [];
 
-  async function copyPhoneNumber() {
-    if (!item.phone_number) return;
-    try {
-      await navigator.clipboard.writeText(item.phone_number);
-      setCopied(true);
-      setCopyError(false);
-    } catch (error) {
-      console.error("Could not copy the resident mobile number.", error);
-      setCopied(false);
-      setCopyError(true);
-    }
-  }
-
-  async function logContactAttempt() {
+  async function logCaseActivity(kind: "contacted" | "follow_up") {
     setLoggingContact(true);
     setContactLogError(null);
     try {
       const updated = await addAssessmentCaseActivity(item.id, {
-        kind: "contact_attempt",
-        details: "Contact attempt logged from the dashboard.",
+        kind,
+        details: kind === "contacted"
+          ? "Resident contacted from the dashboard."
+          : "Resident follow-up completed from the dashboard.",
       });
       onContactLogged(updated);
     } catch (error) {
-      console.error("Could not log the resident contact attempt.", error);
-      setContactLogError(error instanceof Error ? error.message : "Could not log contact attempt.");
+      console.error(`Could not record resident ${kind === "contacted" ? "contact" : "follow-up"}.`, error);
+      setContactLogError(error instanceof Error ? error.message : "Could not update case activity.");
     } finally {
       setLoggingContact(false);
     }
@@ -276,7 +266,7 @@ function AssessmentCaseCard({
               {overdue && (
                 <span className="inline-flex items-center gap-1 rounded-full border border-[#efc5bb] bg-[#fff0ec] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-[#a33c2c]">
                   <span className="h-1.5 w-1.5 rounded-full bg-[#bd4935]" aria-hidden="true" />
-                  Overdue
+                  {t("Overdue", "Lampas sa takdang oras")}
                 </span>
               )}
             </div>
@@ -289,25 +279,41 @@ function AssessmentCaseCard({
 
       <div className="px-5 py-5 sm:px-6">
         <div className="rounded-2xl border border-[#e5ebe2] bg-[linear-gradient(145deg,#fbfcfa_0%,#f6f9f4_100%)] px-4 py-4">
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.15em] text-[#758171]">Reported symptoms</p>
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.15em] text-[#758171]">{t("Reported symptoms", "Mga naiulat na sintomas")}</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {item.detected_symptoms?.length ? item.detected_symptoms.map((symptom) => {
               const isUrgent = isUrgencySymptom(symptom);
+              const reportedTypes = getReportedSymptomClassifications(symptom, item.note);
+              const medicalTerm = getMedicalTerm(symptom);
               return (
-                <span
-                  key={symptom}
-                  className={cn(
+                <div key={symptom} className="max-w-full rounded-xl border border-[#dfe8dc] bg-white/90 px-2.5 py-2">
+                  <span className={cn(
                     "inline-flex items-center rounded-lg border px-2.5 py-1 text-sm font-semibold",
                     isUrgent
                       ? "border-[#efc9c1] bg-[#fff0ec] text-[#9e392b]"
                       : "border-[#dfe8dc] bg-white text-[#344536]",
+                  )}>
+                    {symptom}
+                  </span>
+                  {medicalTerm && <span className="mt-1 block text-[10px] leading-relaxed text-ink-faint">{t("Medical term")}: {medicalTerm}</span>}
+                  {reportedTypes.length > 0 && (
+                    <ul className="mt-2 space-y-2 border-t border-[#e8ede5] pt-2">
+                      {reportedTypes.map((type) => {
+                        const typeMedicalTerm = getMedicalTerm(type.en);
+                        return (
+                          <li key={type.en} className="min-w-0">
+                            <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-[#758171]">{type.categoryLabel}</p>
+                            <p className="mt-0.5 text-xs font-semibold text-[#344536]">{type.en}</p>
+                            {typeMedicalTerm && <span className="block text-[10px] leading-relaxed text-ink-faint">{t("Medical term")}: {typeMedicalTerm}</span>}
+                          </li>
+                        );
+                      })}
+                    </ul>
                   )}
-                >
-                  {symptom}
-                </span>
+                </div>
               );
             }) : (
-              <span className="text-sm font-medium text-[#687566]">Symptoms not recorded</span>
+              <span className="text-sm font-medium text-[#687566]">{t("Symptoms not recorded", "Walang naitalang sintomas")}</span>
             )}
           </div>
           <div className="mt-3 flex items-start gap-2 border-t border-[#e4eae0] pt-3 text-sm leading-relaxed text-[#52604f]">
@@ -315,13 +321,13 @@ function AssessmentCaseCard({
               <circle cx="12" cy="12" r="9" />
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 7v5l3 2" />
             </svg>
-            <span><span className="font-medium text-[#687566]">Onset</span><span className="mx-1.5 text-[#b3bdb0]">·</span><span className="font-semibold text-[#344536]">{item.case_summary.onset_display}</span></span>
+            <span><span className="font-medium text-[#687566]">{t("Onset", "Pagsisimula")}</span><span className="mx-1.5 text-[#b3bdb0]">·</span><span className="font-semibold text-[#344536]">{item.case_summary.onset_display}</span></span>
           </div>
         </div>
 
         {riskLevel === "RED" && (
           <div className="mt-4 rounded-xl border border-[#efddd7] bg-[#fffaf8] px-4 py-3.5">
-            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[#8d5146]">Why RED?</p>
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[#8d5146]">{t("Why RED?", "Bakit PULA?")}</p>
             <p className="mt-2 text-sm font-medium leading-relaxed text-[#573b36]">
               {item.reason || `${item.detected_symptoms.join(", ") || item.case_summary.chief_complaint_summary}; onset: ${item.case_summary.onset_display}.`}
             </p>
@@ -335,7 +341,7 @@ function AssessmentCaseCard({
 
         {item.recommendation && (
           <div className="mt-3 rounded-xl border border-[#dbe8dc] bg-[#f3f8f2] px-4 py-3">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.13em] text-[#5a765c]">Suggested next step</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.13em] text-[#5a765c]">{t("Suggested next step", "Iminungkahing susunod na hakbang")}</p>
             <p className="mt-1 text-sm font-medium leading-relaxed text-[#2e4c36]">{item.recommendation}</p>
           </div>
         )}
@@ -347,7 +353,7 @@ function AssessmentCaseCard({
                 <circle cx="12" cy="8" r="3.25" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5.5 20v-1.4a6.5 6.5 0 0 1 13 0V20z" />
               </svg>
-              Age {item.age}
+              {t("Age")} {item.age}
             </span>
           )}
           {item.barangay && (
@@ -360,13 +366,13 @@ function AssessmentCaseCard({
             </span>
           )}
           {item.age == null && !item.barangay && (
-            <span className="text-sm font-medium text-[#687566]">Resident details unavailable</span>
+            <span className="text-sm font-medium text-[#687566]">{t("Resident details unavailable")}</span>
           )}
         </div>
 
         {item.case_summary.urgency_reasons.length > 0 && (
           <p className="mt-4 rounded-xl border border-[#f1d6d0] bg-[#fff6f3] px-3.5 py-3 text-sm font-medium leading-relaxed text-[#852d21]">
-            <span className="font-bold">Urgency flags:</span> {item.case_summary.urgency_reasons.join(" · ")}
+            <span className="font-bold">{t("Urgency flags:")}</span> {item.case_summary.urgency_reasons.map((reason) => t(reason)).join(" · ")}
           </p>
         )}
 
@@ -377,7 +383,7 @@ function AssessmentCaseCard({
                 <circle cx="12" cy="12" r="9" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 7v5l3 2" />
               </svg>
-              {formatSubmittedAgo(item.created_at)}
+              {formatSubmittedAgo(item.created_at, t)}
             </time>
             <span className="pl-6 text-xs text-[#879184]">{formatAbsoluteDate(item.created_at)}</span>
           </div>
@@ -389,15 +395,6 @@ function AssessmentCaseCard({
                 </svg>
                 {item.phone_number}
               </a>
-              <button type="button" onClick={copyPhoneNumber} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-[#e1e8df] bg-white px-3 text-xs font-semibold text-[#52604f] transition hover:bg-[#f7f9f6] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15" aria-label="Copy mobile number">
-                {copied ? "Copied" : "Copy"}
-              </button>
-              {smsHref && (
-                <a href={smsHref} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-[#dce7dc] bg-white px-3 text-xs font-semibold text-[#285d43] transition hover:bg-[#f5f9f4] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15">
-                  SMS
-                </a>
-              )}
-              {copyError && <span role="status" className="w-full text-xs text-[#9e392b]">Could not copy number.</span>}
             </div>
           )}
         </div>
@@ -408,21 +405,32 @@ function AssessmentCaseCard({
           </svg>
           {lastContact ? (
             <span>
-              Last contact attempt · <span className="font-semibold text-[#445443]">{lastContact.actor_name || "Staff"}</span>
-              {" · "}{formatSubmittedAgo(lastContact.created_at).replace(/^Submitted /, "")}
+              {t(lastContact.kind === "contacted" ? "Last marked contacted" : "Last contact attempt")} · <span className="font-semibold text-[#445443]">{lastContact.actor_name || t("Staff")}</span>
+              {" · "}{formatSubmittedAgo(lastContact.created_at, t).replace(`${t("Submitted")} `, "")}
               {lastContact.details ? <span className="block pt-0.5 text-[#849184]">{lastContact.details}</span> : null}
             </span>
           ) : (
             <span className={cn(overdue ? "font-semibold text-[#9e392b]" : "font-medium")}>
-              {overdue ? "No contact yet · RED case overdue (24-hour contact target)" : "No contact yet"}
+              {t(overdue ? "No contact yet · RED case overdue (24-hour contact target)" : "No contact yet")}
             </span>
           )}
-          {riskLevel === "RED" && (
-            <button type="button" onClick={logContactAttempt} disabled={loggingContact} className="ml-auto inline-flex min-h-8 items-center rounded-lg border border-[#e1e8df] bg-white px-2.5 text-xs font-semibold text-[#52604f] transition hover:bg-[#f5f8f3] disabled:cursor-wait disabled:opacity-60 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15">
-              {loggingContact ? "Saving…" : "Log contact attempt"}
-            </button>
-          )}
         </div>
+        {lastFollowUp && (
+          <div className="mt-2 flex items-center gap-2 rounded-xl border border-[#dbe8dc] bg-[#f3f8f2] px-3.5 py-2.5 text-xs text-[#52604f]">
+            <span className="font-semibold text-[#2e4c36]">{t("Follow-up completed")}</span>
+            <span>· {lastFollowUp.actor_name || t("Staff")} · {formatSubmittedAgo(lastFollowUp.created_at, t).replace(`${t("Submitted")} `, "")}</span>
+          </div>
+        )}
+        {riskLevel === "RED" && (
+          <div className="mt-2 flex flex-wrap justify-end gap-2">
+            <button type="button" onClick={() => void logCaseActivity("contacted")} disabled={loggingContact} className="inline-flex min-h-9 items-center rounded-lg border border-[#dce7dc] bg-white px-3 text-xs font-semibold text-[#285d43] transition hover:bg-[#f5f9f4] disabled:cursor-wait disabled:opacity-60 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15">
+              {loggingContact ? t("Saving…") : t("Mark contacted")}
+            </button>
+            <button type="button" onClick={() => void logCaseActivity("follow_up")} disabled={loggingContact} className="inline-flex min-h-9 items-center rounded-lg border border-[#dce7dc] bg-[#f3f8f2] px-3 text-xs font-semibold text-[#285d43] transition hover:bg-[#eaf3e9] disabled:cursor-wait disabled:opacity-60 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15">
+              {loggingContact ? t("Saving…") : t("Mark followed up")}
+            </button>
+          </div>
+        )}
         {contactLogError && <p role="alert" className="mt-2 text-xs text-[#9e392b]">{contactLogError}</p>}
       </div>
     </article>
@@ -493,6 +501,7 @@ function SearchIcon() {
 }
 
 function WeeklySeverityChart({ data }: { data: DashboardState["weekly_trend"] }) {
+  const t = useDashboardText();
   const [timeframe, setTimeframe] = useState<"4" | "8" | "all">("all");
   const patternId = `current-week-${useId().replace(/:/g, "")}`;
   if (!data || data.length === 0) return null;
@@ -513,9 +522,9 @@ function WeeklySeverityChart({ data }: { data: DashboardState["weekly_trend"] })
   const averageY = plot.bottom - (averageCases / chartMax) * plotHeight;
   const formatWeek = (date: string) => new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" });
   const severityLegend = [
-    { key: "green", label: "Green", color: "#73977c" },
-    { key: "yellow", label: "Yellow", color: "#d5a843" },
-    { key: "red", label: "Red", color: "#bd4935" },
+    { key: "green", label: t("Green"), color: "#73977c" },
+    { key: "yellow", label: t("Yellow"), color: "#d5a843" },
+    { key: "red", label: t("Red"), color: "#bd4935" },
   ] as const;
 
   return (
@@ -524,25 +533,25 @@ function WeeklySeverityChart({ data }: { data: DashboardState["weekly_trend"] })
         <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-dark">
-              {last.label === "This week" ? "Week to date" : "Latest completed week"}
+              {t(last.label === "This week" ? "Week to date" : "Latest completed week")}
             </p>
             <div className="mt-1 flex items-baseline gap-2">
               <p className="font-display text-3xl font-semibold tracking-tight text-ink tabular-nums sm:text-4xl">{last.count}</p>
               <p className="text-xs text-ink-muted">
                 {last.label === "This week"
-                  ? `${last.count === 1 ? "case" : "cases"} so far this week`
-                  : `${last.count === 1 ? "case" : "cases"} in the latest week`}
+                  ? `${last.count} ${t(last.count === 1 ? "case" : "cases")} ${t("so far this week")}`
+                  : `${last.count} ${t(last.count === 1 ? "case" : "cases")} ${t("in the latest week")}`}
               </p>
             </div>
           </div>
           <span className="inline-flex items-center gap-2 rounded-full border border-[#dce7dc] bg-white/80 px-3 py-1.5 text-[10px] font-semibold text-ink-secondary shadow-sm">
             <span className="h-2 w-2 rounded-full bg-[#286447]" aria-hidden="true" />
-            {totalCases} cases in view
+            {totalCases} {t("cases in view")}
           </span>
         </div>
         <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-[11px] text-ink-muted">Weekly assessments by triage severity</p>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1" aria-label="Severity legend">
+          <p className="text-[11px] text-ink-muted">{t("Weekly assessments by triage severity")}</p>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1" aria-label={t("Severity legend")}>
             {severityLegend.map((item) => (
               <span key={item.key} className="inline-flex items-center gap-1.5 text-[10px] font-medium text-ink-secondary">
                 <span className="h-2.5 w-2.5 rounded-[3px]" style={{ backgroundColor: item.color }} aria-hidden="true" />
@@ -551,13 +560,13 @@ function WeeklySeverityChart({ data }: { data: DashboardState["weekly_trend"] })
             ))}
             <span className="inline-flex items-center gap-1.5 text-[10px] font-medium text-ink-secondary">
               <span className="w-4 border-t border-dashed border-[#526b5a]" aria-hidden="true" />
-              Avg {averageCases.toFixed(1)}
+              {t("Avg")} {averageCases.toFixed(1)}
             </span>
           </div>
         </div>
         <svg viewBox={`0 0 ${width} ${height}`} className="h-52 w-full sm:h-60" preserveAspectRatio="none" role="img" aria-label={`Weekly stacked assessment counts by severity. Average ${averageCases.toFixed(1)} cases per week. ${trendData.map((week) => `${week.label}: ${week.count} total, ${week.green} green, ${week.yellow} yellow, ${week.red} red`).join("; ")}`}>
-          <title>Weekly assessments by triage severity</title>
-          <desc>Stacked columns show green, yellow, and red cases. Empty weeks have a baseline tick. The current week is week to date. A dashed line marks the weekly average.</desc>
+          <title>{t("Weekly assessments by triage severity")}</title>
+          <desc>{t("Green, yellow, and red cases.")} {t("Empty weeks have a baseline tick.")} {t("Week to date")}. {t("A dashed line marks the weekly average.")}</desc>
           <defs>
             <pattern id={patternId} width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
               <rect width="6" height="6" fill="#ffffff" fillOpacity="0.42" />
@@ -577,7 +586,7 @@ function WeeklySeverityChart({ data }: { data: DashboardState["weekly_trend"] })
             ];
             return (
               <g key={week.date} tabIndex={0} role="img" aria-label={`${week.label}${isCurrentWeek ? ", week to date" : ""}: ${week.count} total, ${week.green} green, ${week.yellow} yellow, ${week.red} red cases`}>
-                <title>{`${isCurrentWeek ? "Week to date" : formatWeek(week.date)}: ${week.count} ${week.count === 1 ? "case" : "cases"} (Green ${week.green}, Yellow ${week.yellow}, Red ${week.red})`}</title>
+                <title>{`${isCurrentWeek ? t("Week to date") : formatWeek(week.date)}: ${week.count} ${t(week.count === 1 ? "case" : "cases")} (${t("Green")} ${week.green}, ${t("Yellow")} ${week.yellow}, ${t("Red")} ${week.red})`}</title>
                 {week.count === 0 ? (
                   <line x1={centerX} x2={centerX} y1={plot.bottom - 5} y2={plot.bottom + 1} stroke="#9eaa9d" strokeWidth="2" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
                 ) : (
@@ -609,19 +618,19 @@ function WeeklySeverityChart({ data }: { data: DashboardState["weekly_trend"] })
                   </>
                 )}
                 <text x={centerX} y={plot.bottom + 20} textAnchor="middle" className={`font-mono text-[9px] ${isCurrentWeek ? "fill-[#286447] font-semibold" : "fill-[#788575]"}`}>
-                  {isCurrentWeek ? "Week to date" : formatWeek(week.date)}
+                  {isCurrentWeek ? t("Week to date") : formatWeek(week.date)}
                 </text>
               </g>
             );
           })}
           <line x1={plot.left} x2={plot.right} y1={averageY} y2={averageY} stroke="#526b5a" strokeOpacity="0.85" strokeDasharray="5 4" vectorEffect="non-scaling-stroke" />
         </svg>
-        <p className="mt-1 text-center font-mono text-[9px] uppercase tracking-[0.08em] text-ink-faint">Week starting · current week is partial</p>
+        <p className="mt-1 text-center font-mono text-[9px] uppercase tracking-[0.08em] text-ink-faint">{t("Week starting · current week is partial")}</p>
       </div>
       <div className="border-t border-border-soft pt-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-brand-dark">View timeframe</p>
-          <div className="flex rounded-xl border border-[#dce7dc] bg-[#f6f9f5] p-1 shadow-inner" role="group" aria-label="Case volume timeframe">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-brand-dark">{t("View timeframe")}</p>
+          <div className="flex rounded-xl border border-[#dce7dc] bg-[#f6f9f5] p-1 shadow-inner" role="group" aria-label={t("Case volume timeframe")}>
             {([{ value: "4", label: "4 weeks" }, { value: "8", label: "8 weeks" }, { value: "all", label: "All data" }] as const).map((option) => (
               <button
                 key={option.value}
@@ -630,16 +639,16 @@ function WeeklySeverityChart({ data }: { data: DashboardState["weekly_trend"] })
                 aria-pressed={timeframe === option.value}
                 className={`rounded-lg px-2.5 py-1.5 text-[10px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/35 ${timeframe === option.value ? "bg-white text-brand-dark shadow-sm ring-1 ring-brand/10" : "text-ink-muted hover:bg-white/70 hover:text-ink"}`}
               >
-                {option.label}
+                {t(option.label)}
               </button>
             ))}
           </div>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <div className="rounded-xl border border-brand/15 bg-brand-tint/55 px-3 py-2.5"><p className="font-mono text-[10px] uppercase tracking-[0.06em] text-ink-faint">Total cases</p><p className="mt-1 font-mono text-lg font-semibold text-ink">{totalCases}</p></div>
-          <div className="rounded-xl border border-border-soft bg-surface/60 px-3 py-2.5"><p className="font-mono text-[10px] uppercase tracking-[0.06em] text-ink-faint">Weekly average</p><p className="mt-1 font-mono text-lg font-semibold text-ink">{averageCases.toFixed(1)}</p></div>
-          <div className="rounded-xl border border-border-soft bg-surface/60 px-3 py-2.5"><p className="font-mono text-[10px] uppercase tracking-[0.06em] text-ink-faint">Peak week</p><p className="mt-1 font-mono text-lg font-semibold text-ink">{peakWeek.count}</p></div>
-          <div className="rounded-xl border border-border-soft bg-surface/60 px-3 py-2.5"><p className="font-mono text-[10px] uppercase tracking-[0.06em] text-ink-faint">Urgent cases</p><p className="mt-1 font-mono text-lg font-semibold text-emergency-red">{trendData.reduce((sum, week) => sum + week.red, 0)}</p></div>
+          <div className="rounded-xl border border-brand/15 bg-brand-tint/55 px-3 py-2.5"><p className="font-mono text-[10px] uppercase tracking-[0.06em] text-ink-faint">{t("Total cases")}</p><p className="mt-1 font-mono text-lg font-semibold text-ink">{totalCases}</p></div>
+          <div className="rounded-xl border border-border-soft bg-surface/60 px-3 py-2.5"><p className="font-mono text-[10px] uppercase tracking-[0.06em] text-ink-faint">{t("Weekly average")}</p><p className="mt-1 font-mono text-lg font-semibold text-ink">{averageCases.toFixed(1)}</p></div>
+          <div className="rounded-xl border border-border-soft bg-surface/60 px-3 py-2.5"><p className="font-mono text-[10px] uppercase tracking-[0.06em] text-ink-faint">{t("Peak week")}</p><p className="mt-1 font-mono text-lg font-semibold text-ink">{peakWeek.count}</p></div>
+          <div className="rounded-xl border border-border-soft bg-surface/60 px-3 py-2.5"><p className="font-mono text-[10px] uppercase tracking-[0.06em] text-ink-faint">{t("Urgent cases")}</p><p className="mt-1 font-mono text-lg font-semibold text-emergency-red">{trendData.reduce((sum, week) => sum + week.red, 0)}</p></div>
         </div>
       </div>
     </div>
@@ -655,34 +664,61 @@ function RiskBreakdownBar({
   yellow: number;
   red: number;
 }) {
+  const t = useDashboardText();
   const total = Math.max(green + yellow + red, 1);
   const rows = [
-    { label: "Green", value: green, color: "bg-triage-green", dot: "bg-triage-green" },
-    { label: "Yellow", value: yellow, color: "bg-triage-yellow", dot: "bg-triage-yellow" },
-    { label: "Red", value: red, color: "bg-triage-red", dot: "bg-triage-red" },
+    {
+      label: "Green",
+      value: green,
+      color: "bg-triage-green",
+      dot: "bg-triage-green",
+      surface: "border-[#dce9dd] bg-[#f5faf5]",
+      text: "text-[#286447]",
+    },
+    {
+      label: "Yellow",
+      value: yellow,
+      color: "bg-triage-yellow",
+      dot: "bg-triage-yellow",
+      surface: "border-[#eee5cf] bg-[#fcf9f0]",
+      text: "text-[#8a681d]",
+    },
+    {
+      label: "Red",
+      value: red,
+      color: "bg-triage-red",
+      dot: "bg-triage-red",
+      surface: "border-[#eedbd6] bg-[#fdf6f4]",
+      text: "text-[#a54234]",
+    },
   ];
 
   return (
-    <div className="space-y-5">
-      <div className="flex h-3 overflow-hidden rounded-full bg-surface">
+    <div className="space-y-4">
+      <div
+        className="flex h-4 overflow-hidden rounded-full border border-white bg-[#edf1ea] p-0.5 shadow-[inset_0_1px_3px_rgba(24,38,25,0.12)]"
+        role="img"
+        aria-label={`${t("Risk distribution")}: ${green} ${t("Green")}, ${yellow} ${t("Yellow")}, ${red} ${t("Red")}`}
+      >
         {rows.map((row) => (
           <span
             key={row.label}
-            className={`${row.color} h-full transition-all duration-500`}
+            className={`${row.color} h-full transition-[width] duration-700 ease-out first:rounded-l-full last:rounded-r-full`}
             style={{ width: `${(row.value / total) * 100}%` }}
           />
         ))}
       </div>
-      <div className="space-y-3">
+      <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-3">
         {rows.map((row) => (
-          <div key={row.label} className="flex items-center justify-between text-sm">
-            <span className="flex items-center gap-2 text-ink-secondary">
-              <span className={`h-2 w-2 rounded-full ${row.dot}`} />
-              {row.label}
-            </span>
-            <span className="font-medium text-ink">
-              {row.value} <span className="text-ink-muted">({Math.round((row.value / total) * 100)}%)</span>
-            </span>
+          <div key={row.label} className={`rounded-2xl border px-3 py-3.5 shadow-[0_3px_10px_rgba(24,38,25,0.025)] ${row.surface}`}>
+            <div className="flex items-center gap-2">
+              <span className={`h-2.5 w-2.5 shrink-0 rounded-full ring-4 ring-white/80 ${row.dot}`} aria-hidden="true" />
+              <span className="text-xs font-semibold text-ink-secondary">{t(row.label)}</span>
+            </div>
+            <div className="mt-2 flex items-baseline justify-between gap-1">
+              <span className={`font-display text-2xl font-semibold tracking-tight ${row.text}`}>{row.value}</span>
+              <span className="font-mono text-[11px] font-semibold text-ink-muted">{Math.round((row.value / total) * 100)}%</span>
+            </div>
           </div>
         ))}
       </div>
@@ -691,6 +727,7 @@ function RiskBreakdownBar({
 }
 
 function BarangayRanking({ data }: { data: DashboardState["barangay_stats"] }) {
+  const t = useDashboardText();
   const sorted = [...data].sort((a, b) => b.urgent - a.urgent || b.total - a.total);
   const max = Math.max(...sorted.map((item) => item.total), 1);
   const totalAssessments = sorted.reduce((sum, item) => sum + item.total, 0);
@@ -719,27 +756,27 @@ function BarangayRanking({ data }: { data: DashboardState["barangay_stats"] }) {
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <div className="rounded-2xl border border-[#dce7dc] bg-[linear-gradient(145deg,#f7faf6,#ffffff)] px-3 py-3 shadow-[0_5px_16px_rgba(24,38,25,0.035)]">
-          <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-ink-faint">Barangays</p>
+          <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-ink-faint">{t("Barangays")}</p>
           <p className="mt-1 font-display text-2xl font-semibold leading-none tabular-nums text-ink">{sorted.length}</p>
         </div>
         <div className="rounded-2xl border border-[#dce7dc] bg-[linear-gradient(145deg,#f7faf6,#ffffff)] px-3 py-3 shadow-[0_5px_16px_rgba(24,38,25,0.035)]">
-          <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-ink-faint">Assessments</p>
+          <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-ink-faint">{t("Assessments")}</p>
           <p className="mt-1 font-display text-2xl font-semibold leading-none tabular-nums text-ink">{totalAssessments}</p>
         </div>
         <div className="rounded-2xl border border-[#eee2bd] bg-[linear-gradient(145deg,#fffaf0,#ffffff)] px-3 py-3 shadow-[0_5px_16px_rgba(24,38,25,0.035)]">
-          <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-[#80631b]">Yellow follow-up</p>
+          <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-[#80631b]">{t("Yellow follow-up")}</p>
           <p className="mt-1 font-display text-2xl font-semibold leading-none tabular-nums text-[#80631b]">{followUpAssessments}</p>
         </div>
         <div className="rounded-2xl border border-[#efdbd5] bg-[linear-gradient(145deg,#fff7f4,#ffffff)] px-3 py-3 shadow-[0_5px_16px_rgba(24,38,25,0.035)]">
-          <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-[#9e392b]">Open urgent</p>
+          <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-[#9e392b]">{t("Open urgent")}</p>
           <p className="mt-1 font-display text-2xl font-semibold leading-none tabular-nums text-[#9e392b]">{urgentAssessments}</p>
         </div>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#e4ebe1] bg-[#f7faf6] px-3.5 py-2.5">
-        <p className="text-xs font-semibold text-[#405342]">Barangay assessment volume</p>
-        <span className="font-mono text-[9px] font-medium uppercase tracking-[0.08em] text-ink-faint">Bars scaled to highest</span>
+        <p className="text-xs font-semibold text-[#405342]">{t("Barangay assessment volume")}</p>
+        <span className="font-mono text-[9px] font-medium uppercase tracking-[0.08em] text-ink-faint">{t("Bars scaled to highest")}</span>
       </div>
-      <div className="flex flex-wrap gap-x-4 gap-y-1 px-1" aria-label="Barangay chart legend">
+      <div className="flex flex-wrap gap-x-4 gap-y-1 px-1" aria-label={t("Barangay chart legend")}>
         {[
           { label: "Other", color: "bg-[#dce7dc]" },
           { label: "Follow-up", color: "bg-[#d5a843]" },
@@ -747,7 +784,7 @@ function BarangayRanking({ data }: { data: DashboardState["barangay_stats"] }) {
         ].map((item) => (
           <span key={item.label} className="inline-flex items-center gap-1.5 text-[10px] font-medium text-ink-muted">
             <span className={`h-2.5 w-2.5 rounded-[3px] ${item.color}`} aria-hidden="true" />
-            {item.label}
+            {t(item.label)}
           </span>
         ))}
       </div>
@@ -771,24 +808,24 @@ function BarangayRanking({ data }: { data: DashboardState["barangay_stats"] }) {
                 </span>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-ink">{item.barangay}</p>
-                  <p className="mt-0.5 text-[10px] text-ink-muted">{item.total} {item.total === 1 ? "assessment" : "assessments"}</p>
+                  <p className="mt-0.5 text-[10px] text-ink-muted">{item.total} {t(item.total === 1 ? "assessment" : "assessments")}</p>
                 </div>
               </div>
               <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[9px] font-semibold uppercase tracking-[0.06em] ${severity.tone}`}>
                 <span className={`h-1.5 w-1.5 rounded-full ${item.urgent > 0 ? "bg-[#bd4935]" : item.follow_up > 0 ? "bg-[#d5a843]" : "bg-[#73977c]"}`} aria-hidden="true" />
-                {severity.label}
+                {t(severity.label)}
               </span>
             </div>
 
             <div className="mt-3.5">
               <div className="mb-1.5 flex items-center justify-between gap-2 text-[10px]">
-                <span className="font-medium text-ink-muted">Volume vs. highest barangay</span>
+                <span className="font-medium text-ink-muted">{t("Volume vs. highest barangay")}</span>
                 <span className="font-mono font-semibold tabular-nums text-ink-secondary">{Math.round(totalWidth)}%</span>
               </div>
               <div
                 className="h-3 overflow-hidden rounded-full bg-[#edf1eb] shadow-inner"
                 role="img"
-                aria-label={`${item.barangay}: ${item.total} total; ${urgent} open urgent; ${followUp} follow-up; ${other} other assessments`}
+                aria-label={`${item.barangay}: ${item.total} ${t("total")}; ${urgent} ${t("open urgent")}; ${followUp} ${t("Follow-up")}; ${other} ${t("other assessments")}`}
               >
                 <div className="flex h-full overflow-hidden rounded-full transition-[width] duration-500" style={{ width: `${Math.max(totalWidth, item.total > 0 ? 2 : 0)}%` }}>
                   {other > 0 && <span className="h-full bg-[#b9cbb9]" style={{ width: `${(other / item.total) * 100}%` }} />}
@@ -799,28 +836,28 @@ function BarangayRanking({ data }: { data: DashboardState["barangay_stats"] }) {
             </div>
 
             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-[#edf0eb] pt-2.5 text-[10px]">
-              <span className="font-medium text-ink-secondary"><span className="font-mono font-semibold text-[#9e392b]">{item.urgent}</span> open urgent</span>
-              <span className="font-medium text-ink-secondary"><span className="font-mono font-semibold text-[#80631b]">{item.follow_up}</span> follow-up</span>
-              <span className="ml-auto font-mono text-ink-faint">{item.total} total</span>
+              <span className="font-medium text-ink-secondary"><span className="font-mono font-semibold text-[#9e392b]">{item.urgent}</span> {t("open urgent")}</span>
+              <span className="font-medium text-ink-secondary"><span className="font-mono font-semibold text-[#80631b]">{item.follow_up}</span> {t("Follow-up")}</span>
+              <span className="ml-auto font-mono text-ink-faint">{item.total} {t("total")}</span>
             </div>
           </div>
         );
       })}
       {sorted.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-border-soft bg-surface/60 p-5 text-sm text-ink-muted">No barangay data available.</p>
+        <p className="rounded-2xl border border-dashed border-border-soft bg-surface/60 p-5 text-sm text-ink-muted">{t("No barangay data available.")}</p>
       ) : (
         <>
           <p className="px-1 text-[10px] leading-relaxed text-ink-faint">
-            Other includes assessments outside the open-urgent and Yellow follow-up counts; it is not a separate risk classification.
+            {t("Other includes assessments outside the open-urgent and Yellow follow-up counts; it is not a separate risk classification.")}
           </p>
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border-soft pt-3">
             <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint">
-              Showing {(page - 1) * pageSize + 1}-{Math.min(page * pageSize, sorted.length)} of {sorted.length}
+              {t("Showing")} {(page - 1) * pageSize + 1}-{Math.min(page * pageSize, sorted.length)} {t("of")} {sorted.length}
             </p>
             <div className="flex items-center gap-2">
-              <button type="button" onClick={() => setPage((currentPage) => Math.max(1, currentPage - 1))} disabled={page === 1} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">Previous</button>
+              <button type="button" onClick={() => setPage((currentPage) => Math.max(1, currentPage - 1))} disabled={page === 1} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">{t("Previous")}</button>
               <span className="min-w-14 text-center font-mono text-[10px] text-ink-muted">{page} / {pageCount}</span>
-              <button type="button" onClick={() => setPage((currentPage) => Math.min(pageCount, currentPage + 1))} disabled={page === pageCount} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">Next</button>
+              <button type="button" onClick={() => setPage((currentPage) => Math.min(pageCount, currentPage + 1))} disabled={page === pageCount} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">{t("Next")}</button>
             </div>
           </div>
         </>
@@ -836,6 +873,7 @@ function FilterChips({
   onUrgentOnly: () => void;
   onClear: () => void;
 }) {
+  const t = useDashboardText();
   return (
     <div className="flex flex-wrap gap-2">
       <button
@@ -843,14 +881,14 @@ function FilterChips({
         onClick={onUrgentOnly}
         className="rounded-sm border border-red-200 bg-red-tint px-3 py-2 text-sm font-medium text-emergency-red transition hover:bg-red-100"
       >
-        Urgent only
+        {t("Urgent only")}
       </button>
       <button
         type="button"
         onClick={onClear}
         className="rounded-sm border border-border bg-white px-3 py-2 text-sm font-medium text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark"
       >
-        Clear filters
+        {t("Clear filters")}
       </button>
     </div>
   );
@@ -877,26 +915,27 @@ function FilterToolbar({
   onUrgentOnly: () => void;
   onClear: () => void;
 }) {
+  const t = useDashboardText();
   return (
     <div className="mb-4 space-y-3">
       <div className="grid gap-3 sm:grid-cols-3">
         <PremiumSelect
           value={riskFilter}
           onChange={setRiskFilter}
-          ariaLabel="Filter assessment records by risk level"
+          ariaLabel={t("Filter assessment records by risk level")}
           options={[
-            { value: "all", label: "All risk levels" },
-            { value: "GREEN", label: "Green" },
-            { value: "YELLOW", label: "Yellow" },
-            { value: "RED", label: "Red" },
+            { value: "all", label: t("All risk levels") },
+            { value: "GREEN", label: t("Green") },
+            { value: "YELLOW", label: t("Yellow") },
+            { value: "RED", label: t("Red") },
           ]}
         />
         <PremiumSelect
           value={barangayFilter}
           onChange={setBarangayFilter}
-          ariaLabel="Filter assessment records by barangay"
+          ariaLabel={t("Filter assessment records by barangay")}
           options={[
-            { value: "all", label: "All barangays" },
+            { value: "all", label: t("All barangays") },
             ...barangayOptions.map((barangay) => ({ value: barangay, label: barangay })),
           ]}
         />
@@ -907,7 +946,7 @@ function FilterToolbar({
           <input
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
-            placeholder="Search resident or note"
+            placeholder={t("Search resident or note")}
             className="min-h-11 w-full rounded-sm border border-border bg-surface px-3 pl-9 text-sm text-ink outline-none transition focus:border-brand"
           />
         </div>
@@ -918,6 +957,8 @@ function FilterToolbar({
 }
 
 function DashboardPageContent() {
+  const t = useDashboardText();
+  const { language } = useInterfaceLanguage();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -942,8 +983,8 @@ function DashboardPageContent() {
   }
 
   const communityReport = useMemo(
-    () => stats ? generateCommunityHealthReport(stats) : null,
-    [stats],
+    () => stats ? generateCommunityHealthReport(stats, new Date(stats.generated_at), language) : null,
+    [stats, language],
   );
   const [lexiconEntries, setLexiconEntries] = useState<AdminModuleLexiconEntry[]>([]);
   const [reviewingLexicon, setReviewingLexicon] = useState<number | null>(null);
@@ -978,42 +1019,42 @@ function DashboardPageContent() {
     try {
       const { downloadReport } = await import("@/lib/report");
       downloaded = downloadReport({
-        title: "Community Health Report",
+        title: t("Community health report"),
         subtitle: communityReport.report_period,
         generatedAt: new Date().toLocaleString(),
         filename: `healthguard-community-report-${new Date().toISOString().slice(0, 10)}`,
         sections: [
           {
-            heading: "Executive summary",
-            rows: [["Main findings", communityReport.executive_summary]],
+            heading: t("Executive summary"),
+            rows: [[t("Main findings"), communityReport.executive_summary]],
           },
           {
-            heading: "Key metrics",
+            heading: t("Key metrics"),
             rows: communityReport.key_metrics.map((item) => [item.label, `${item.value} — ${item.context}`]),
           },
           {
-            heading: "Urgent cases",
+            heading: t("Urgent cases"),
             rows: [
-              ["Count", String(communityReport.urgent_cases_summary.count)],
-              ["Summary", communityReport.urgent_cases_summary.narrative],
-              ["Barangays", communityReport.urgent_cases_summary.barangays_involved.join(", ") || "None identified"],
+              [t("Count"), String(communityReport.urgent_cases_summary.count)],
+              [t("Summary"), communityReport.urgent_cases_summary.narrative],
+              [t("Barangays"), communityReport.urgent_cases_summary.barangays_involved.join(", ") || t("None identified")],
             ],
           },
           {
-            heading: "Barangay breakdown",
+            heading: t("Barangay breakdown"),
             rows: communityReport.barangay_breakdown.map((item) => [item.barangay, item.narrative]),
           },
           {
-            heading: "Weekly trend",
-            rows: [["Trend", communityReport.trend_narrative]],
+            heading: t("Weekly trend"),
+            rows: [[t("Trend"), communityReport.trend_narrative]],
           },
           {
-            heading: "Reported symptoms",
-            rows: [["Summary", communityReport.top_symptoms_narrative]],
+            heading: t("Reported symptoms"),
+            rows: [[t("Summary"), communityReport.top_symptoms_narrative]],
           },
           {
-            heading: "Recommended actions",
-            rows: communityReport.recommended_actions.map((action, index) => [`Priority ${index + 1}`, action]),
+            heading: t("Recommended actions"),
+            rows: communityReport.recommended_actions.map((action, index) => [`${t("Priority")} ${index + 1}`, action]),
           },
         ],
       });
@@ -1023,7 +1064,7 @@ function DashboardPageContent() {
     }
 
     setToast({
-      message: downloaded === "downloaded" ? "PDF report downloaded successfully." : downloaded === "opened" ? "Report opened in a new tab. Use your browser's Share or Save option." : "Could not create the report.",
+      message: t(downloaded === "downloaded" ? "PDF report downloaded successfully." : downloaded === "opened" ? "Report opened in a new tab. Use your browser's Share or Save option." : "Could not create the report."),
       tone: downloaded ? "success" : "error",
     });
   }
@@ -1039,9 +1080,9 @@ function DashboardPageContent() {
       link.download = `healthguard-community-report-${new Date().toISOString().slice(0, 10)}.json`;
       link.click();
       window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-      setToast({ message: "Community health report JSON downloaded.", tone: "success" });
+      setToast({ message: t("Community health report JSON downloaded."), tone: "success" });
     } catch {
-      setToast({ message: "Could not download the report JSON.", tone: "error" });
+      setToast({ message: t("Could not download the report JSON."), tone: "error" });
     }
   }
 
@@ -1053,11 +1094,11 @@ function DashboardPageContent() {
       setLexiconEntries(lexicon);
       setLastUpdated(new Date());
       setRefreshError(null);
-      setToast({ message: "Dashboard data refreshed.", tone: "success" });
+      setToast({ message: t("Dashboard data refreshed."), tone: "success" });
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : "Unknown error occurred";
       setRefreshError(errorMsg);
-      setToast({ message: "Could not refresh dashboard data.", tone: "error" });
+      setToast({ message: t("Could not refresh dashboard data."), tone: "error" });
     } finally {
       setRefreshing(false);
     }
@@ -1094,9 +1135,9 @@ function DashboardPageContent() {
     try {
       const reviewed = await markLexiconReviewed(id);
       setLexiconEntries((entries) => entries.map((entry) => (entry.id === id ? reviewed : entry)));
-      setToast({ message: "Lexicon term reviewed.", tone: "success" });
+      setToast({ message: t("Lexicon term reviewed."), tone: "success" });
     } catch {
-      setToast({ message: "Could not update lexicon review status.", tone: "error" });
+      setToast({ message: t("Could not update lexicon review status."), tone: "error" });
     } finally {
       setReviewingLexicon(null);
     }
@@ -1107,16 +1148,21 @@ function DashboardPageContent() {
     try {
       const rejected = await rejectLexiconEntry(id);
       setLexiconEntries((entries) => entries.map((entry) => (entry.id === id ? rejected : entry)));
-      setToast({ message: "Lexicon term not approved and removed from matching.", tone: "success" });
+      setToast({ message: t("Lexicon term not approved and removed from matching."), tone: "success" });
     } catch {
-      setToast({ message: "Could not update lexicon review status.", tone: "error" });
+      setToast({ message: t("Could not update lexicon review status."), tone: "error" });
     } finally {
       setReviewingLexicon(null);
     }
   }
 
   const redCases = useMemo(
-    () => (stats?.recent_assessments ?? []).filter((item) => (item.risk_level || "").toUpperCase() === "RED" && item.case_status !== "Resolved" && !item.handled),
+    () => (stats?.recent_assessments ?? []).filter((item) => (
+      (item.risk_level || "").toUpperCase() === "RED"
+      && item.case_status !== "Resolved"
+      && !item.handled
+      && !item.case_activities?.some((activity) => activity.kind === "follow_up")
+    )),
     [stats],
   );
   const barangayOptions = useMemo(
@@ -1203,7 +1249,7 @@ function DashboardPageContent() {
     <div className="space-y-6">
       {refreshError && (
         <div className="rounded-lg border border-orange-200 bg-orange-50 p-4">
-          <p className="text-sm font-medium text-orange-800">Showing cached data</p>
+          <p className="text-sm font-medium text-orange-800">{t("Showing cached data")}</p>
           <p className="mt-1 text-sm text-orange-700">{refreshError}</p>
         </div>
       )}
@@ -1211,17 +1257,17 @@ function DashboardPageContent() {
       <section aria-labelledby="dashboard-at-a-glance">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3 px-1">
           <div>
-            <h2 id="dashboard-at-a-glance" className="font-display text-xl font-semibold text-ink sm:text-2xl">At a glance</h2>
-            <p className="mt-1 text-sm text-ink-muted">A snapshot of local screening activity</p>
+            <h2 id="dashboard-at-a-glance" className="font-display text-xl font-semibold text-ink sm:text-2xl">{t("At a glance")}</h2>
+            <p className="mt-1 text-sm text-ink-muted">{t("A snapshot of local screening activity")}</p>
           </div>
           {updatedLabel && (
             <span className="inline-flex items-center gap-2 rounded-full border border-[#dce6da] bg-white/80 px-3 py-1.5 text-xs font-medium text-ink-muted shadow-sm">
               <span className="h-1.5 w-1.5 rounded-full bg-brand" aria-hidden="true" />
-              Updated {updatedLabel}
+              {t("Updated")} {updatedLabel}
             </span>
           )}
         </div>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
           {stats?.summary_cards.map((card) => {
             const label = card.label.toLowerCase();
             const isUrgent = label.includes("urgent");
@@ -1233,10 +1279,11 @@ function DashboardPageContent() {
             return (
               <StatCard
                 key={card.label}
-                label={card.label}
+                label={t(card.label)}
                 value={card.value}
-                hint={card.hint}
+                hint={t(card.hint)}
                 accent={isUrgent ? "urgent" : "brand"}
+                compact
                 icon={<span aria-hidden="true"><WidgetIcon path={icon} /></span>}
               />
             );
@@ -1253,8 +1300,8 @@ function DashboardPageContent() {
                 <WidgetIcon path={widgetIcons.alert} />
               </span>
               <div>
-                <h3 className="font-display text-lg font-semibold text-emergency-red lg:text-xl">{redCases.length > 0 ? "Urgent Cases Requiring Attention" : "Needs attention"}</h3>
-                <p className="mt-0.5 text-xs text-ink-muted">Red-level cases that require follow-up now</p>
+                <h3 className="font-display text-lg font-semibold text-emergency-red lg:text-xl">{redCases.length > 0 ? t("Urgent Cases Requiring Attention") : t("Needs attention")}</h3>
+                <p className="mt-0.5 text-xs text-ink-muted">{t("Red-level cases that require follow-up now")}</p>
               </div>
             </div>
             <span className="font-mono text-3xl font-bold text-emergency-red">
@@ -1268,7 +1315,7 @@ function DashboardPageContent() {
               ))
             ) : (
               <p className="rounded-md border border-dashed border-border bg-surface p-5 text-sm text-ink-muted">
-                No red-level assessments are currently flagged for attention.
+                {t("No red-level assessments are currently flagged for attention.")}
               </p>
             )}
           </div>
@@ -1277,7 +1324,7 @@ function DashboardPageContent() {
         <WidgetCard
           icon="list"
           title="Recent assessments"
-          subtitle={`${recentAssessments.length} recent records`}
+          subtitle={`${recentAssessments.length} ${t("recent records")}`}
           updated={updatedLabel}
           action={
             <Link
@@ -1288,7 +1335,7 @@ function DashboardPageContent() {
               }}
               className="text-xs font-medium text-brand-dark hover:text-brand transition"
             >
-              View all →
+              {t("View all →")}
             </Link>
           }
         >
@@ -1299,18 +1346,18 @@ function DashboardPageContent() {
               ))
             ) : (
               <p className="rounded-md border border-dashed border-border bg-surface p-5 text-sm text-ink-muted">
-                No assessment records available.
+                {t("No assessment records available.")}
               </p>
             )}
             {recentAssessments.length > 0 && (
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border-soft pt-4">
                 <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint">
-                  Showing {(recentAssessmentPage - 1) * RECENT_ASSESSMENT_PAGE_SIZE + 1}-{Math.min(recentAssessmentPage * RECENT_ASSESSMENT_PAGE_SIZE, recentAssessments.length)} of {recentAssessments.length}
+                  {t("Showing")} {(recentAssessmentPage - 1) * RECENT_ASSESSMENT_PAGE_SIZE + 1}-{Math.min(recentAssessmentPage * RECENT_ASSESSMENT_PAGE_SIZE, recentAssessments.length)} {t("of")} {recentAssessments.length}
                 </p>
                 <div className="flex items-center gap-2">
-                  <button type="button" onClick={() => setRecentAssessmentPage((page) => Math.max(1, page - 1))} disabled={recentAssessmentPage === 1} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">Previous</button>
+                  <button type="button" onClick={() => setRecentAssessmentPage((page) => Math.max(1, page - 1))} disabled={recentAssessmentPage === 1} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">{t("Previous")}</button>
                   <span className="min-w-14 text-center font-mono text-[10px] text-ink-muted">{recentAssessmentPage} / {recentAssessmentPageCount}</span>
-                  <button type="button" onClick={() => setRecentAssessmentPage((page) => Math.min(recentAssessmentPageCount, page + 1))} disabled={recentAssessmentPage === recentAssessmentPageCount} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">Next</button>
+                  <button type="button" onClick={() => setRecentAssessmentPage((page) => Math.min(recentAssessmentPageCount, page + 1))} disabled={recentAssessmentPage === recentAssessmentPageCount} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">{t("Next")}</button>
                 </div>
               </div>
             )}
@@ -1323,10 +1370,10 @@ function DashboardPageContent() {
           <div className="space-y-6">
             <div className="flex flex-wrap items-end justify-between gap-2 rounded-2xl border border-[#dce7dc] bg-[linear-gradient(145deg,#f7faf5_0%,#ffffff_58%,#f1f6ef_100%)] px-4 py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)]">
               <div>
-                <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-brand-dark">All recorded assessments</p>
-                <p className="mt-1 text-xs text-ink-muted">Counts grouped by final triage level</p>
+                <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-brand-dark">{t("All recorded assessments")}</p>
+                  <p className="mt-1 text-xs text-ink-muted">{t("Counts grouped by final triage level")}</p>
               </div>
-              <p className="font-mono text-2xl font-semibold tabular-nums text-ink">{caseMixTotal}<span className="ml-1.5 text-xs font-medium text-ink-muted">total</span></p>
+              <p className="font-mono text-2xl font-semibold tabular-nums text-ink">{caseMixTotal}<span className="ml-1.5 text-xs font-medium text-ink-muted"> {t("total")}</span></p>
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
               {[
@@ -1361,20 +1408,20 @@ function DashboardPageContent() {
               })}
             </div>
             <p className="px-1 text-[11px] leading-relaxed text-ink-muted">
-              Unlike the weekly severity chart, this is a cumulative snapshot; it does not show when cases were recorded.
+              {t("Unlike the weekly severity chart, this is a cumulative snapshot; it does not show when cases were recorded.")}
             </p>
             <div className="grid gap-2 sm:grid-cols-3">
               <div className="rounded-xl border border-brand/15 bg-brand-tint/45 px-3 py-3">
-                <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-brand-dark">Readout</p>
+                <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-brand-dark">{t("Readout")}</p>
                 <p className="mt-1 text-xs font-medium leading-relaxed text-ink-secondary">{caseMixRead}</p>
               </div>
               <div className="rounded-xl border border-yellow-200 bg-yellow-50/70 px-3 py-3">
-                <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-amber-700">Follow-up pressure</p>
-                <p className="mt-1 text-xs font-medium leading-relaxed text-ink-secondary">{yellowShare}% of cases may need consultation.</p>
+                <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-amber-700">{t("Follow-up pressure")}</p>
+                <p className="mt-1 text-xs font-medium leading-relaxed text-ink-secondary">{yellowShare}% {t("of cases may need consultation.")}</p>
               </div>
               <div className={`rounded-xl border px-3 py-3 ${redBreakdown > 0 ? "border-red-200 bg-red-50/70" : "border-emerald-200 bg-emerald-50/70"}`}>
-                <p className={`font-mono text-[9px] font-semibold uppercase tracking-[0.1em] ${redBreakdown > 0 ? "text-emergency-red" : "text-emerald-700"}`}>Urgency</p>
-                <p className="mt-1 text-xs font-medium leading-relaxed text-ink-secondary">{redBreakdown > 0 ? `${redBreakdown} RED assessment${redBreakdown === 1 ? "" : "s"} recorded overall.` : "No RED assessments recorded overall."}</p>
+                <p className={`font-mono text-[9px] font-semibold uppercase tracking-[0.1em] ${redBreakdown > 0 ? "text-emergency-red" : "text-emerald-700"}`}>{t("Urgency")}</p>
+                <p className="mt-1 text-xs font-medium leading-relaxed text-ink-secondary">{redBreakdown > 0 ? `${redBreakdown} ${t("RED")} ${t(redBreakdown === 1 ? "assessment" : "assessments")} ${t("recorded overall.")}` : t("No RED assessments recorded overall.")}</p>
               </div>
             </div>
           </div>
@@ -1384,7 +1431,7 @@ function DashboardPageContent() {
           {stats && stats.weekly_trend.length > 0 ? (
             <WeeklySeverityChart data={stats.weekly_trend} />
           ) : (
-            <p className="text-sm text-ink-muted">No trend data available yet.</p>
+            <p className="text-sm text-ink-muted">{t("No trend data available yet.")}</p>
           )}
         </WidgetCard>
 
@@ -1406,7 +1453,7 @@ function DashboardPageContent() {
               }}
               className="text-xs font-medium text-brand-dark hover:text-brand transition"
             >
-              View all →
+              {t("View all →")}
             </Link>
           }
         >
@@ -1418,10 +1465,10 @@ function DashboardPageContent() {
                     <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-white text-brand-dark shadow-sm ring-1 ring-[#e2e9df]">
                       <WidgetIcon path={widgetIcons.trend} />
                     </span>
-                    Ranked by reported frequency
+                    {t("Ranked by reported frequency")}
                   </span>
                   <span className="shrink-0 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-[#788575]">
-                    Top {Math.min(topSymptoms.length, 3)}
+                    {t("Top")} {Math.min(topSymptoms.length, 3)}
                   </span>
                 </div>
                 <div className="space-y-2.5">
@@ -1458,11 +1505,11 @@ function DashboardPageContent() {
                             {String(index + 1).padStart(2, "0")}
                           </span>
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-semibold text-[#263629]">{item.symptom}</p>
+                            <p className="truncate text-sm font-semibold text-[#263629]">{t(item.symptom)}</p>
                             <div
                               className={cn("mt-2 h-1.5 overflow-hidden rounded-full", rankTone.track)}
                               role="progressbar"
-                              aria-label={`${item.symptom} relative to the most reported symptom`}
+                              aria-label={`${t(item.symptom)} ${t("relative to the most reported symptom")}`}
                               aria-valuemin={0}
                               aria-valuemax={100}
                               aria-valuenow={Math.round(percentage)}
@@ -1476,7 +1523,7 @@ function DashboardPageContent() {
                           <span className="flex min-w-[68px] shrink-0 flex-col items-end">
                             <span className="font-display text-lg font-semibold leading-none tracking-tight text-[#233328]">{item.count}</span>
                             <span className="mt-1 font-mono text-[9px] font-medium uppercase tracking-[0.1em] text-[#899386]">
-                              {item.count === 1 ? "report" : "reports"}
+                              {t(item.count === 1 ? "report" : "reports")}
                             </span>
                           </span>
                         </div>
@@ -1485,7 +1532,7 @@ function DashboardPageContent() {
                   })}
                 </div>
                 <p className="px-1 text-[11px] leading-relaxed text-[#7b8778]">
-                  Bar length compares each symptom with the most frequently reported one.
+                  {t("Bar length compares each symptom with the most frequently reported one.")}
                 </p>
               </>
             ) : (
@@ -1493,8 +1540,8 @@ function DashboardPageContent() {
                 <span className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#e2e9df] bg-white text-[#71816d] shadow-sm">
                   <WidgetIcon path={widgetIcons.pie} />
                 </span>
-                <p className="mt-3 text-sm font-semibold text-[#344536]">No symptom data yet</p>
-                <p className="mt-1 max-w-xs text-xs leading-relaxed text-[#7b8778]">Reported symptoms will appear here as assessments are completed.</p>
+                <p className="mt-3 text-sm font-semibold text-[#344536]">{t("No symptom data yet")}</p>
+                <p className="mt-1 max-w-xs text-xs leading-relaxed text-[#7b8778]">{t("Reported symptoms will appear here as assessments are completed.")}</p>
               </div>
             )}
           </div>
@@ -1517,28 +1564,28 @@ function DashboardPageContent() {
                 <div className="flex flex-col gap-5 pl-2 sm:gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2.5">
-                      <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-faint">Community phrase</span>
-                      <span className="rounded-full border border-[#e7d7aa] bg-[#fffaf0] px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-[#806326]">Pending review</span>
+                      <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-faint">{t("Community phrase")}</span>
+                      <span className="rounded-full border border-[#e7d7aa] bg-[#fffaf0] px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-[#806326]">{t("Pending review")}</span>
                     </div>
                     <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
                       <span className="rounded-xl border border-brand/15 bg-white px-3 py-2 text-sm font-semibold text-ink shadow-[0_3px_10px_rgba(24,38,25,0.04)]">{entry.local_term}</span>
-                      <span className="font-mono text-xs text-ink-faint" aria-hidden="true">maps to</span>
+                      <span className="font-mono text-xs text-ink-faint" aria-hidden="true">{t("maps to")}</span>
                       <span className="rounded-xl border border-[#cfe0cf] bg-[#f3f8f0] px-3 py-2 text-sm font-semibold text-brand-dark">{entry.medical_term}</span>
                     </div>
                     <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint">
                       <span>{entry.language === "tl" ? "Tagalog" : "English"}</span>
                       <span>{entry.category}</span>
-                      <span>Draft weight {entry.severity_weight}</span>
+                      <span>{t("Draft weight")} {entry.severity_weight}</span>
                     </div>
                   </div>
                   <div className="w-full shrink-0 rounded-2xl border border-[#e3ebdf] bg-white/70 p-2.5 lg:w-auto">
-                    <p className="mb-2 px-1 font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-ink-faint">Review decision</p>
+                    <p className="mb-2 px-1 font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-ink-faint">{t("Review decision")}</p>
                     <div className="flex flex-col gap-2 sm:flex-row lg:flex-col xl:flex-row">
                       <button type="button" onClick={() => void reviewLexiconEntry(entry.id)} disabled={reviewingLexicon === entry.id} className="inline-flex min-h-10 items-center justify-center rounded-xl bg-gradient-to-r from-brand to-brand-light px-4 text-xs font-semibold text-white shadow-[0_8px_16px_rgba(47,107,79,0.16)] outline-none transition hover:-translate-y-0.5 hover:shadow-[0_12px_22px_rgba(47,107,79,0.2)] focus-visible:ring-4 focus-visible:ring-brand/20 disabled:cursor-wait disabled:opacity-60">
-                        {reviewingLexicon === entry.id ? "Reviewing..." : "Mark reviewed"}
+                        {reviewingLexicon === entry.id ? t("Reviewing...") : t("Mark reviewed")}
                       </button>
                       <button type="button" onClick={() => void rejectLexiconEntryForReview(entry.id)} disabled={reviewingLexicon === entry.id} className="inline-flex min-h-10 items-center justify-center rounded-xl border border-[#e6b2a8] bg-[#fff6f3] px-4 text-xs font-semibold text-emergency-red outline-none transition hover:-translate-y-0.5 hover:bg-[#ffebe7] hover:shadow-[0_8px_16px_rgba(192,67,43,0.1)] focus-visible:ring-4 focus-visible:ring-emergency-red/20 disabled:cursor-wait disabled:opacity-60">
-                        Not approved
+                        {t("Not approved")}
                       </button>
                     </div>
                   </div>
@@ -1546,15 +1593,15 @@ function DashboardPageContent() {
               </article>
             ))}
             {pendingLexicon.length > 4 && (
-              <p className="pt-1 text-center text-xs text-ink-muted">+{pendingLexicon.length - 4} more terms waiting for review</p>
+              <p className="pt-1 text-center text-xs text-ink-muted">+{pendingLexicon.length - 4} {t("more terms waiting for review")}</p>
             )}
           </div>
         ) : (
           <div className="flex items-center gap-3 rounded-2xl border border-dashed border-brand/25 bg-brand-tint/60 p-4">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand text-sm font-semibold text-brand-foreground">✓</span>
             <div>
-              <p className="text-sm font-semibold text-brand-dark">All terms are reviewed</p>
-              <p className="mt-0.5 text-xs text-ink-muted">The symptom language library is currently up to date.</p>
+              <p className="text-sm font-semibold text-brand-dark">{t("All terms are reviewed")}</p>
+              <p className="mt-0.5 text-xs text-ink-muted">{t("The symptom language library is currently up to date.")}</p>
             </div>
           </div>
         )}
@@ -1583,12 +1630,12 @@ function DashboardPageContent() {
             {stats?.insights.slice(0, 2).map((insight) => (
               <ListRow key={insight.title} className="space-y-2">
                 <div className="flex items-center justify-between gap-3">
-                  <p className="font-medium text-ink">{insight.title}</p>
+                  <p className="font-medium text-ink">{t(insight.title)}</p>
                   <TagBadge tone={insight.tone === "urgent" ? "staff" : insight.tone === "watch" ? "neutral" : "brand"}>
-                    {insightToneLabel(insight.tone)}
+                    {t(insightToneLabel(insight.tone))}
                   </TagBadge>
                 </div>
-                <p className="text-sm leading-relaxed text-ink-secondary">{insight.detail}</p>
+                <p className="text-sm leading-relaxed text-ink-secondary">{t(insight.detail)}</p>
               </ListRow>
             ))}
           </div>
@@ -1598,7 +1645,7 @@ function DashboardPageContent() {
   );
 
   const renderAssessmentRecords = () => (
-    <Panel title="Assessment records" badge={<TagBadge tone="neutral">Live list</TagBadge>}>
+    <Panel title={t("Assessment records")} badge={<TagBadge tone="neutral">{t("Live list")}</TagBadge>}>
       <FilterToolbar
         riskFilter={riskFilter}
         setRiskFilter={setRiskFilter}
@@ -1616,173 +1663,315 @@ function DashboardPageContent() {
             <AssessmentCaseCard key={item.id} item={item} asOf={stats?.generated_at ?? item.created_at} onContactLogged={updateAssessmentActivity} />
           ))
         ) : (
-          <p className="rounded-md border border-dashed border-border bg-surface p-5 text-sm text-ink-muted">No assessment records match the selected filters.</p>
+          <p className="rounded-md border border-dashed border-border bg-surface p-5 text-sm text-ink-muted">{t("No assessment records match the selected filters.")}</p>
         )}
       </div>
       {filteredAssessments.length > 0 ? (
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border-soft pt-3">
-          <p className="text-xs text-ink-muted">Showing {assessmentStart}-{assessmentEnd} of {filteredAssessments.length}</p>
+          <p className="text-xs text-ink-muted">{t("Showing")} {assessmentStart}-{assessmentEnd} {t("of")} {filteredAssessments.length}</p>
           <div className="flex items-center gap-2">
-            <button type="button" onClick={() => setAssessmentPage((page) => Math.max(1, page - 1))} disabled={assessmentPage === 1} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">Previous</button>
-            <span className="min-w-16 text-center font-mono text-xs text-ink-muted">Page {assessmentPage} / {assessmentPageCount}</span>
-            <button type="button" onClick={() => setAssessmentPage((page) => Math.min(assessmentPageCount, page + 1))} disabled={assessmentPage === assessmentPageCount} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">Next</button>
+            <button type="button" onClick={() => setAssessmentPage((page) => Math.max(1, page - 1))} disabled={assessmentPage === 1} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">{t("Previous")}</button>
+            <span className="min-w-16 text-center font-mono text-xs text-ink-muted">{t("Page")} {assessmentPage} / {assessmentPageCount}</span>
+            <button type="button" onClick={() => setAssessmentPage((page) => Math.min(assessmentPageCount, page + 1))} disabled={assessmentPage === assessmentPageCount} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">{t("Next")}</button>
           </div>
         </div>
       ) : null}
     </Panel>
   );
 
-  const renderAnalytics = () => (
-    <div className="space-y-6">
-      <Panel title="Risk distribution" subtitle="Current triage breakdown">
-        <RiskBreakdownBar green={greenBreakdown} yellow={yellowBreakdown} red={redBreakdown} />
-      </Panel>
-      {stats && stats.weekly_trend.length > 0 && (
-        <Panel title="Weekly cases by severity" subtitle="Green, yellow, and red assessments; current week is week to date">
-          <WeeklySeverityChart data={stats.weekly_trend} />
+  const renderAnalytics = () => {
+    const topSymptoms = stats?.top_symptoms.slice(0, 5) ?? [];
+    const maxSymptomCount = Math.max(...topSymptoms.map((item) => item.count), 1);
+
+    return (
+      <div className="grid gap-5 lg:grid-cols-2 xl:gap-6">
+        <Panel
+          title={t("Risk distribution")}
+          subtitle={t("Current triage breakdown")}
+          className="h-full border-[#dce5d8] bg-[radial-gradient(ellipse_at_top_right,rgba(199,179,122,0.11),transparent_44%),linear-gradient(180deg,#FFFFFF_0%,#F8FAF6_100%)] shadow-[0_14px_34px_rgba(24,38,25,0.055)] hover:shadow-[0_20px_42px_rgba(24,38,25,0.09)]"
+        >
+          <RiskBreakdownBar green={greenBreakdown} yellow={yellowBreakdown} red={redBreakdown} />
         </Panel>
-      )}
-      <Panel title="Symptom frequency" badge={<TagBadge>Current patterns</TagBadge>}>
-        <div className="space-y-4">
-          {(stats?.top_symptoms.length ? stats.top_symptoms : [{ symptom: "No data available", count: 0 }]).slice(0, 5).map((item) => (
-            <div key={item.symptom}>
-              <div className="mb-1.5 flex items-center justify-between text-sm text-ink-secondary">
-                <span>{item.symptom}</span>
-                <span className="font-medium text-ink">{item.count}</span>
-              </div>
-              <div className="h-2.5 rounded-full bg-surface">
-                <div
-                  className="h-2.5 rounded-full bg-brand transition-all duration-500"
-                  style={{ width: `${Math.min(Math.max((item.count || 0) * 18, 10), 100)}%` }}
-                />
-              </div>
+        <Panel
+          title={t("Symptom frequency")}
+          badge={<TagBadge>{t("Current patterns")}</TagBadge>}
+          className="h-full border-[#dce5d8] bg-[radial-gradient(ellipse_at_top_right,rgba(47,107,79,0.08),transparent_44%),linear-gradient(180deg,#FFFFFF_0%,#F8FAF6_100%)] shadow-[0_14px_34px_rgba(24,38,25,0.055)] hover:shadow-[0_20px_42px_rgba(24,38,25,0.09)]"
+        >
+          {topSymptoms.length > 0 ? (
+            <ol className="space-y-2.5">
+              {topSymptoms.map((item, index) => {
+                const percent = Math.round((item.count / maxSymptomCount) * 100);
+                const medicalTerm = getMedicalTerm(item.symptom);
+
+                return (
+                  <li
+                    key={item.symptom}
+                    className="rounded-2xl border border-[#e4eae1] bg-white/80 px-3.5 py-3 shadow-[0_3px_10px_rgba(24,38,25,0.025)] transition duration-200 hover:border-brand/25 hover:bg-white hover:shadow-[0_8px_18px_rgba(31,74,54,0.07)] sm:px-4"
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[#e0e9dd] bg-[#f4f8f2] font-mono text-xs font-semibold text-brand-dark">
+                        {String(index + 1).padStart(2, "0")}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="truncate text-sm font-semibold capitalize text-ink-secondary">{t(item.symptom)}</span>
+                          <span className="shrink-0 rounded-lg bg-[#f3f7f1] px-2 py-1 font-mono text-xs font-semibold text-ink">{item.count}</span>
+                        </div>
+                        {medicalTerm && <p className="mt-0.5 truncate text-[11px] text-ink-faint">{medicalTerm}</p>}
+                        <div
+                          className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#edf2ea]"
+                          role="progressbar"
+                          aria-label={`${t(item.symptom)} ${t("frequency", "dalas")}`}
+                          aria-valuemin={0}
+                          aria-valuemax={maxSymptomCount}
+                          aria-valuenow={item.count}
+                        >
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-[#1f4a36] via-[#3f805d] to-[#a9c49e] transition-[width] duration-700 ease-out"
+                            style={{ width: `${percent}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+          ) : (
+            <div className="flex min-h-40 flex-col items-center justify-center rounded-2xl border border-dashed border-[#dce5d8] bg-white/60 px-5 text-center">
+              <span className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#e0e9dd] bg-[#f4f8f2] font-mono text-sm font-semibold text-brand-dark" aria-hidden="true">—</span>
+              <p className="mt-3 text-sm font-semibold text-ink-secondary">{t("No symptom data yet")}</p>
+              <p className="mt-1 text-xs text-ink-faint">{t("Symptom patterns will appear after assessments are recorded.")}</p>
             </div>
-          ))}
-        </div>
-      </Panel>
-    </div>
-  );
+          )}
+        </Panel>
+        {stats && stats.weekly_trend.length > 0 && (
+          <Panel
+            title={t("Weekly cases by severity")}
+            subtitle={t("Green, yellow, and red assessments; current week is week to date")}
+            className="lg:col-span-2 border-[#dce5d8] bg-[linear-gradient(180deg,#FFFFFF_0%,#F8FAF6_100%)] shadow-[0_14px_34px_rgba(24,38,25,0.055)] hover:shadow-[0_20px_42px_rgba(24,38,25,0.09)]"
+          >
+            <WeeklySeverityChart data={stats.weekly_trend} />
+          </Panel>
+        )}
+      </div>
+    );
+  };
 
   const renderReports = () => (
     <div className="space-y-6">
       {communityReport && (
         <Panel
-          title="Community health report"
+          title={t("Community health report")}
           subtitle={communityReport.report_period}
-          badge={<TagBadge tone="neutral">Aggregate summary</TagBadge>}
-        >
-          <div className="space-y-5">
-            <div className="flex justify-end">
+          badge={
+            <div className="flex flex-wrap items-center gap-2">
+              <TagBadge tone="neutral">{t("Aggregate summary")}</TagBadge>
               <button
                 type="button"
                 onClick={downloadReportJson}
-                className="rounded-lg border border-brand/20 bg-white px-3 py-2 text-xs font-semibold text-brand-dark transition hover:border-brand/50 hover:bg-brand-tint/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30"
+                className="inline-flex min-h-9 items-center gap-2 rounded-xl border border-brand/20 bg-white px-3 text-xs font-semibold text-brand-dark shadow-sm transition hover:border-brand/40 hover:bg-brand-tint/40 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15"
               >
-                Download report JSON
+                <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10 2.75v9m0 0 3.25-3.25M10 11.75 6.75 8.5M3.5 12.75v2.5a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-2.5" />
+                </svg>
+                Download JSON
               </button>
             </div>
-            <section aria-labelledby="report-executive-summary">
-              <h3 id="report-executive-summary" className="font-display text-base font-semibold text-ink">Executive summary</h3>
-              <p className="mt-2 text-sm leading-relaxed text-ink-secondary">{communityReport.executive_summary}</p>
+          }
+          className="border-[#dce5d8] bg-[radial-gradient(ellipse_at_top_right,rgba(199,179,122,0.10),transparent_38%),linear-gradient(180deg,#FFFFFF_0%,#FAFBF8_100%)] shadow-[0_16px_38px_rgba(24,38,25,0.06)]"
+        >
+          <div className="space-y-7">
+            <section aria-labelledby="report-executive-summary" className="relative overflow-hidden rounded-2xl border border-[#dce7dc] bg-[linear-gradient(135deg,#f4f8f2_0%,#ffffff_72%)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] sm:p-5">
+              <div className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-brand via-[#6e9a72] to-[#c7b37a]" aria-hidden="true" />
+              <div className="flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand/10 text-brand-dark" aria-hidden="true">
+                  <WidgetIcon path={widgetIcons.bulb} />
+                </span>
+                <h3 id="report-executive-summary" className="font-display text-base font-semibold text-ink">{t("Executive summary")}</h3>
+              </div>
+              <p className="mt-3 text-sm leading-relaxed text-ink-secondary sm:text-[15px]">{communityReport.executive_summary}</p>
             </section>
 
             <section aria-labelledby="report-key-metrics">
-              <h3 id="report-key-metrics" className="font-display text-base font-semibold text-ink">Key metrics</h3>
-              <dl className="mt-2 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <h3 id="report-key-metrics" className="font-display text-base font-semibold text-ink">{t("Key metrics")}</h3>
+                  <p className="mt-0.5 text-xs text-ink-faint">{t("A snapshot of recorded community activity")}</p>
+                </div>
+                <span className="hidden rounded-full border border-[#e1e9de] bg-white/80 px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-muted sm:inline-flex">{t("Summary")}</span>
+              </div>
+              <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 {communityReport.key_metrics.map((metric) => (
-                  <div key={metric.label} className="rounded-xl border border-border-soft bg-surface-alt/60 p-3">
-                    <dt className="text-xs font-medium text-ink-muted">{metric.label}</dt>
-                    <dd className="mt-1 font-mono text-lg font-semibold text-ink">{metric.value}</dd>
-                    <p className="mt-1 text-xs leading-relaxed text-ink-secondary">{metric.context}</p>
+                  <div key={metric.label} className="group relative overflow-hidden rounded-2xl border border-[#e1e8dd] bg-[linear-gradient(145deg,#ffffff_0%,#f7faf5_100%)] p-4 shadow-[0_4px_14px_rgba(24,38,25,0.035)] transition duration-200 hover:-translate-y-0.5 hover:border-brand/25 hover:shadow-[0_10px_22px_rgba(24,38,25,0.07)]">
+                    <span className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-brand/70 via-[#9fbd9a] to-transparent" aria-hidden="true" />
+                    <dt className="text-xs font-semibold leading-relaxed text-ink-muted">{t(metric.label)}</dt>
+                    <dd className="mt-2 break-words font-display text-2xl font-semibold leading-tight tracking-tight text-ink">{metric.value}</dd>
+                    <p className="mt-2 text-xs leading-relaxed text-ink-secondary">{t(metric.context)}</p>
                   </div>
                 ))}
               </dl>
             </section>
 
-            <section aria-labelledby="report-urgent-cases" className="rounded-xl border border-red-200 bg-red-50/50 p-4">
-              <h3 id="report-urgent-cases" className="font-display text-base font-semibold text-emergency-red">
-                Urgent cases ({communityReport.urgent_cases_summary.count})
-              </h3>
-              <p className="mt-2 text-sm leading-relaxed text-ink-secondary">{communityReport.urgent_cases_summary.narrative}</p>
-              {communityReport.urgent_cases_summary.barangays_involved.length > 0 && (
-                <p className="mt-2 text-xs text-ink-muted">
-                  Barangays listed: {communityReport.urgent_cases_summary.barangays_involved.join(", ")}
-                </p>
+            <section
+              aria-labelledby="report-urgent-cases"
+              className={cn(
+                "relative overflow-hidden rounded-2xl border p-4 sm:p-5",
+                communityReport.urgent_cases_summary.count > 0
+                  ? "border-[#efd6d0] bg-[radial-gradient(ellipse_at_top_right,rgba(190,73,53,0.08),transparent_45%),linear-gradient(135deg,#fff8f6_0%,#ffffff_100%)]"
+                  : "border-[#dce8dd] bg-[linear-gradient(135deg,#f6faf5_0%,#ffffff_100%)]",
               )}
+            >
+              <div className="flex items-start gap-3">
+                <span className={cn(
+                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border",
+                  communityReport.urgent_cases_summary.count > 0
+                    ? "border-[#efd6d0] bg-white text-emergency-red"
+                    : "border-[#dce8dd] bg-white text-brand-dark",
+                )} aria-hidden="true">
+                  <WidgetIcon path={widgetIcons.alert} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 id="report-urgent-cases" className={cn("font-display text-base font-semibold", communityReport.urgent_cases_summary.count > 0 ? "text-emergency-red" : "text-brand-dark")}>
+                      {t("Urgent cases")}
+                    </h3>
+                    <span className={cn(
+                      "rounded-full border px-2.5 py-0.5 font-mono text-[11px] font-semibold",
+                      communityReport.urgent_cases_summary.count > 0
+                        ? "border-[#efd6d0] bg-white text-emergency-red"
+                        : "border-[#dce8dd] bg-white text-brand-dark",
+                    )}>
+                      {communityReport.urgent_cases_summary.count}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-sm leading-relaxed text-ink-secondary">{communityReport.urgent_cases_summary.narrative}</p>
+                  {communityReport.urgent_cases_summary.barangays_involved.length > 0 && (
+                    <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                      <span className="mr-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-faint">{t("Barangays")}</span>
+                      {communityReport.urgent_cases_summary.barangays_involved.map((barangay) => (
+                        <span key={barangay} className="rounded-full border border-[#ecdcd7] bg-white/85 px-2.5 py-1 text-xs font-medium text-ink-secondary">{barangay}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
             </section>
 
             <section aria-labelledby="report-barangays">
-              <h3 id="report-barangays" className="font-display text-base font-semibold text-ink">Barangay activity</h3>
+              <div className="mb-3 flex items-center gap-3">
+                <span className="flex h-8 w-8 items-center justify-center rounded-xl border border-[#e0e9dd] bg-[#f4f8f2] text-brand-dark" aria-hidden="true">
+                  <WidgetIcon path={widgetIcons.map} />
+                </span>
+                <div>
+                  <h3 id="report-barangays" className="font-display text-base font-semibold text-ink">{t("Barangay activity")}</h3>
+                  <p className="text-xs text-ink-faint">{t("Areas highlighted by current dashboard counts")}</p>
+                </div>
+              </div>
               {communityReport.barangay_breakdown.length > 0 ? (
-                <ul className="mt-2 space-y-2">
-                  {communityReport.barangay_breakdown.map((item) => (
-                    <li key={item.barangay} className="rounded-lg border border-border-soft px-3 py-2 text-sm">
-                      <span className="font-semibold text-ink">{item.barangay}: </span>
-                      <span className="text-ink-secondary">{item.narrative}</span>
+                <ul className="grid gap-2.5 lg:grid-cols-2">
+                  {communityReport.barangay_breakdown.map((item, index) => (
+                    <li key={item.barangay} className="flex gap-3 rounded-2xl border border-[#e3e9df] bg-white/75 p-3.5 shadow-[0_3px_10px_rgba(24,38,25,0.025)] transition duration-200 hover:border-brand/20 hover:shadow-[0_8px_18px_rgba(31,74,54,0.06)]">
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#f2f6ef] font-mono text-[10px] font-semibold text-brand-dark">{String(index + 1).padStart(2, "0")}</span>
+                      <span className="min-w-0 text-sm leading-relaxed">
+                        <span className="font-semibold text-ink">{item.barangay}</span>
+                        <span className="mt-0.5 block text-ink-secondary">{item.narrative}</span>
+                      </span>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="mt-2 text-sm text-ink-muted">No barangay activity is available for this snapshot.</p>
+                <p className="rounded-2xl border border-dashed border-[#dce5d8] bg-white/60 p-4 text-sm text-ink-muted">{t("No barangay activity is available for this snapshot.")}</p>
               )}
             </section>
 
-            <section className="grid gap-4 md:grid-cols-2">
-              <div>
-                <h3 className="font-display text-base font-semibold text-ink">Weekly trend</h3>
-                <p className="mt-2 text-sm leading-relaxed text-ink-secondary">{communityReport.trend_narrative}</p>
+            <section className="grid gap-3 md:grid-cols-2">
+              <div className="rounded-2xl border border-[#e1e8dd] bg-white/75 p-4">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#f2f6ef] text-brand-dark" aria-hidden="true"><WidgetIcon path={widgetIcons.trend} /></span>
+                  <h3 className="font-display text-sm font-semibold text-ink">{t("Weekly trend")}</h3>
+                </div>
+                <p className="mt-3 text-sm leading-relaxed text-ink-secondary">{communityReport.trend_narrative}</p>
               </div>
-              <div>
-                <h3 className="font-display text-base font-semibold text-ink">Most reported symptoms</h3>
-                <p className="mt-2 text-sm leading-relaxed text-ink-secondary">{communityReport.top_symptoms_narrative}</p>
+              <div className="rounded-2xl border border-[#e1e8dd] bg-white/75 p-4">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#f2f6ef] text-brand-dark" aria-hidden="true"><WidgetIcon path={widgetIcons.list} /></span>
+                  <h3 className="font-display text-sm font-semibold text-ink">{t("Most reported symptoms")}</h3>
+                </div>
+                <p className="mt-3 text-sm leading-relaxed text-ink-secondary">{communityReport.top_symptoms_narrative}</p>
               </div>
             </section>
 
-            <section aria-labelledby="report-recommended-actions">
-              <h3 id="report-recommended-actions" className="font-display text-base font-semibold text-ink">Recommended actions</h3>
+            <section aria-labelledby="report-recommended-actions" className="rounded-2xl border border-[#dce5d8] bg-[linear-gradient(135deg,#f4f8f2_0%,#ffffff_78%)] p-4 sm:p-5">
+              <div className="flex items-center gap-2">
+                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand text-white shadow-sm" aria-hidden="true">
+                  <WidgetIcon path={widgetIcons.alert} />
+                </span>
+                <div>
+                  <h3 id="report-recommended-actions" className="font-display text-base font-semibold text-ink">{t("Recommended actions")}</h3>
+                  <p className="text-xs text-ink-faint">{t("Suggested review priorities from this snapshot")}</p>
+                </div>
+              </div>
               {communityReport.recommended_actions.length > 0 ? (
-                <ol className="mt-2 list-inside list-decimal space-y-2 text-sm leading-relaxed text-ink-secondary">
-                  {communityReport.recommended_actions.map((action) => <li key={action}>{action}</li>)}
+                <ol className="mt-4 space-y-2.5">
+                  {communityReport.recommended_actions.map((action, index) => (
+                    <li key={action} className="flex gap-3 rounded-xl border border-white/90 bg-white/75 px-3 py-3 text-sm leading-relaxed text-ink-secondary shadow-[0_2px_8px_rgba(24,38,25,0.025)]">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[#dce7da] bg-[#f6f9f4] font-mono text-[10px] font-semibold text-brand-dark">{index + 1}</span>
+                      <span>{action}</span>
+                    </li>
+                  ))}
                 </ol>
               ) : (
-                <p className="mt-2 text-sm text-ink-muted">No case-specific action is indicated by the available dashboard counts.</p>
+                <p className="mt-3 rounded-xl border border-white/90 bg-white/70 p-3 text-sm text-ink-muted">{t("No case-specific action is indicated by the available dashboard counts.")}</p>
               )}
             </section>
           </div>
         </Panel>
       )}
 
-      <Panel title="Barangay coverage" badge={<TagBadge tone="neutral">Geographic view</TagBadge>}>
-        <div className="space-y-5">
+      <Panel
+        title={t("Barangay coverage")}
+        badge={<TagBadge tone="neutral">{t("Geographic view")}</TagBadge>}
+        className="border-[#dce5d8] bg-[radial-gradient(ellipse_at_top_right,rgba(47,107,79,0.07),transparent_42%),linear-gradient(180deg,#FFFFFF_0%,#F9FBF8_100%)] shadow-[0_14px_34px_rgba(24,38,25,0.055)]"
+      >
+        <div className="space-y-3">
           {barangayStats.length > 0 ? barangayStats.map((item) => {
             const otherCases = Math.max(item.total - item.urgent - item.follow_up, 0);
-            const width = `${Math.max((item.total / maxBarangayCases) * 100, 4)}%`;
+            const totalWidth = item.total > 0 ? `${Math.max((item.total / maxBarangayCases) * 100, 4)}%` : "0%";
+            const itemTotal = Math.max(item.total, 1);
             return (
-              <div key={item.barangay}>
-                <div className="flex items-center justify-between gap-4 text-sm">
-                  <span className="font-medium text-ink">{item.barangay}</span>
-                  <span className="shrink-0 font-mono text-xs text-ink-muted">{item.total} total</span>
+              <div key={item.barangay} className="rounded-2xl border border-[#e3e9df] bg-white/80 p-3.5 shadow-[0_3px_10px_rgba(24,38,25,0.025)] transition duration-200 hover:border-brand/20 hover:shadow-[0_8px_18px_rgba(31,74,54,0.06)] sm:p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[#e0e9dd] bg-[#f4f8f2] text-brand-dark" aria-hidden="true">
+                      <WidgetIcon path={widgetIcons.map} />
+                    </span>
+                    <span className="truncate text-sm font-semibold text-ink">{item.barangay}</span>
+                  </div>
+                  <span className="shrink-0 rounded-lg border border-[#e1e9de] bg-[#f7faf5] px-2.5 py-1 font-mono text-xs font-semibold text-ink">{item.total} <span className="font-sans font-medium text-ink-muted">{t("total")}</span></span>
                 </div>
                 <div
-                  className="mt-2 h-5 overflow-hidden rounded-sm bg-surface transition-all duration-500"
-                  style={{ width }}
-                  aria-label={`${item.barangay}: ${item.total} total cases, ${item.urgent} urgent, ${item.follow_up} follow-up`}
+                  className="mt-3 h-2.5 overflow-hidden rounded-full bg-[#edf1ea] shadow-[inset_0_1px_2px_rgba(24,38,25,0.10)]"
+                  role="img"
+                  aria-label={`${item.barangay}: ${item.total} total cases, ${item.urgent} urgent, ${item.follow_up} follow-up, ${otherCases} routine`}
                 >
-                  {item.urgent > 0 ? <span className="inline-block h-full bg-triage-red" style={{ width: `${(item.urgent / item.total) * 100}%` }} /> : null}
-                  {item.follow_up > 0 ? <span className="inline-block h-full bg-triage-yellow" style={{ width: `${(item.follow_up / item.total) * 100}%` }} /> : null}
-                  {otherCases > 0 ? <span className="inline-block h-full bg-triage-green" style={{ width: `${(otherCases / item.total) * 100}%` }} /> : null}
+                  <div className="flex h-full overflow-hidden rounded-full transition-[width] duration-700 ease-out" style={{ width: totalWidth }}>
+                    {item.urgent > 0 ? <span className="h-full bg-triage-red" style={{ width: `${(item.urgent / itemTotal) * 100}%` }} /> : null}
+                    {item.follow_up > 0 ? <span className="h-full bg-triage-yellow" style={{ width: `${(item.follow_up / itemTotal) * 100}%` }} /> : null}
+                    {otherCases > 0 ? <span className="h-full bg-triage-green" style={{ width: `${(otherCases / itemTotal) * 100}%` }} /> : null}
+                  </div>
                 </div>
-                <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-muted">
-                  <span>{item.urgent} urgent</span>
-                  <span>{item.follow_up} follow-up</span>
-                  <span>{otherCases} routine</span>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-[#efdeda] bg-[#fff7f5] px-2.5 py-1 text-[11px] font-medium text-[#9c4437]"><span className="h-1.5 w-1.5 rounded-full bg-triage-red" aria-hidden="true" />{item.urgent} {t("urgent")}</span>
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-[#eee5cf] bg-[#fcf9f0] px-2.5 py-1 text-[11px] font-medium text-[#85651d]"><span className="h-1.5 w-1.5 rounded-full bg-triage-yellow" aria-hidden="true" />{item.follow_up} {t("Follow-up")}</span>
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-[#dce9dd] bg-[#f5faf5] px-2.5 py-1 text-[11px] font-medium text-[#286447]"><span className="h-1.5 w-1.5 rounded-full bg-triage-green" aria-hidden="true" />{otherCases} {t("Routine")}</span>
                 </div>
               </div>
             );
-          }) : <p className="rounded-md border border-dashed border-border bg-surface p-5 text-sm text-ink-muted">No barangay data available.</p>}
+          }) : <p className="rounded-2xl border border-dashed border-[#dce5d8] bg-white/60 p-5 text-sm text-ink-muted">{t("No barangay data available.")}</p>}
         </div>
       </Panel>
-      <Panel title="Operational insights" badge={<TagBadge>Live</TagBadge>}>
+      <Panel title={t("Operational insights")} badge={<TagBadge>{t("Live")}</TagBadge>} className="border-[#dce5d8] shadow-[0_14px_34px_rgba(24,38,25,0.055)]">
         <div className="space-y-3">
           {stats?.insights.map((insight) => (
             <ListRow key={insight.title} className="space-y-2">
@@ -1855,19 +2044,19 @@ function DashboardPageContent() {
           <PageMain wide className="max-w-[1600px] xl:max-w-[1600px] 2xl:max-w-[1600px]">
             <div className="overflow-hidden rounded-[30px] border border-[#d1d9cf] bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.28),_transparent_30%),linear-gradient(135deg,#183D2D_0%,#1F4A36_42%,#2E6A52_100%)] p-px shadow-[0_28px_60px_rgba(23,63,45,0.18)]">
               <HeroBanner
-                eyebrow="For municipal health office"
-                title="Community health overview"
-                subtitle="Track incoming risk signals, prioritize urgent cases, and understand community health trends across barangays."
+                eyebrow={t("For municipal health office")}
+                title={t("Community health overview")}
+                subtitle={t("Track incoming risk signals, prioritize urgent cases, and understand community health trends across barangays.")}
                 meta={
                   <>
                     <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-medium text-white/90">
                       <span className="h-1.5 w-1.5 rounded-full bg-[#c7dca8]" aria-hidden="true" />
-                      Dashboard snapshot
+                      {t("Dashboard snapshot")}
                     </span>
                     {redCases.length > 0 && (
                       <span className="inline-flex items-center gap-2 rounded-full border border-red-100/25 bg-red-950/25 px-3 py-1.5 text-xs font-semibold text-red-50">
                         <WidgetIcon path={widgetIcons.alert} />
-                        {redCases.length} urgent {redCases.length === 1 ? "case" : "cases"}
+                        {redCases.length} {t("urgent")} {t(redCases.length === 1 ? "case" : "cases")}
                       </span>
                     )}
                   </>
@@ -1875,10 +2064,10 @@ function DashboardPageContent() {
                 actions={
                   <>
                     <PrimaryButton type="button" onClick={() => void refreshSummary()} disabled={refreshing} className="rounded-xl border border-white/35 bg-white/12 px-5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(8,35,22,0.12)] hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70">
-                      {refreshing ? "Refreshing…" : "Refresh data"}
+                      {refreshing ? t("Refreshing…") : t("Refresh data")}
                     </PrimaryButton>
                     <PrimaryButton type="button" onClick={generateReport} disabled={!stats} className="dashboard-report-button w-full rounded-xl px-5 text-sm font-semibold shadow-[0_8px_20px_rgba(8,35,22,0.15)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 sm:w-auto">
-                      Generate report
+                      {t("Generate report")}
                     </PrimaryButton>
                   </>
                 }
@@ -1886,7 +2075,7 @@ function DashboardPageContent() {
             </div>
 
             <div className="mt-6 hidden md:block">
-              <nav aria-label="Dashboard sections" className="mb-4 flex flex-wrap gap-1.5 rounded-[22px] border border-[#d7e0d2] bg-white/80 p-1.5 shadow-[0_10px_28px_rgba(20,31,25,0.06)] backdrop-blur">
+              <nav aria-label={t("Dashboard sections")} className="mb-4 flex flex-wrap gap-1.5 rounded-[22px] border border-[#d7e0d2] bg-white/80 p-1.5 shadow-[0_10px_28px_rgba(20,31,25,0.06)] backdrop-blur">
                 {SECTIONS.map((section) => (
                   <button
                     key={section.id}
@@ -1899,7 +2088,7 @@ function DashboardPageContent() {
                         : "text-ink-secondary hover:bg-brand-tint/55 hover:text-ink",
                     )}
                   >
-                    {section.label}
+                    {t(section.label)}
                   </button>
                 ))}
               </nav>
@@ -1930,8 +2119,9 @@ function DashboardPageContent() {
 }
 
 export default function DashboardPage() {
+  const t = useDashboardText();
   return (
-    <Suspense fallback={<div className="min-h-screen bg-surface" aria-busy="true" aria-label="Loading dashboard" />}>
+    <Suspense fallback={<div className="min-h-screen bg-surface" aria-busy="true" aria-label={t("Loading dashboard")} />}>
       <DashboardPageContent />
     </Suspense>
   );

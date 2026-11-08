@@ -21,7 +21,11 @@ def _get_assessment_symptom_terms(db: Session, assessment: Assessment) -> list[s
     return [str(item).strip().lower() for item in (assessment.detected_symptoms or []) if str(item).strip()]
 
 
-def create_assessment_premedication(db: Session, assessment: Assessment) -> None:
+def create_assessment_premedication(
+    db: Session,
+    assessment: Assessment,
+    age: int | None = None,
+) -> None:
     """Persist a medication recommendation only when the assessment is not RED."""
     if assessment.risk_level == "RED":
         return
@@ -30,7 +34,7 @@ def create_assessment_premedication(db: Session, assessment: Assessment) -> None
         return
 
     detected = _get_assessment_symptom_terms(db, assessment)
-    guide = build_premedication_guide(assessment.risk_level, detected, assessment.input_text)
+    guide = build_premedication_guide(assessment.risk_level, detected, assessment.input_text, age)
     if guide is None:
         return
 

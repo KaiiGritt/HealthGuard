@@ -42,11 +42,13 @@ export default async function HistoryPage({
     <div className="premium-page min-h-screen">
       <PageHeader />
       <PageMain narrow>
-        <Card className="relative overflow-hidden rounded-[28px] border border-[#DDE7DB] bg-[linear-gradient(135deg,#FFFFFF_0%,#FBFCF9_58%,#F1F5EE_100%)] p-4 shadow-[0_24px_60px_rgba(15,23,42,0.07)] sm:p-7 lg:p-9">
-          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" aria-hidden="true" />
-          <div className="flex flex-col gap-5 border-b border-[#E1E9DE] pb-6 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:pb-7">
+        <Card className="relative overflow-hidden rounded-[30px] border border-[#DDE7DB] bg-[linear-gradient(135deg,#FFFFFF_0%,#FBFCF9_58%,#F1F5EE_100%)] p-4 shadow-[0_30px_80px_rgba(15,23,42,0.08)] ring-1 ring-white/75 sm:p-7 lg:p-9">
+          <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" aria-hidden="true" />
+          <div className="absolute -right-10 top-10 h-48 w-48 rounded-full bg-[radial-gradient(circle,rgba(47,107,79,0.12),transparent_68%)]" aria-hidden="true" />
+          <div className="absolute -left-8 bottom-10 h-40 w-40 rounded-full bg-[radial-gradient(circle,rgba(199,179,122,0.14),transparent_72%)]" aria-hidden="true" />
+          <div className="relative flex flex-col gap-5 border-b border-[#E1E9DE] pb-6 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:pb-7">
             <div className="flex min-w-0 items-start gap-3 sm:gap-4">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-brand/15 bg-brand-tint text-brand-dark shadow-[0_4px_12px_rgba(47,107,79,0.08)] sm:h-14 sm:w-14">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-brand/15 bg-[linear-gradient(145deg,#F3F7EB_0%,#E9F1E4_100%)] text-brand-dark shadow-[0_10px_20px_rgba(47,107,79,0.08)] sm:h-14 sm:w-14">
                 <IconHistory size={24} aria-hidden="true" />
               </span>
               <div className="min-w-0">
@@ -57,12 +59,12 @@ export default async function HistoryPage({
             </div>
             <div className="flex flex-wrap items-center gap-2 sm:justify-end">
               {rows && rows.length > 0 ? (
-                <span className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[#DDE7DB] bg-white/80 px-3.5 font-mono text-xs font-semibold text-ink-secondary shadow-sm">
-                  <span className="flex h-6 min-w-6 items-center justify-center rounded-lg bg-brand-tint px-1.5 text-brand-dark">{rows.length}</span>
+                <span className="inline-flex min-h-10 items-center gap-2 rounded-2xl border border-[#DDE7DB] bg-[linear-gradient(180deg,#FFFFFF_0%,#F4F8F1_100%)] px-3.5 font-mono text-xs font-semibold text-ink-secondary shadow-[0_8px_18px_rgba(24,38,25,0.04)]">
+                  <span className="flex h-6 min-w-6 items-center justify-center rounded-lg bg-[linear-gradient(135deg,#EAF4EB_0%,#DDEEDC_100%)] px-1.5 text-brand-dark shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">{rows.length}</span>
                   {rows.length === 1 ? "assessment" : "assessments"}
                 </span>
               ) : null}
-              <PrimaryLink href="/assessment" className="min-h-10 rounded-xl px-4 text-sm">New assessment</PrimaryLink>
+              <PrimaryLink href="/assessment" className="min-h-10 rounded-xl bg-gradient-to-r from-brand to-brand-dark px-4 text-sm font-semibold shadow-[0_12px_24px_rgba(31,74,54,0.18)] hover:shadow-[0_16px_30px_rgba(31,74,54,0.22)]">New assessment</PrimaryLink>
             </div>
           </div>
 
@@ -79,9 +81,9 @@ export default async function HistoryPage({
             </div>
           ) : (
             <>
-            <div className="mt-7 hidden overflow-x-auto rounded-2xl border border-[#DDE7DB] bg-white shadow-[0_12px_28px_rgba(24,38,25,0.05)] md:block">
+            <div className="mt-7 hidden overflow-hidden rounded-[26px] border border-[#DDE7DB] bg-white/65 shadow-[0_18px_38px_rgba(24,38,25,0.06)] backdrop-blur-sm md:block">
               <table className="w-full min-w-[900px] text-left text-sm lg:text-base">
-                <thead className="bg-[linear-gradient(180deg,#F6F9F3_0%,#EDF3E9_100%)] font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted">
+                <thead className="bg-[linear-gradient(180deg,#F5F9F1_0%,#EDF4E8_100%)] font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted">
                   <tr>
                     <th className="px-5 py-4">Assessment date</th>
                     <th className="px-5 py-4">Reported symptoms</th>
@@ -90,9 +92,9 @@ export default async function HistoryPage({
                     <th className="px-5 py-4">Recommendation</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#E8EEE5]">
+                <tbody className="divide-y divide-[#E8EEE5] bg-white/70">
                   {pageRows.map((r) => (
-                    <tr key={r.id} className="group transition-colors hover:bg-[#F7FAF5]">
+                    <tr key={r.id} className="group transition-all duration-200 hover:bg-[linear-gradient(135deg,#F8FBF7_0%,#F2F7F1_100%)] hover:shadow-[inset_0_1px_0_rgba(47,107,79,0.05)]">
                       <td className="whitespace-nowrap px-5 py-5 text-sm font-medium text-ink-secondary">
                         <span className="block">{new Date(r.created_at).toLocaleDateString()}</span>
                         <span className="mt-1 block font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint">Record #{r.id}</span>
@@ -106,7 +108,7 @@ export default async function HistoryPage({
                       <td className="px-5 py-5">
                         <Link
                           href={`/result/${r.id}`}
-                          className="inline-flex items-center whitespace-nowrap rounded-xl border border-brand/25 bg-brand-tint px-3.5 py-2 text-sm font-semibold text-brand-dark shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-brand/45 hover:bg-white hover:shadow-[0_8px_18px_rgba(47,107,79,0.12)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15"
+                          className="inline-flex items-center whitespace-nowrap rounded-xl border border-brand/25 bg-[linear-gradient(180deg,#F3F8F2_0%,#E9F1E7_100%)] px-3.5 py-2 text-sm font-semibold text-brand-dark shadow-[0_6px_14px_rgba(47,107,79,0.08)] transition-all duration-200 hover:-translate-y-0.5 hover:border-brand/45 hover:bg-white hover:shadow-[0_10px_18px_rgba(47,107,79,0.12)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15"
                         >
                           View result
                         </Link>
@@ -119,7 +121,7 @@ export default async function HistoryPage({
             </div>
             <div className="mt-6 space-y-3 md:hidden">
               {pageRows.map((r) => (
-                <Link key={r.id} href={`/result/${r.id}`} className="group relative block overflow-hidden rounded-2xl border border-[#DDE7DB] bg-[linear-gradient(135deg,#FFFFFF_0%,#F6F9F3_100%)] p-4 shadow-[0_8px_20px_rgba(24,38,25,0.04)] outline-none transition-all duration-200 hover:-translate-y-0.5 hover:border-brand/30 hover:bg-white hover:shadow-[0_14px_28px_rgba(47,107,79,0.1)] focus-visible:ring-4 focus-visible:ring-brand/15 sm:p-5">
+                <Link key={r.id} href={`/result/${r.id}`} className="group relative block overflow-hidden rounded-[22px] border border-[#DDE7DB] bg-[linear-gradient(145deg,#FFFFFF_0%,#F6F9F3_100%)] p-4 shadow-[0_12px_26px_rgba(24,38,25,0.05)] outline-none transition-all duration-200 hover:-translate-y-0.5 hover:border-brand/30 hover:bg-white hover:shadow-[0_18px_32px_rgba(47,107,79,0.08)] focus-visible:ring-4 focus-visible:ring-brand/15 sm:p-5">
                   <span className={`absolute inset-y-0 left-0 w-1 ${r.risk_level === "RED" ? "bg-triage-red" : r.risk_level === "YELLOW" ? "bg-triage-yellow" : "bg-brand"}`} aria-hidden="true" />
                   <div className="flex items-start justify-between gap-3 pl-1">
                     <div className="min-w-0">
@@ -139,7 +141,7 @@ export default async function HistoryPage({
                 <Link
                   href={currentPage > 1 ? `/history?page=${currentPage - 1}` : "/history?page=1"}
                   aria-disabled={currentPage === 1}
-                  className={`rounded-xl border border-[#DDE7DB] bg-white px-4 py-2.5 text-xs font-semibold text-ink-secondary shadow-sm transition hover:border-brand/40 hover:text-brand-dark ${currentPage === 1 ? "pointer-events-none opacity-40" : ""}`}
+                  className={`rounded-xl border border-[#DDE7DB] bg-white px-4 py-2.5 text-xs font-semibold text-ink-secondary shadow-[0_6px_14px_rgba(24,38,25,0.03)] transition hover:border-brand/40 hover:text-brand-dark ${currentPage === 1 ? "pointer-events-none opacity-40" : ""}`}
                 >
                   Previous
                 </Link>
@@ -147,7 +149,7 @@ export default async function HistoryPage({
                 <Link
                   href={currentPage < totalPages ? `/history?page=${currentPage + 1}` : `/history?page=${totalPages}`}
                   aria-disabled={currentPage === totalPages}
-                  className={`rounded-xl border border-[#DDE7DB] bg-white px-4 py-2.5 text-xs font-semibold text-ink-secondary shadow-sm transition hover:border-brand/40 hover:text-brand-dark ${currentPage === totalPages ? "pointer-events-none opacity-40" : ""}`}
+                  className={`rounded-xl border border-[#DDE7DB] bg-white px-4 py-2.5 text-xs font-semibold text-ink-secondary shadow-[0_6px_14px_rgba(24,38,25,0.03)] transition hover:border-brand/40 hover:text-brand-dark ${currentPage === totalPages ? "pointer-events-none opacity-40" : ""}`}
                 >
                   Next
                 </Link>

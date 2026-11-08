@@ -10,6 +10,9 @@ import { IconChevronDown } from "@/app/components/ui/icons";
 export const inputClass =
   "min-h-[52px] w-full rounded-xl border border-border bg-card px-4 py-3 text-base text-ink outline-none transition placeholder:text-ink-faint hover:border-brand/50 focus:border-brand focus:ring-4 focus:ring-brand/10";
 
+export const textareaClass =
+  "mt-3 min-h-[8.75rem] w-full resize-y rounded-2xl border border-[#C9D8CA] bg-[linear-gradient(180deg,#FFFFFF_0%,#F7FAF6_100%)] px-4 py-3.5 text-base leading-relaxed text-ink shadow-[inset_0_1px_2px_rgba(24,38,25,0.03),inset_0_0_0_1px_rgba(47,107,79,0.035),0_10px_22px_rgba(24,38,25,0.05)] outline-none transition-all duration-200 placeholder:whitespace-pre-line placeholder:text-ink-faint hover:border-brand/55 hover:shadow-[inset_0_1px_2px_rgba(24,38,25,0.04),inset_0_0_0_1px_rgba(47,107,79,0.05),0_14px_28px_rgba(24,38,25,0.06)] focus:border-brand focus:ring-4 focus:ring-brand/12 focus:shadow-[inset_0_1px_2px_rgba(24,38,25,0.04),inset_0_0_0_1px_rgba(47,107,79,0.08),0_0_0_6px_rgba(47,107,79,0.08),0_14px_30px_rgba(24,38,25,0.08)]";
+
 export const selectClass =
   "premium-select min-h-[52px] w-full cursor-pointer appearance-none rounded-xl border border-border bg-card px-4 py-3 pr-11 text-base text-ink shadow-[0_2px_8px_rgba(15,23,42,0.04)] outline-none transition hover:border-brand/60 hover:bg-white focus:border-brand focus:ring-4 focus:ring-brand/10";
 
@@ -408,12 +411,14 @@ export function StatCard({
   hint,
   icon,
   accent,
+  compact = false,
 }: {
   label: string;
   value: string;
   hint?: string;
   icon?: ReactNode;
   accent?: "brand" | "urgent" | "watch" | "neutral";
+  compact?: boolean;
 }) {
   const accents = {
     brand: "bg-brand/10 text-brand",
@@ -423,18 +428,34 @@ export function StatCard({
   };
 
   return (
-    <div className="group relative overflow-hidden rounded-[22px] border border-[#DDE7DB] bg-[linear-gradient(180deg,#FFFFFF_0%,#F7FAF4_100%)] p-5 shadow-[0_18px_38px_rgba(15,23,42,0.04)] transition duration-200 hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-[0_22px_48px_rgba(31,74,54,0.08)] sm:p-6 xl:p-7 2xl:p-8">
+    <div className={cn(
+      "group relative overflow-hidden rounded-[22px] border border-[#DDE7DB] bg-[linear-gradient(180deg,#FFFFFF_0%,#F7FAF4_100%)] shadow-[0_18px_38px_rgba(15,23,42,0.04)] transition duration-200 hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-[0_22px_48px_rgba(31,74,54,0.08)]",
+      compact ? "p-3 sm:p-5 xl:p-6 2xl:p-7" : "p-5 sm:p-6 xl:p-7 2xl:p-8",
+    )}>
       <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" />
-      <div className="flex items-start justify-between gap-4">
-        <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted xl:text-xs">{label}</p>
+      <div className={cn("flex items-start justify-between", compact ? "gap-2 sm:gap-4" : "gap-4")}>
+        <p className={cn(
+          "font-mono font-semibold uppercase text-ink-muted",
+          compact ? "text-[9px] leading-snug tracking-[0.08em] sm:text-[11px] sm:tracking-[0.14em] xl:text-xs" : "text-[11px] tracking-[0.14em] xl:text-xs",
+        )}>{label}</p>
         {icon ? (
-          <span className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-current/10", accents[accent ?? "brand"])}>
+          <span className={cn(
+            "flex shrink-0 items-center justify-center rounded-xl border border-current/10",
+            compact ? "h-8 w-8 sm:h-10 sm:w-10" : "h-11 w-11",
+            accents[accent ?? "brand"],
+          )}>
             {icon}
           </span>
         ) : null}
       </div>
-      <p className="mt-4 font-mono text-3xl font-semibold tabular-nums text-ink sm:mt-5 sm:text-4xl xl:text-5xl 2xl:text-[3.25rem]">{value}</p>
-      {hint ? <p className="mt-2 text-sm leading-relaxed text-ink-muted sm:mt-3 sm:text-base xl:text-lg">{hint}</p> : null}
+      <p className={cn(
+        "font-mono font-semibold tabular-nums text-ink",
+        compact ? "mt-2 text-2xl sm:mt-4 sm:text-4xl xl:text-5xl 2xl:text-[3.25rem]" : "mt-4 text-3xl sm:mt-5 sm:text-4xl xl:text-5xl 2xl:text-[3.25rem]",
+      )}>{value}</p>
+      {hint ? <p className={cn(
+        "leading-relaxed text-ink-muted",
+        compact ? "mt-1 text-[11px] sm:mt-3 sm:text-base xl:text-lg" : "mt-2 text-sm sm:mt-3 sm:text-base xl:text-lg",
+      )}>{hint}</p> : null}
     </div>
   );
 }

@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from ..config import settings
 from ..database import get_db
 from ..deps import COOKIE_NAME, get_current_user
-from ..email import send_login_alert, send_message, send_password_reset_code, send_verification_code
+from ..email import send_message, send_password_reset_code, send_verification_code
 from ..models import Admin, AnalysisReport, Assessment, EmailVerification, MHO, PasswordReset, ProfileAuditLog, Resident, User
 from ..schemas import (
     ChangePasswordRequest,
@@ -239,7 +239,11 @@ def verify_email(payload: VerifyEmailRequest, response: Response, db: Session = 
 
 
 @router.post("/login", response_model=UserOut)
-def login(payload: LoginRequest, response: Response, db: Session = Depends(get_db)) -> User:
+def login(
+    payload: LoginRequest,
+    response: Response,
+    db: Session = Depends(get_db),
+) -> User:
     email = payload.email.strip().lower()
     if _too_many_email_attempts(LOGIN_ATTEMPTS, email):
         raise HTTPException(status_code=429, detail="Too many sign-in attempts. Please wait 10 minutes before trying again.")
@@ -257,12 +261,6 @@ def login(payload: LoginRequest, response: Response, db: Session = Depends(get_d
     if password_needs_rehash(user.password_hash):
         user.password_hash = hash_password(payload.password)
         db.commit()
-    try:
-        message = send_login_alert(user.email, None)
-        send_message(message)
-    except Exception:
-        # Login should still succeed even if mail delivery is unavailable.
-        logger.exception("Login alert delivery failed")
     logger.info("Sign-in succeeded")
     return user
 

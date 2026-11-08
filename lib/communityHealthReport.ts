@@ -21,24 +21,25 @@ function countFromMetric(summary: DashboardSummary, label: string) {
   return Number.isFinite(value) ? Math.max(0, value) : 0;
 }
 
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("en", {
+function formatDate(date: Date, locale = "en") {
+  return new Intl.DateTimeFormat(locale, {
     month: "long",
     day: "numeric",
     year: "numeric",
   }).format(date);
 }
 
-function makeReportPeriod(asOf: Date) {
+function makeReportPeriod(asOf: Date, locale = "en") {
   const end = new Date(asOf);
   const start = new Date(asOf);
   start.setDate(start.getDate() - 6);
-  return `${formatDate(start)} - ${formatDate(end)}`;
+  return `${formatDate(start, locale)} - ${formatDate(end, locale)}`;
 }
 
 export function generateCommunityHealthReport(
   summary: DashboardSummary,
   asOf = new Date(summary.generated_at),
+  language: "en" | "fil" | "both" = "en",
 ): CommunityHealthReport {
   const safeAsOf = Number.isNaN(asOf.getTime()) ? new Date() : asOf;
   const casesThisWeek = countFromMetric(summary, "This week");
@@ -112,7 +113,7 @@ export function generateCommunityHealthReport(
     executiveSummary = `${casesThisWeek} assessments were submitted in the last 7 days, and no active urgent cases are listed in the dashboard summary. ${sampleCaution || "The dashboard’s triage and barangay totals provide the wider context for this snapshot."}`;
   }
 
-  return {
+  const englishReport: CommunityHealthReport = {
     report_period: `Last 7 days (${makeReportPeriod(safeAsOf)})`,
     executive_summary: executiveSummary,
     key_metrics: [
@@ -146,5 +147,100 @@ export function generateCommunityHealthReport(
     trend_narrative: trendNarrative,
     top_symptoms_narrative: topSymptomsNarrative,
     recommended_actions: actions,
+  };
+
+  if (language === "en") return englishReport;
+
+  const filipinoCaution = casesThisWeek < 10
+    ? `Batay ito sa maliit na bilang (${casesThisWeek} pagsusuri sa nakaraang 7 araw), kaya bigyang-kahulugan ang datos nang may pag-iingat.`
+    : "";
+  const filipinoExecutiveSummary = urgentCount > 0
+    ? `${urgentCount} aktibong agarang kaso ang kailangang suriin${priorityBarangay ? `; pinakamataas ang bilang ng agarang kaso sa ${priorityBarangay.barangay}` : ""}. ${casesThisWeek} pagsusuri ang naisumite sa nakaraang 7 araw.${filipinoCaution ? ` ${filipinoCaution}` : ""}`
+    : `${casesThisWeek} pagsusuri ang naisumite sa nakaraang 7 araw at walang aktibong agarang kasong nakalista sa buod ng dashboard. ${filipinoCaution || "Nagbibigay ng karagdagang konteksto ang kabuuang triage at barangay para sa buod na ito."}`;
+  const filipinoReport: CommunityHealthReport = {
+    report_period: `Nakaraang 7 araw (${makeReportPeriod(safeAsOf, "fil-PH")})`,
+    executive_summary: filipinoExecutiveSummary,
+    key_metrics: [
+      {
+        label: "Mga pagsusuri sa nakaraang 7 araw",
+        value: String(casesThisWeek),
+        context: casesThisWeek < 10 ? "Maliit na bilang; bigyang-kahulugan nang may pag-iingat" : "Kamakailang aktibidad ng komunidad",
+      },
+      {
+        label: "Mga aktibong agarang kaso",
+        value: String(urgentCount),
+        context: urgentCount > 0 ? "Nakalista para suriin sa dashboard" : "Walang kasalukuyang nakalista",
+      },
+      {
+        label: "Kabuuang triage",
+        value: `${redCount} pula · ${yellowCount} dilaw · ${greenCount} berde`,
+        context: "Kabuuang naitala sa dashboard; hindi lamang sa nakaraang 7 araw",
+      },
+      {
+        label: "Mga barangay sa buod",
+        value: String(summary.barangay_stats.length),
+        context: `${barangayTotal} pagsusuring kinakatawan sa buod ng barangay`,
+      },
+    ],
+    urgent_cases_summary: {
+      count: urgentCount,
+      narrative: urgentCount === 0
+        ? "Walang aktibong agarang kasong nakalista sa buod ng dashboard."
+        : priorityBarangay
+          ? `${urgentCount} aktibong agarang kaso ang nakalista. Pinakamataas ang bilang sa ${priorityBarangay.barangay} (${priorityBarangay.urgent}); maaaring magkaiba ang saklaw ng mga bilang sa dashboard.`
+          : `${urgentCount} aktibong agarang kaso ang nakalista, ngunit walang tinukoy na lokasyon sa buod ng barangay.`,
+      barangays_involved: urgentBarangays,
+    },
+    barangay_breakdown: notableBarangays.map((item) => ({
+      barangay: item.barangay,
+      narrative: `${item.total} naitalang pagsusuri sa buod ng dashboard${item.urgent > 0 ? `, ${item.urgent} aktibong agarang kaso` : ""}${item.follow_up > 0 ? `, ${item.follow_up} kasong kailangang i-follow-up` : ""}. ${item.urgent > 0 ? "Unahin ang pagsusuri sa mga aktibong agarang kaso." : item.follow_up > 0 ? "Suriin ang mga kasong kailangang i-follow-up." : "Ito ang may pinakamataas na naitalang bilang ng kaso sa buod ng mga barangay."}`,
+    })),
+    trend_narrative: currentTrend && previousTrend
+      ? `Nagtala ang dashboard ng ${currentTrend.count} pagsusuri para sa ${currentTrend.label.toLowerCase()} at ${previousTrend.count} para sa ${previousTrend.label.toLowerCase()} (${currentTrend.count - previousTrend.count >= 0 ? "+" : ""}${currentTrend.count - previousTrend.count}). Maaaring hindi pa kumpleto ang kasalukuyang linggo.${filipinoCaution ? ` ${filipinoCaution}` : ""}`
+      : `Hindi sapat ang datos ng lingguhang trend upang maihambing ang mga panahon.${filipinoCaution ? ` ${filipinoCaution}` : ""}`,
+    top_symptoms_narrative: topSymptoms.length > 0
+      ? `Ang mga sintomas na pinakamadalas naitala sa dashboard ay ${topSymptoms.map((item) => `${item.symptom} (${item.count})`).join(", ")}. Ipinapakita ng mga bilang ang mga naiulat na sintomas at hindi nito pinatutunayan ang sanhi o pagkalat ng sakit.`
+      : "Walang datos ng dalas ng sintomas sa dashboard para sa ulat na ito.",
+    recommended_actions: [
+      ...(priorityBarangay
+        ? [`Unahin ang pagsusuri sa ${priorityBarangay.barangay}: nakatala sa dashboard ang ${priorityBarangay.urgent} aktibong agarang kaso roon.`]
+        : urgentCount > 0
+          ? [`Suriin ang ${urgentCount} aktibong agarang kaso sa mga tala ng pagsusuri; walang tinukoy na lokasyon ng mga ito sa buod ng barangay.`]
+          : []),
+      ...(followUpPriority
+        ? [`Suriin ang ${followUpPriority.follow_up} kasong kailangang i-follow-up sa ${followUpPriority.barangay}.`]
+        : []),
+      ...(casesThisWeek < 10 && actions.length === 0
+        ? ["Sa susunod na pag-refresh ng dashboard, tiyaking suriin kung nagbabago ang maliit na bilang ng mga ulat bago bumuo ng konklusyon."]
+        : []),
+    ],
+  };
+
+  if (language === "fil") return filipinoReport;
+  const combine = (english: string, filipino: string) => `${english} / ${filipino}`;
+  return {
+    ...englishReport,
+    report_period: combine(englishReport.report_period, filipinoReport.report_period),
+    executive_summary: combine(englishReport.executive_summary, filipinoReport.executive_summary),
+    key_metrics: englishReport.key_metrics.map((metric, index) => ({
+      label: combine(metric.label, filipinoReport.key_metrics[index].label),
+      value: metric.value === filipinoReport.key_metrics[index].value
+        ? metric.value
+        : combine(metric.value, filipinoReport.key_metrics[index].value),
+      context: combine(metric.context, filipinoReport.key_metrics[index].context),
+    })),
+    urgent_cases_summary: {
+      ...englishReport.urgent_cases_summary,
+      narrative: combine(englishReport.urgent_cases_summary.narrative, filipinoReport.urgent_cases_summary.narrative),
+    },
+    barangay_breakdown: englishReport.barangay_breakdown.map((item, index) => ({
+      ...item,
+      narrative: combine(item.narrative, filipinoReport.barangay_breakdown[index].narrative),
+    })),
+    trend_narrative: combine(englishReport.trend_narrative, filipinoReport.trend_narrative),
+    top_symptoms_narrative: combine(englishReport.top_symptoms_narrative, filipinoReport.top_symptoms_narrative),
+    recommended_actions: englishReport.recommended_actions.map((action, index) =>
+      combine(action, filipinoReport.recommended_actions[index]),
+    ),
   };
 }

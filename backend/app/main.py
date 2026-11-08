@@ -25,10 +25,11 @@ from .database import (
     migrate_lexicon_rule_base_schema,
     migrate_user_preferences_schema,
     migrate_user_role_schema,
+    migrate_medication_catalog_schema,
 )
 from .nlp import scispacy_adapter
 from .routers import assessment, auth
-from .seed import seed_admin, seed_lexicon, seed_lexicon_rules, seed_mho, seed_risk_and_guide_levels, seed_symptoms
+from .seed import seed_admin, seed_lexicon, seed_lexicon_rules, seed_medication_catalog, seed_mho, seed_risk_and_guide_levels, seed_symptoms
 
 
 def _ensure_nltk() -> None:
@@ -50,6 +51,7 @@ def _ensure_nltk() -> None:
 async def lifespan(app: FastAPI):
     _ensure_nltk()
     Base.metadata.create_all(bind=engine)
+    migrate_medication_catalog_schema()
     migrate_email_verification_schema()
     migrate_assessment_handled_schema()
     migrate_assessment_symptom_extraction_schema()
@@ -65,10 +67,12 @@ async def lifespan(app: FastAPI):
         symptoms_inserted = seed_symptoms(db)
         seed_risk_and_guide_levels(db)
         seed_lexicon_rules(db)
+        medication_entries_inserted = seed_medication_catalog(db)
         admin_created = seed_admin(db)
         mho_created = seed_mho(db)
     print(f"[startup] Lexicon seeded (+{inserted} new entries). "
           f"Symptoms seeded (+{symptoms_inserted} new entries). "
+          f"Medication catalog seeded (+{medication_entries_inserted} new entries). "
           f"scispaCy layer: {'ACTIVE' if scispacy_adapter.is_available() else 'dormant'}.")
     if admin_created:
         print(f"[startup] Bootstrap admin created: {settings.admin_email} "

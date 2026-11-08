@@ -62,18 +62,18 @@ function TriageTag() {
         <rect x="20" y="46" width="220" height="300" rx="6" fill="#FBF9F2" stroke="#1B2B22" strokeWidth="2" />
         <line x1="20" y1="46" x2="20" y2="346" stroke="#B9C0AC" strokeWidth="2" strokeDasharray="2 6" />
 
-        <text x="46" y="80" fontFamily="var(--font-tag)" fontSize="12" fill="#7C7F6E" letterSpacing="1">
+        <text x="46" y="80" fontFamily="var(--hg-font-mono)" fontSize="12" fill="#7C7F6E" letterSpacing="1">
           FACED-TRIAGE
         </text>
-        <text x="46" y="98" fontFamily="var(--font-tag)" fontSize="11" fill="#7C7F6E">
+        <text x="46" y="98" fontFamily="var(--hg-font-mono)" fontSize="11" fill="#7C7F6E">
           NO. 000241
         </text>
         <line x1="46" y1="112" x2="214" y2="112" stroke="#DEDFD1" strokeWidth="1.5" />
 
-        <text x="46" y="140" fontFamily="var(--font-display)" fontStyle="italic" fontSize="22" fill="#1B2B22">
+        <text x="46" y="140" fontFamily="var(--hg-font-display)" fontStyle="italic" fontSize="22" fill="#1B2B22">
           Your result
         </text>
-        <text x="46" y="162" fontFamily="var(--font-body)" fontSize="12" fill="#5B5F52">
+        <text x="46" y="162" fontFamily="var(--hg-font-body)" fontSize="12" fill="#5B5F52">
           will look like this tag
         </text>
 
@@ -81,7 +81,7 @@ function TriageTag() {
         <text
           x="60"
           y="212"
-          fontFamily="var(--font-tag)"
+          fontFamily="var(--hg-font-mono)"
           fontSize="10.5"
           fill="#F1F4EC"
           textLength="134"
@@ -95,7 +95,7 @@ function TriageTag() {
           <text
             x="60"
             y="250"
-            fontFamily="var(--font-tag)"
+            fontFamily="var(--hg-font-mono)"
             fontSize="10"
             fill="#4A3410"
             textLength="136"
@@ -109,7 +109,7 @@ function TriageTag() {
         <text
           x="60"
           y="288"
-          fontFamily="var(--font-tag)"
+          fontFamily="var(--hg-font-mono)"
           fontSize="10.5"
           fill="#F1F4EC"
           textLength="128"

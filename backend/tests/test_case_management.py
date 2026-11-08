@@ -81,6 +81,24 @@ def test_case_activity_is_persisted_and_returned(db_session: Session) -> None:
     assert updated.case_status == "In progress"
     assert len(updated.case_activities) == 2
 
+    contacted = add_assessment_case_activity(
+        assessment.id,
+        AssessmentCaseActivityIn(kind="contacted", details="Resident reached by phone."),
+        db_session,
+        mho,
+    )
+    assert contacted.case_activities[0].kind == "contacted"
+    assert contacted.case_activities[0].details == "Resident reached by phone."
+
+    followed_up = add_assessment_case_activity(
+        assessment.id,
+        AssessmentCaseActivityIn(kind="follow_up", details="Follow-up completed."),
+        db_session,
+        mho,
+    )
+    assert followed_up.case_activities[0].kind == "follow_up"
+    assert followed_up.case_activities[0].details == "Follow-up completed."
+
 
 def test_history_loads_related_data_without_per_record_queries(db_session: Session) -> None:
     resident = User(

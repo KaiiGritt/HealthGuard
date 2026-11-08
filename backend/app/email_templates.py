@@ -92,31 +92,3 @@ def password_reset_email_text(code: str) -> str:
         "",
         "If you did not request this, you can ignore this email.",
     ])
-
-
-def login_alert_email_html(email: str, ip_address: str | None) -> str:
-    ip = escape(ip_address or "unknown")
-    account = escape(email)
-    body = f"""
-      <p style="margin:0 0 16px;">A successful sign-in was detected for your HealthGuard account.</p>
-      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:16px 0;background:#f1f4ec;border:1px solid #d8ded1;border-radius:4px;">
-        <tr><td style="padding:12px 16px;font-size:14px;"><strong>Account:</strong> {account}</td></tr>
-        <tr><td style="padding:0 16px 12px;font-size:14px;"><strong>IP address:</strong> {ip}</td></tr>
-      </table>
-      <p style="margin:0;">If this was not you, change your password and contact your administrator immediately.</p>
-    """
-    return _shell("Login alert", body)
-
-
-def login_alert_email_text(email: str, ip_address: str | None) -> str:
-    return "\n".join(
-        [
-            "HealthGuard — Login alert",
-            "",
-            "A successful login was detected for your HealthGuard account.",
-            f"Email: {email}",
-            f"IP address: {ip_address or 'unknown'}",
-            "",
-            "If this was not you, please contact your administrator immediately.",
-        ]
-    )

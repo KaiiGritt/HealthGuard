@@ -317,6 +317,27 @@ class PreMedication(Base):
     assessment: Mapped[Assessment] = relationship(back_populates="pre_medications")
 
 
+class MedicationCatalog(Base):
+    """Reference medication information shown alongside assessment guidance."""
+
+    __tablename__ = "medication_catalog"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    generic_name: Mapped[str] = mapped_column(String(128), unique=True, index=True)
+    alternative_name: Mapped[str] = mapped_column(String(128), default="")
+    common_brands: Mapped[list[str]] = mapped_column(JSON, default=list)
+    classification: Mapped[str] = mapped_column(String(128), default="")
+    common_use: Mapped[str] = mapped_column(String(256), default="")
+    indications: Mapped[list[str]] = mapped_column(JSON, default=list)
+    dosage_forms: Mapped[list[str]] = mapped_column(JSON, default=list)
+    dosage_guidance: Mapped[list[str]] = mapped_column(JSON, default=list)
+    side_effects: Mapped[list[str]] = mapped_column(JSON, default=list)
+    medicine_specific_precautions: Mapped[list[str]] = mapped_column(JSON, default=list)
+    serious_reactions: Mapped[list[str]] = mapped_column(JSON, default=list)
+    precautions: Mapped[list[str]] = mapped_column(JSON, default=list)
+    overdose_guidance: Mapped[list[str]] = mapped_column(JSON, default=list)
+
+
 class AnalysisReport(Base):
     """Diagram-aligned generated reporting object for administrative review."""
 

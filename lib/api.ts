@@ -51,6 +51,22 @@ export interface PreMedicationOut {
   note: string;
 }
 
+export interface MedicationCatalogEntry {
+  generic_name: string;
+  alternative_name: string;
+  common_brands: string[];
+  classification: string;
+  common_use: string;
+  indications: string[];
+  dosage_forms: string[];
+  dosage_guidance: string[];
+  side_effects: string[];
+  medicine_specific_precautions: string[];
+  serious_reactions: string[];
+  precautions: string[];
+  overdose_guidance: string[];
+}
+
 export interface AssessmentOut {
   id: number;
   resident_name?: string | null;
@@ -104,7 +120,7 @@ export interface CaseSummary {
 
 export interface AssessmentCaseActivity {
   id: number;
-  kind: "status" | "note" | "contact_attempt";
+  kind: "status" | "note" | "contact_attempt" | "contacted" | "follow_up";
   status?: "New" | "In progress" | "Resolved" | null;
   details?: string | null;
   created_at: string;
@@ -402,6 +418,42 @@ export function getHistory(): Promise<AssessmentOut[]> {
 
 export function getSelectableSymptoms(): Promise<string[]> {
   return request<string[]>("/assessment/symptoms");
+}
+
+export function getMedicationCatalogEntry(genericName: string): Promise<MedicationCatalogEntry> {
+  return request<MedicationCatalogEntry>(`/assessment/medications/${encodeURIComponent(genericName)}`);
+}
+
+export function getProductiveCoughMedicationCatalog(): Promise<MedicationCatalogEntry[]> {
+  return request<MedicationCatalogEntry[]>("/assessment/medications/productive-cough");
+}
+
+export function getDryCoughMedicationCatalog(): Promise<MedicationCatalogEntry[]> {
+  return request<MedicationCatalogEntry[]>("/assessment/medications/dry-cough");
+}
+
+export function getDiarrheaMedicationCatalog(): Promise<MedicationCatalogEntry[]> {
+  return request<MedicationCatalogEntry[]>("/assessment/medications/diarrhea");
+}
+
+export function getVomitingMedicationCatalog(): Promise<MedicationCatalogEntry[]> {
+  return request<MedicationCatalogEntry[]>("/assessment/medications/vomiting");
+}
+
+export function getColdMedicationCatalog(): Promise<MedicationCatalogEntry[]> {
+  return request<MedicationCatalogEntry[]>("/assessment/medications/cold");
+}
+
+export function getHeadacheMedicationCatalog(): Promise<MedicationCatalogEntry[]> {
+  return request<MedicationCatalogEntry[]>("/assessment/medications/headache");
+}
+
+export function getAbdominalSupportMedicationCatalog(): Promise<MedicationCatalogEntry[]> {
+  return request<MedicationCatalogEntry[]>("/assessment/medications/abdominal");
+}
+
+export function getRashMedicationCatalog(): Promise<MedicationCatalogEntry[]> {
+  return request<MedicationCatalogEntry[]>("/assessment/medications/rash");
 }
 
 export async function getDashboardSummary(): Promise<DashboardSummary> {

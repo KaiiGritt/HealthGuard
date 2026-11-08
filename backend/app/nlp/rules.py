@@ -6,7 +6,7 @@ No machine learning — every decision is traceable to a named rule.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import re
 
 from .extractor import is_age_duration, is_negated_prefix
@@ -78,6 +78,7 @@ RED_FLAG_SYMPTOMS = {
     "chest tightness",
     "blood in vomit",
     "green vomit",
+    "coffee-ground vomit",
     "black stool",
     "active bleeding",
     "neurologic emergency",
@@ -108,6 +109,36 @@ _CANNOT_RETAIN_FLUIDS_PATTERNS = (
     r"\b(?:cannot|can't|can not|unable to|not able to)\s+(?:keep|hold)\s+(?:any\s+)?(?:fluids?|water|liquids?)\s+down\b",
     r"\b(?:cannot|can't|unable to)\s+(?:keep|retain)\s+(?:any\s+)?(?:fluids?|water|liquids?)\b",
 )
+_RASH_SYSTEMIC_PATTERNS = (
+    r"\b(?:fever|headache|eye pain|pain behind (?:the )?eyes|body aches?|muscle aches?|myalgia|dengue)\b",
+    r"\b(?:lagnat|sakit sa mata|pananakit ng katawan)\b",
+)
+_RASH_URGENT_PATTERNS = (
+    r"\b(?:swelling|swollen)\s+(?:of\s+)?(?:the\s+)?(?:lips?|tongue|throat)\b",
+    r"\b(?:widespread\s+)?blister(?:ing|s)?\b",
+    r"\bskin peeling\b",
+    r"\b(?:painful\s+)?rash.{0,40}\b(?:eyes|mouth|genitals)\b",
+    r"\b(?:purple|red)\s+spots?.{0,35}\b(?:do not|don't|does not|doesn't)\s+fade\b",
+    r"\b(?:rash.{0,40})?(?:fever.{0,30}confusion|confusion.{0,30}fever)\b",
+    r"\b(?:rapidly spreading|spreading quickly).{0,50}\b(?:redness|warmth|swelling|pus)\b",
+)
+_RASH_CARE_PRECAUTIONS = (
+    "Identify the possible cause before choosing a treatment; an unexplained rash is not automatically an allergy.",
+    "Do not apply topical corticosteroids to a suspected fungal infection without medical advice; they can mask or worsen it.",
+    "Avoid scratching, rubbing, excessive heat, multiple creams, or household remedies on an unexplained rash.",
+    "Wash gently with mild soap and water, and keep the affected area clean and dry.",
+    "Stop using any new product that may have triggered the rash; avoid suspected irritants and allergens.",
+    "Use a cool, wet compress for 10–15 minutes and fragrance-free moisturizer for dry or irritated skin.",
+    "Wear loose, breathable clothing.",
+    "Do not share towels, clothing, or personal items if a contagious skin infection is possible.",
+    "Ask a healthcare professional before using medicated creams on infants, young children, during pregnancy, or over large areas of skin.",
+    "Antihistamines are not a substitute for emergency treatment of a severe allergic reaction.",
+    "Seek emergency care for rash with difficulty breathing or swelling of the lips, tongue, or throat.",
+    "Seek urgent care for widespread blistering or peeling, or a painful rash involving the eyes, mouth, or genitals.",
+    "Seek urgent care for purple or red spots that do not fade when pressed, rash with fever and confusion, or rapidly spreading redness, warmth, swelling, or pus.",
+    "In the Philippines, rash with fever, headache, eye pain, or body aches needs medical assessment for possible dengue.",
+    "With possible dengue, seek urgent assessment for severe abdominal pain, persistent vomiting, nose or gum bleeding, blood in vomit or stool, or unusual tiredness or restlessness, even if fever has gone away.",
+)
 
 
 def _is_negated(normalized_text: str, term: str) -> bool:
@@ -120,8 +151,9 @@ def _is_negated(normalized_text: str, term: str) -> bool:
 
 
 _EMERGENCY_TEXT_PATTERNS: tuple[tuple[str, tuple[str, ...]], ...] = (
-    ("blood in vomit", (r"(?:nagsusuka|sumusuka|isinusuka|vomit(?:ing)?)\b.{0,24}\bdugo\b", r"\bblood\b.{0,24}\b(?:vomit|vomiting)\b")),
-    ("green vomit", (r"\b(?:yellow[- ]?green|green)\s+(?:vomit(?:ing)?|emesis)\b", r"\b(?:vomit(?:ing)?|emesis)\b.{0,24}\b(?:yellow[- ]?green|green)\b", r"\b(?:dilaw[- ]?)?berde(?:ng)?\s+suka\b", r"\b(?:suka|isinuka|sinuka)\b.{0,24}\bberde(?:ng)?\b")),
+    ("blood in vomit", (r"(?:nagsusuka|sumusuka|isinusuka|vomit(?:ing)?)\b.{0,24}\bdugo\b", r"\bblood\b.{0,24}\b(?:vomit|vomiting)\b", r"\b(?:hematemesis|bloody vomiting|bloody vomit)\b")),
+    ("green vomit", (r"\b(?:yellow[- ]?green|green)\s+(?:vomit(?:ing)?|emesis)\b", r"\b(?:vomit(?:ing)?|emesis)\b.{0,24}\b(?:yellow[- ]?green|green)\b", r"\b(?:dilaw[- ]?)?berde(?:ng)?\s+suka\b", r"\b(?:suka|isinuka|sinuka)\b.{0,24}\bberde(?:ng)?\b", r"\bbilious vomiting\b")),
+    ("coffee-ground vomit", (r"\bcoffee[- ]ground\s+(?:vomit(?:ing)?|emesis)\b", r"\b(?:vomit(?:ing)?|emesis)\b.{0,24}\bcoffee[- ]ground\b")),
     ("black stool", (r"\bitim\s+(?:ang\s+)?dumi\b", r"\bblack\s+stool\b", r"\bmelena\b")),
     ("active bleeding", (r"\bdumudugo\s+(?:ang\s+)?(?:gilagid|ilong)\b", r"\bbleeding\s+gums?\b", r"\bnosebleed\b", r"\bmay\s+pasa\b")),
     ("neurologic emergency", (r"\bseizure\b", r"\bconvuls(?:ion|ions)?\b", r"\bkombulsyon\b", r"\bstiff\s+neck\b", r"\bmatigas\s+(?:ang\s+)?(?:leeg|leyg)\b", r"\b(?:nalilito|confused)\b")),
@@ -218,17 +250,6 @@ OTC_SYMPTOM_MAP = [
         {"body ache", "body pain", "weakness"},
         "Paracetamol",
     ),
-    # Cough subtype recommendations are selected from the submitted chip details.
-    (
-        {"cough", "ubo", "dry cough"},
-        {"sore throat", "throat pain", "throat irritation"},
-        "Dextromethorphan or Butamirate",
-    ),
-    (
-        {"cough", "ubo", "with phlegm", "phlegm"},
-        set(),
-        "Carbocisteine, Ambroxol, or Guaifenesin",
-    ),
     # Abdominal pain subtypes.
     ({"abdominal pain", "heartburn", "acid", "acid heartburn"}, set(), "Antacids (Aluminum hydroxide and Magnesium hydroxide)"),
     ({"abdominal pain", "gas", "flatulence"}, set(), "Simethicone"),
@@ -295,9 +316,39 @@ def build_premedication_guide(
             return _build_medication_for_match(risk_level, "Oral Rehydration Solution (ORS)", {"diarrhea"})
         return None
 
-    # Type chips are included in input_text by the assessment UI. Prefer the
-    # specific validated option before falling back to the broad symptom map.
+    # Type chips are included in input_text by the assessment UI.
     context = f"{' '.join(symptoms)} {(input_text or '').lower()}"
+    fever_pattern_labels = (
+        ("continuous fever", "Continuous fever"),
+        ("intermittent fever", "Intermittent fever"),
+        ("remittent fever", "Remittent fever"),
+        ("relapsing fever", "Relapsing fever"),
+        ("recurrent fever", "Recurrent fever"),
+    )
+    selected_fever_patterns = [
+        label
+        for pattern, label in fever_pattern_labels
+        if re.search(rf"\b{re.escape(pattern)}\b", context)
+    ]
+    diarrhea_classification = re.search(
+        r"\b(chronic diarrhea|persistent diarrhea|acute diarrhea)\b",
+        context,
+    )
+    vomiting_classification = re.search(
+        r"\b(chronic vomiting|persistent vomiting|acute vomiting)\b",
+        context,
+    )
+    motion_sickness_context = _has_unnegated_pattern(
+        context,
+        (
+            r"\bmotion sickness\b",
+            r"\btravel[- ]related nausea\b",
+            r"\btravel sickness\b",
+            r"\bmotion[- ]related (?:nausea|vomiting)\b",
+            r"\bvertigo[- ]associated nausea\b",
+            r"\bdizziness associated with motion sickness\b",
+        ),
+    )
     if "colds / rhinitis" in symptoms_set:
         return _build_medication_for_match(
             risk_level,
@@ -309,6 +360,27 @@ def build_premedication_guide(
         r"\bpruritus\b",
         r"\b(?:makati|nangangati|kati)\b",
     )
+    rash_systemic_symptoms = {
+        "fever",
+        "headache",
+        "muscle ache / body soreness",
+    }
+    has_rash_systemic_symptoms = bool(symptoms_set & rash_systemic_symptoms) or _has_unnegated_pattern(
+        context,
+        _RASH_SYSTEMIC_PATTERNS,
+    )
+    if "rash" in symptoms_set and _has_unnegated_pattern(context, _RASH_URGENT_PATTERNS):
+        return _build_medication_for_match(
+            risk_level,
+            "Rash warning signs — urgent assessment",
+            {"rash"},
+        )
+    if "rash" in symptoms_set and has_rash_systemic_symptoms:
+        return _build_medication_for_match(
+            risk_level,
+            "Rash with systemic symptoms — medical review",
+            {"rash"},
+        )
     if "rash" in symptoms_set and _has_unnegated_pattern(context, itch_patterns):
         return _build_medication_for_match(
             risk_level,
@@ -321,6 +393,41 @@ def build_premedication_guide(
             "Non-drug skin care",
             {"rash"},
         )
+    if "diarrhea" in symptoms_set and diarrhea_classification:
+        classification = diarrhea_classification.group(1)
+        if classification in {"persistent diarrhea", "chronic diarrhea"}:
+            return _build_medication_for_match(
+                risk_level,
+                "Diarrhea needs clinical review",
+                {"diarrhea"},
+            )
+    if "vomiting" in symptoms_set and vomiting_classification:
+        if vomiting_classification.group(1) in {"persistent vomiting", "chronic vomiting"}:
+            return _build_medication_for_match(
+                risk_level,
+                "Vomiting needs clinical review",
+                {"vomiting"},
+            )
+    if (
+        "vomiting" in symptoms_set
+        and "diarrhea" not in symptoms_set
+        and motion_sickness_context
+        and age is not None
+        and age >= 18
+        and not _has_unnegated_pattern(context, _DEHYDRATION_PATTERNS)
+        and not _has_unnegated_pattern(context, _CANNOT_RETAIN_FLUIDS_PATTERNS)
+    ):
+        return _build_medication_for_match(
+            risk_level,
+            "Motion sickness vomiting support",
+            {"vomiting"},
+        )
+    if "vomiting" in symptoms_set and vomiting_classification:
+        return _build_medication_for_match(
+            risk_level,
+            "Oral Rehydration Solution (ORS)",
+            {"vomiting"},
+        )
     if "diarrhea" in symptoms_set and ((age is not None and age < 12) or "fever" in symptoms_set or "blood" in context):
         return _build_medication_for_match(risk_level, "Oral Rehydration Solution (ORS)", {"diarrhea"})
     if symptoms_set & {"diarrhea", "vomiting"} and (
@@ -332,17 +439,78 @@ def build_premedication_guide(
             "Oral Rehydration Solution (ORS)",
             symptoms_set & {"diarrhea", "vomiting"},
         )
+    if "diarrhea" in symptoms_set:
+        return _build_medication_for_match(
+            risk_level,
+            "Diarrhea supportive care",
+            {"diarrhea"},
+        )
+    if "headache" in symptoms_set:
+        return _build_medication_for_match(
+            risk_level,
+            "Headache symptom self-care",
+            {"headache"},
+        )
+    if "fever" in symptoms_set and selected_fever_patterns:
+        guide = _build_medication_for_match(risk_level, "Paracetamol", {"fever"})
+        pattern_summary = ", ".join(selected_fever_patterns)
+        precautions = guide.precautions
+        if any(pattern in {"Relapsing fever", "Recurrent fever"} for pattern in selected_fever_patterns):
+            precautions += (
+                "Fever that returns in separate episodes should be discussed with a qualified health worker to assess the cause.",
+            )
+        return replace(
+            guide,
+            note=(
+                f"Reported fever pattern: {pattern_summary}. This is a symptom description, not a diagnosis. "
+                "Paracetamol may help relieve fever when suitable, but it does not treat the cause; follow the product label "
+                "or a healthcare professional's instructions."
+            ),
+            precautions=precautions,
+        )
     if "cough" in symptoms_set and age is not None and age < 6:
         return None
-    if "cough" in symptoms_set and re.search(
-        r"\b(?:14|1[5-9]|[2-9]\d+)\s*days?\b|\b(?:2|[3-9]|\d{2,})\s*weeks?\b",
+    if "cough" in symptoms_set:
+        persistent_cough = re.search(
+            r"\b(?:persistent|chronic)\s+cough\b|\b(?:persistent cough|chronic cough)\b",
+            context,
+        )
+        subacute_cough = re.search(r"\bsubacute cough\b", context)
+        if persistent_cough or subacute_cough:
+            return _build_medication_for_match(
+                risk_level,
+                "Cough needs clinical review",
+                {"cough"},
+            )
+        prolonged_cough = re.search(
+            r"\b(?:14|1[5-9]|[2-9]\d+)\s*days?\b|\b(?:2|[3-9]|\d{2,})\s*weeks?\b",
+            context,
+        )
+        if prolonged_cough:
+            return None
+    dry_cough = re.search(
+        r"\b(?:dry cough|non[- ]productive cough|tuyong ubo|ubo na walang plema)\b",
         context,
-    ):
-        return None
-    if "dry cough" in context:
-        return _build_medication_for_match(risk_level, "Dextromethorphan or Butamirate", {"dry cough"})
-    if "phlegm" in context or "productive" in context or "with phlegm" in context:
-        return _build_medication_for_match(risk_level, "Carbocisteine, Ambroxol, or Guaifenesin", {"phlegm"})
+    )
+    productive_cough = re.search(
+        r"\b(?:(?<!non-)productive cough|wet cough|cough with (?:phlegm|sputum)|with phlegm|may plema)\b",
+        context,
+    )
+    allergic_cough = re.search(r"\b(?:allergic cough|allergy-related cough)\b", context)
+    acute_or_nocturnal_cough = re.search(
+        r"\b(?:acute cough|nocturnal cough|nighttime cough|night cough)\b",
+        context,
+    )
+    if "cough" in symptoms_set and dry_cough and not productive_cough:
+        return _build_medication_for_match(risk_level, "Dry cough options", {"dry cough"})
+    if "cough" in symptoms_set and productive_cough and not dry_cough:
+        return _build_medication_for_match(risk_level, "Productive cough options", {"productive cough"})
+    if "cough" in symptoms_set and allergic_cough and not productive_cough:
+        return _build_medication_for_match(risk_level, "Dry cough options", {"dry cough"})
+    if "cough" in symptoms_set and acute_or_nocturnal_cough and not (dry_cough or productive_cough):
+        return _build_medication_for_match(risk_level, "Cough subtype not specified", {"cough"})
+    if "cough" in symptoms_set:
+        return _build_medication_for_match(risk_level, "Cough subtype not specified", {"cough"})
     if "heartburn" in context or "acid" in context or "burning pain" in context:
         return _build_medication_for_match(risk_level, "Antacids (Aluminum hydroxide and Magnesium hydroxide)", {"heartburn"})
     if "gas" in context or "flatulence" in context:
@@ -424,19 +592,81 @@ def _build_medication_for_match(
             ),
             "note": "May help relieve mild aches or pain when suitable. It does not treat the cause of the symptoms.",
         },
-        "Dextromethorphan or Butamirate": {
-            "dosage": "Use only according to the approved product label or a health professional's instructions.",
+        "Dry cough options": {
+            "dosage": "No medicine or dose is selected automatically. Ask a pharmacist or health worker which option, if any, is suitable.",
             "contraindications": (),
-            "side_effects": ("Drowsiness", "Dry mouth", "Stomach upset"),
-            "precautions": ("For dry cough only; seek review if breathing becomes difficult or symptoms worsen.",),
-            "note": "Validated options for dry cough. A pharmacist or doctor should confirm the suitable product.",
+            "side_effects": ("Side effects vary by medicine; check the product leaflet or ask a pharmacist.",),
+            "precautions": (
+                "For dry cough only. Antihistamines may cause drowsiness; do not combine cough and cold products without checking their ingredients.",
+                "This system does not select a medicine or dose. Confirm suitability with a pharmacist, especially for children, pregnancy, or other health conditions.",
+                "Seek medical care for breathing difficulty, worsening symptoms, or a cough lasting more than 14 days.",
+            ),
+            "note": "Options to discuss (not a combined regimen):\nDextromethorphan — antitussive\nDiphenhydramine — antihistamine\nChlorpheniramine — antihistamine\nCetirizine — antihistamine\nLoratadine — antihistamine",
         },
-        "Carbocisteine, Ambroxol, or Guaifenesin": {
-            "dosage": "Use only according to the approved product label or a health professional's instructions.",
+        "Productive cough options": {
+            "dosage": "No medicine or dose is selected automatically. Ask a pharmacist or health worker which option, if any, is suitable.",
             "contraindications": (),
-            "side_effects": ("Nausea", "Stomach upset", "Dizziness"),
-            "precautions": ("For cough with phlegm; seek review if breathing becomes difficult or symptoms persist.",),
-            "note": "Validated options for cough with phlegm. A pharmacist or doctor should confirm the suitable product.",
+            "side_effects": ("Side effects vary by medicine; check the product leaflet or ask a pharmacist.",),
+            "precautions": (
+                "For cough with phlegm. Do not combine with a cough suppressant unless a clinician or pharmacist advises it.",
+                "This system does not select a medicine or dose. Confirm suitability with a pharmacist, especially for children, pregnancy, or other health conditions.",
+                "Seek medical care for breathing difficulty, worsening symptoms, or a cough lasting more than 14 days.",
+            ),
+            "note": "Options to discuss (not a combined regimen):\nGuaifenesin — expectorant\nCarbocisteine — mucolytic\nAmbroxol — mucolytic / expectorant\nBromhexine — mucolytic\nAcetylcysteine (NAC) — mucolytic\nErdosteine — mucolytic\nLagundi (Vitex negundo) — herbal cough preparation",
+        },
+        "Cough subtype not specified": {
+            "dosage": "No medicine or dose is selected automatically.",
+            "contraindications": (),
+            "side_effects": (),
+            "precautions": (
+                "Select dry cough or cough with phlegm to see relevant options, or ask a pharmacist or health worker.",
+                "Seek medical care for breathing difficulty, worsening symptoms, or a cough lasting more than 14 days.",
+            ),
+            "note": "Cough medicines differ by cough type. The system cannot determine which type applies from 'cough' alone.",
+        },
+        "Cough needs clinical review": {
+            "dosage": "No cough medicine or dose is selected. Arrange assessment by a qualified health worker.",
+            "contraindications": (),
+            "side_effects": (),
+            "precautions": (
+                "A subacute, persistent, or chronic cough needs clinical assessment rather than self-treatment from this guide.",
+                "Seek prompt medical care if cough worsens or occurs with breathing difficulty, chest pain, blood in sputum, or high fever.",
+            ),
+            "note": "This cough classification is a reason to seek clinical assessment; it does not identify the cause or a diagnosis.",
+        },
+        "Diarrhea needs clinical review": {
+            "dosage": "No diarrhea medicine or dose is selected. Arrange assessment by a qualified health worker.",
+            "contraindications": (),
+            "side_effects": (),
+            "precautions": (
+                "Persistent diarrhea (14 days or longer) or chronic diarrhea (more than 4 weeks) needs clinical assessment rather than self-treatment from this guide.",
+                "Continue fluids or oral rehydration solution according to its package instructions if able to drink.",
+                "Seek urgent care for blood in stool, severe dehydration, inability to keep fluids down, severe abdominal pain, or worsening symptoms.",
+            ),
+            "note": "This duration classification is a reason to seek clinical assessment; it does not identify the cause or a diagnosis.",
+        },
+        "Vomiting needs clinical review": {
+            "dosage": "No vomiting medicine or dose is selected. Arrange assessment by a qualified health worker.",
+            "contraindications": (),
+            "side_effects": (),
+            "precautions": (
+                "Persistent vomiting (7 days or longer) or chronic/recurrent vomiting needs clinical assessment rather than self-treatment from this guide.",
+                "Use small, frequent sips of oral rehydration solution if the person is alert and able to drink.",
+                "Seek urgent care for inability to keep fluids down, signs of dehydration, blood or coffee-ground material in vomit, green vomit, severe abdominal pain, or worsening symptoms.",
+            ),
+            "note": "This duration classification is a reason to seek clinical assessment; it does not identify the cause or a diagnosis.",
+        },
+        "Motion sickness vomiting support": {
+            "dosage": "Use oral rehydration solution in frequent, small sips. No meclizine dose is selected automatically.",
+            "contraindications": (),
+            "side_effects": ("Meclizine may cause drowsiness, dry mouth, headache, fatigue, blurred vision, or dizziness.",),
+            "precautions": (
+                "Meclizine is only a possible option for motion sickness, not for every cause of vomiting. Ask a pharmacist to confirm the specific product and directions.",
+                "Adult reference information only. Do not use this guidance to dose a child.",
+                "Avoid alcohol and sedatives, and do not drive if drowsy. Ask a healthcare professional first with glaucoma, enlarged prostate, or urinary difficulty.",
+                "Seek urgent care for green or bloody vomit, coffee-ground material, inability to keep fluids down, or signs of dehydration.",
+            ),
+            "note": "ORS supports fluid replacement. Meclizine is shown only as pharmacist-guided information for adult motion sickness and is not selected as treatment.",
         },
         "Antacids (Aluminum hydroxide and Magnesium hydroxide)": {
             "dosage": "Use only according to the approved product label or a health professional's instructions.",
@@ -453,11 +683,27 @@ def _build_medication_for_match(
             "note": "Validated option for abdominal pain related to gas.",
         },
         "Oral Rehydration Solution (ORS)": {
-            "dosage": "Prepare and use only according to the product instructions or a health professional's advice.",
+            "dosage": "Dissolve the sachet in the exact amount of clean water shown on the packet. For vomiting, start with frequent, small sips; if vomiting occurs, pause briefly and restart more slowly. Never change the dilution.",
             "contraindications": (),
-            "side_effects": ("Nausea", "Temporary bloating"),
-            "precautions": ("Seek urgent care for signs of dehydration, persistent vomiting, or worsening diarrhea.",),
-            "note": "Validated rehydration support for diarrhea or vomiting; it does not replace medical assessment.",
+            "side_effects": ("Nausea", "Vomiting if consumed too quickly", "Electrolyte imbalance if improperly prepared", "Fluid overload in susceptible patients"),
+            "precautions": (
+                "Use clean drinking water and do not add extra sugar or salt.",
+                "People with significant kidney or heart disease may need individualized fluid advice.",
+                "Seek urgent medical assessment if fluids cannot be retained or there are signs of severe dehydration.",
+            ),
+            "note": "ORS supports fluid and electrolyte replacement for vomiting or diarrhea; it does not treat the underlying cause or replace medical assessment.",
+        },
+        "Diarrhea supportive care": {
+            "dosage": "ORS is the first-line supportive option. Prepare and use it exactly as directed on the specific product. No anti-diarrheal or probiotic dose is selected automatically.",
+            "contraindications": (),
+            "side_effects": ("Possible effects vary by product; check its information and ask a pharmacist or healthcare professional.",),
+            "precautions": (
+                "The options shown are informational, not a combined treatment plan. Discuss zinc or probiotics with a healthcare professional, particularly for children or people with significant health conditions.",
+                "Do not use loperamide for bloody diarrhea, high fever, or persistent diarrhea unless specifically directed by a clinician.",
+                "Seek medical assessment for bloody or black, tarry stools, high fever, severe abdominal pain, persistent vomiting, signs of dehydration, very little or no urine, severe weakness or dizziness, or worsening symptoms.",
+                "Seek medical assessment if diarrhea lasts more than 48 hours without improvement.",
+            ),
+            "note": "ORS is the priority to replace fluid losses. Additional products are not suitable for everyone and should not delay medical assessment.",
         },
         "Loperamide or Oral Rehydration Solution (ORS)": {
             "dosage": "Use only according to the approved product label or a health professional's instructions.",
@@ -482,16 +728,32 @@ def _build_medication_for_match(
             "note": "Use for short-term symptom relief only; persistent cough requires evaluation.",
         },
         "Cold symptom self-care": {
-            "dosage": "No specific OTC medicine is recommended for a cold symptom alone.",
+            "dosage": "No medicine or dose is selected automatically. Cold medicine references are for adults only and are filtered by the reported symptoms.",
             "contraindications": (),
-            "side_effects": (),
+            "side_effects": ("Possible effects vary by medicine; review its catalog profile and ask a pharmacist.",),
             "precautions": (
-                "Rest and drink fluids",
-                "Ask a pharmacist whether an OTC cold medicine is suitable for you",
-                "Check combination products to avoid taking paracetamol twice",
-                "If using a nasal decongestant spray, follow its label and do not use it for more than one week",
+                "The references are not a combined regimen, and adult doses must not be used for children.",
+                "Check combination products to avoid taking paracetamol twice or duplicating decongestants.",
+                "Confirm product registration and local regulatory classification with a pharmacist; pseudoephedrine status varies.",
+                "Oral phenylephrine effectiveness for nasal congestion is uncertain.",
+                "If using a nasal decongestant spray, follow the product-specific maximum duration to reduce rebound congestion.",
+                "Rest and drink fluids; seek medical assessment if symptoms are severe, worsening, or last more than one week.",
             ),
-            "note": "These measures may ease symptoms; they do not identify or treat the cause.",
+            "note": "Informational adult references matched to selected cold symptoms; they do not identify or treat the cause. No medication is automatically chosen.",
+        },
+        "Headache symptom self-care": {
+            "dosage": "No medicine or dose is selected automatically. The catalog contains adult reference information only; ask a pharmacist or healthcare professional which option, if any, is suitable.",
+            "contraindications": (),
+            "side_effects": ("Possible effects vary by medicine; review its catalog profile and ask a pharmacist.",),
+            "precautions": (
+                "The options are alternatives, not a combination regimen. Do not combine ibuprofen, naproxen, aspirin, or other NSAIDs.",
+                "Adult dosing information is not for children or teenagers. Seek age- and weight-specific guidance.",
+                "Avoid aspirin in children or teenagers with viral illness and if dengue is suspected because of Reye's syndrome and bleeding risks.",
+                "NSAIDs may be unsuitable with ulcers or bleeding, kidney or heart disease, uncontrolled hypertension, blood thinners, or pregnancy; check the individual profile.",
+                "For routine adult self-treatment, the paracetamol reference prefers a maximum of 3,000 mg in 24 hours; follow the product label and avoid duplicate paracetamol-containing products.",
+                "Seek urgent assessment for sudden, severe, new, or worsening headache, or headache with weakness, confusion, vision changes, stiff neck, or repeated vomiting.",
+            ),
+            "note": "Informational options for headache relief only; these medicines do not determine or treat the underlying cause.",
         },
         "Oral Rehydration Salts + Symptom Relief": {
             "dosage": "Oral rehydration salts: mix according to package. Antidiarrheal: follow label for age/weight.",
@@ -513,21 +775,31 @@ def _build_medication_for_match(
             "contraindications": (),
             "side_effects": (),
             "precautions": (
-                "A cool compress or unperfumed moisturizer may help soothe itching",
-                "Ask a pharmacist whether an antihistamine is suitable for the cause of the itching",
-                "Seek medical care for a severe, spreading, or worsening rash, or swelling or breathing difficulty",
+                *_RASH_CARE_PRECAUTIONS,
+                "For itching or hives that may be allergy-related, ask a pharmacist whether cetirizine or loratadine is appropriate; they are alternatives, not a combination regimen.",
             ),
-            "note": "Rashes have many possible causes. Itching does not by itself confirm an allergy or determine which medicine is appropriate.",
+            "note": "The selected itchiness classification can occur with allergy, but does not confirm the cause. No medicine is selected automatically.",
         },
         "Non-drug skin care": {
             "dosage": "No medicine or dose is selected automatically.",
             "contraindications": (),
             "side_effects": (),
-            "precautions": (
-                "Ask a pharmacist or health worker if the rash is concerning, spreading, or getting worse",
-                "Seek urgent care if the rash occurs with swelling or breathing difficulty",
-            ),
-            "note": "Rashes have many possible causes, so a specific OTC treatment cannot be selected from rash alone.",
+            "precautions": _RASH_CARE_PRECAUTIONS,
+            "note": "Rashes have many possible causes. Supportive skin care is shown; a specific OTC treatment cannot be selected from rash or redness alone.",
+        },
+        "Rash with systemic symptoms — medical review": {
+            "dosage": "No medicine or dose is selected. Arrange medical assessment.",
+            "contraindications": (),
+            "side_effects": (),
+            "precautions": _RASH_CARE_PRECAUTIONS,
+            "note": "A rash with fever, headache, eye pain, or body aches needs medical assessment, including consideration of dengue. Do not rely on antihistamines or creams to treat the cause.",
+        },
+        "Rash warning signs — urgent assessment": {
+            "dosage": "No medicine or dose is selected. Seek emergency medical care now.",
+            "contraindications": (),
+            "side_effects": (),
+            "precautions": _RASH_CARE_PRECAUTIONS,
+            "note": "A reported rash warning sign may indicate a severe allergic reaction, serious skin reaction, or infection. Seek emergency medical care now; do not rely on antihistamines or creams.",
         },
     }
 
@@ -623,6 +895,19 @@ def _apply_demographic_adjustment(
     return adjusted_score, triggered
 
 
+def _duration_value_for_unit(unit: str) -> int:
+    normalized = (unit or "").lower()
+    if normalized.startswith("hour") or normalized in {"oras", "orasan", "hr", "hrs"}:
+        return 1 / 24
+    if normalized.startswith("week") or normalized in {"linggo", "linggo na"}:
+        return 7
+    if normalized.startswith("month") or normalized in {"buwan", "buwan na"}:
+        return 30
+    if normalized.startswith("day") or normalized in {"araw", "aldaw", "adlaw"}:
+        return 1
+    return 1
+
+
 def _text_rules(input_text: str, detected_terms: set[str], duration_days: float | None = None) -> tuple[list[Rule], bool, int]:
     """Apply wording checks and convert symptom duration into score points."""
     normalized = (input_text or "").lower()
@@ -659,18 +944,22 @@ def _text_rules(input_text: str, detected_terms: set[str], duration_days: float 
     if duration_days is None and duration_match:
         amount = float(duration_match.group("count"))
         unit = duration_match.group("unit")
-        duration_days = amount / 24 if unit.startswith("hour") else amount * (7 if unit.startswith("week") else 30 if unit.startswith("month") else 1)
+        duration_days = amount * _duration_value_for_unit(unit)
     duration_score = 0
     if duration_days is not None:
+        typed_duration = bool(duration_match and re.search(r"[a-z]", duration_match.group(0)) and not re.search(r"\d", duration_match.group(0)))
         if duration_days <= 1:
             duration_score = 1
         elif duration_days <= 3:
-            duration_score = 1 if detected_terms == {"cough"} else 2
-            if detected_terms == {"cough"}:
-                triggered.append(Rule(
-                    name="short-cough-duration-cap",
-                    description="An isolated cough lasting three days or less does not reach consultation urgency from duration alone.",
-                ))
+            if detected_terms == {"cough"} and typed_duration:
+                duration_score = 3
+            else:
+                duration_score = 1 if detected_terms == {"cough"} else 2
+                if detected_terms == {"cough"}:
+                    triggered.append(Rule(
+                        name="short-cough-duration-cap",
+                        description="An isolated cough lasting three days or less does not reach consultation urgency from duration alone.",
+                    ))
         elif duration_days <= 7:
             duration_score = 3
         else:
@@ -909,7 +1198,11 @@ def classify(
         else:
             level = score_level
 
-    if level == "YELLOW" and adjusted_score >= YELLOW_SCORE_THRESHOLD:
+    if (
+        level == "YELLOW"
+        and adjusted_score >= YELLOW_SCORE_THRESHOLD
+        and not (headache_review_rules or gastrointestinal_review_rules)
+    ):
         triggered.append(
             Rule(
                 name="moderate-severity-score",

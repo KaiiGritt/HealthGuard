@@ -1,10 +1,16 @@
 @import "tailwindcss";
 
 /* HealthGuard — unified rural health-record design system */
+:root {
+  --hg-font-body: Inter, "Segoe UI", system-ui, sans-serif;
+  --hg-font-display: Sora, "Avenir Next", "Segoe UI", sans-serif;
+  --hg-font-mono: "IBM Plex Mono", "Cascadia Code", Consolas, monospace;
+}
+
 @theme inline {
-  --font-sans: var(--font-body), "Segoe UI", system-ui, sans-serif;
-  --font-display: var(--font-display), "Segoe UI", system-ui, sans-serif;
-  --font-mono: var(--font-tag), "Segoe UI", system-ui, sans-serif;
+  --font-sans: var(--hg-font-body);
+  --font-display: var(--hg-font-display);
+  --font-mono: var(--hg-font-mono);
 
   --color-brand: #2f6b4f;
   --color-brand-dark: #1f4a36;
@@ -61,7 +67,7 @@
 }
 
 .brand-wordmark {
-  font-family: var(--font-display), "Segoe UI", sans-serif;
+  font-family: var(--hg-font-display);
   letter-spacing: -0.06em;
   line-height: 0.96;
   font-weight: 700;
@@ -72,7 +78,7 @@
 }
 
 .brand-subtitle {
-  font-family: var(--font-tag), "Segoe UI", sans-serif;
+  font-family: var(--hg-font-mono);
   letter-spacing: 0.18em;
   text-transform: uppercase;
   font-weight: 600;

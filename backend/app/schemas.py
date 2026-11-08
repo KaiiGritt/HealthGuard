@@ -104,6 +104,26 @@ class PreMedicationOut(BaseModel):
     note: str
 
 
+class MedicationCatalogOut(BaseModel):
+    """Reference medicine information served from the medication catalog."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    generic_name: str
+    alternative_name: str
+    common_brands: list[str]
+    classification: str
+    common_use: str
+    indications: list[str]
+    dosage_forms: list[str]
+    dosage_guidance: list[str]
+    side_effects: list[str]
+    medicine_specific_precautions: list[str] = Field(default_factory=list)
+    serious_reactions: list[str]
+    precautions: list[str]
+    overdose_guidance: list[str]
+
+
 class AnalyzeResult(BaseModel):
     """The explainable triage result returned to the frontend."""
 
@@ -203,8 +223,8 @@ class AssessmentCaseActivityIn(BaseModel):
     @field_validator("kind")
     @classmethod
     def validate_kind(cls, value: str) -> str:
-        if value not in {"status", "note", "contact_attempt"}:
-            raise ValueError("Activity kind must be status, note, or contact_attempt.")
+        if value not in {"status", "note", "contact_attempt", "contacted", "follow_up"}:
+            raise ValueError("Activity kind must be status, note, contact_attempt, contacted, or follow_up.")
         return value
 
     @field_validator("status")

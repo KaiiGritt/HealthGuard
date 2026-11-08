@@ -25,10 +25,12 @@ def _normalize_sqlite_url(database_url: str) -> str:
 
     db_path = Path(db_name)
     if db_path.is_absolute():
-        return f"sqlite:///{db_path.as_posix()}"
+        normalized_path = db_path
+    else:
+        normalized_path = (BACKEND_DIR / db_path).resolve()
 
-    normalized_path = (BACKEND_DIR / db_path).resolve()
-    return f"sqlite:///{normalized_path.as_posix()}"
+    windows_style = str(normalized_path)
+    return f"sqlite:///{windows_style}"
 
 
 def _build_engine(database_url: str):
@@ -252,3 +254,24 @@ def migrate_lexicon_rule_base_schema() -> None:
                 "REFERENCES lexicon_rule_bases(id) ON DELETE SET NULL"
             )
         )
+
+
+def migrate_medication_catalog_schema() -> None:
+    """Add medication reference fields to catalogs created by earlier app versions."""
+    from sqlalchemy import inspect, text
+
+    insp = inspect(engine)
+    if "medication_catalog" not in insp.get_table_names():
+        return
+    columns = {column["name"] for column in insp.get_columns("medication_catalog")}
+    with engine.begin() as connection:
+        if "common_use" not in columns:
+            connection.execute(
+                text("ALTER TABLE medication_catalog ADD COLUMN common_use VARCHAR(256) NOT NULL DEFAULT ''")
+            )
+        if "dosage_forms" not in columns:
+            connection.execute(text("ALTER TABLE medication_catalog ADD COLUMN dosage_forms JSON"))
+        if "medicine_specific_precautions" not in columns:
+            connection.execute(
+                text("ALTER TABLE medication_catalog ADD COLUMN medicine_specific_precautions JSON")
+            )

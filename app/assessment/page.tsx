@@ -1,9 +1,20 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { analyze, getMe, type User } from "@/lib/api";
+import {
+  ABDOMINAL_PAIN_CLASSIFICATIONS,
+  BODY_PAIN_CLASSIFICATIONS,
+  COLD_SYMPTOM_CLASSIFICATIONS,
+  COUGH_CLASSIFICATIONS,
+  DIARRHEA_CLASSIFICATIONS,
+  FEVER_CLASSIFICATIONS,
+  HEADACHE_CLASSIFICATIONS,
+  RASH_CLASSIFICATIONS,
+  VOMITING_CLASSIFICATIONS,
+} from "@/lib/coughClassifications";
 import {
   Card,
   ErrorAlert,
@@ -11,70 +22,18 @@ import {
   PageMain,
   PageTitle,
   submitButtonClass,
+  textareaClass,
   Toast,
 } from "@/app/components/ui/primitives";
 import Disclaimer from "../components/Disclaimer";
 import PageHeader from "../components/PageHeader";
 import SymptomChip from "../components/SymptomChip";
-import { IconBrain, IconChevronDown, IconDroplets, IconLungs, IconStomach, IconThermometer } from "../components/ui/icons";
+import { IconChevronDown } from "../components/ui/icons";
+import { localizedText, useInterfaceLanguage } from "../components/LanguageProvider";
 import { AssessmentTargetProvider } from "./AssessmentTargetContext";
+import FreeTextSymptomToggle from "./FreeTextSymptomToggle";
 import PersonAssessmentPage from "./child/page";
-
-// value = the exact term sent to the API / matched against the lexicon.
-// en / tl = display labels. icon is a visual aid so recognition doesn't
-// depend on reading either language. Keeping `value` in plain English
-// preserves the existing backend contract (selected_symptoms still arrives
-// as ["fever", "cough", ...]).
-const SYMPTOMS = [
-  { value: "fever", category: "general", en: "Fever", tl: "Lagnat", icon: <IconThermometer size={18} /> },
-  { value: "generalized weakness", category: "general", en: "General weakness", tl: "Pangkalahatang kahinaan", icon: <IconBrain size={18} /> },
-  { value: "dehydration", category: "general", en: "Dehydration", tl: "Kakulangan sa tubig sa katawan", icon: <IconDroplets size={18} /> },
-  { value: "fatigue", category: "general", en: "Fatigue", tl: "Pagkapagod", icon: <IconBrain size={18} /> },
-  { value: "cough", category: "respiratory", en: "Cough", tl: "Ubo", icon: <IconLungs size={18} /> },
-  { value: "headache", category: "pain", en: "Headache", tl: "Sakit ng ulo", icon: <IconBrain size={18} /> },
-  { value: "abdominal pain", category: "digestive", en: "Abdominal pain", tl: "Pananakit ng tiyan", icon: <IconStomach size={18} /> },
-  { value: "vomiting", category: "digestive", en: "Vomiting", tl: "Pagsusuka", icon: <IconDroplets size={18} /> },
-  { value: "diarrhea", category: "digestive", en: "Diarrhea", tl: "Pagtatae", icon: <IconDroplets size={18} /> },
-  { value: "rash", category: "skin", en: "Rashes", tl: "Pantal", icon: <IconDroplets size={18} /> },
-  { value: "colds / rhinitis", category: "respiratory", en: "Cold", tl: "Sipon", icon: <IconLungs size={18} /> },
-  { value: "muscle ache / body soreness", category: "pain", en: "Body pain", tl: "Pananakit ng katawan", icon: <IconStomach size={18} /> },
-  { value: "difficulty breathing", category: "respiratory", en: "Difficulty breathing", tl: "Hirap huminga", icon: <IconLungs size={18} /> },
-  { value: "sore throat", category: "ear-nose-throat", en: "Sore throat", tl: "Masakit ang lalamunan", icon: <IconStomach size={18} /> },
-  { value: "ear pain", category: "ear-nose-throat", en: "Ear pain", tl: "Sakit ng tenga", icon: <IconBrain size={18} /> },
-  { value: "blurred vision", category: "eyes", en: "Blurred vision", tl: "Malabong paningin", icon: <IconBrain size={18} /> },
-  { value: "eye pain", category: "eyes", en: "Eye pain", tl: "Sakit sa mata", icon: <IconBrain size={18} /> },
-  { value: "nausea", category: "digestive", en: "Nausea", tl: "Pagduduwal", icon: <IconStomach size={18} /> },
-  { value: "constipation", category: "digestive", en: "Constipation", tl: "Hirap dumumi", icon: <IconStomach size={18} /> },
-  { value: "heartburn", category: "digestive", en: "Heartburn", tl: "Hapdi sa sikmura", icon: <IconStomach size={18} /> },
-  { value: "abdominal bloating", category: "digestive", en: "Abdominal bloating", tl: "Kabag", icon: <IconStomach size={18} /> },
-  { value: "loss of appetite", category: "digestive", en: "Loss of appetite", tl: "Walang gana kumain", icon: <IconStomach size={18} /> },
-  { value: "jaundice", category: "digestive", en: "Yellowing of skin or eyes", tl: "Paninilaw ng balat o mata", icon: <IconDroplets size={18} /> },
-  { value: "painful urination", category: "urinary-reproductive", en: "Painful urination", tl: "Masakit umihi", icon: <IconDroplets size={18} /> },
-  { value: "frequent urination", category: "urinary-reproductive", en: "Frequent urination", tl: "Madalas umihi", icon: <IconDroplets size={18} /> },
-  { value: "blood in urine", category: "urinary-reproductive", en: "Blood in urine", tl: "Dugo sa ihi", icon: <IconDroplets size={18} /> },
-  { value: "menstrual pain", category: "urinary-reproductive", en: "Menstrual pain", tl: "Pananakit ng puson tuwing regla", icon: <IconStomach size={18} /> },
-  { value: "vaginal bleeding", category: "urinary-reproductive", en: "Vaginal bleeding", tl: "Pagdurugo sa puwerta", icon: <IconDroplets size={18} /> },
-  { value: "joint pain", category: "pain", en: "Joint pain", tl: "Sakit ng kasukasuan", icon: <IconStomach size={18} /> },
-  { value: "back pain", category: "pain", en: "Back pain", tl: "Sakit ng likod", icon: <IconStomach size={18} /> },
-  { value: "numbness or tingling", category: "neurological", en: "Numbness or tingling", tl: "Pamamanhid o pangingilig", icon: <IconBrain size={18} /> },
-  { value: "palpitations", category: "cardiovascular", en: "Palpitations", tl: "Mabilis na tibok ng puso", icon: <IconBrain size={18} /> },
-  { value: "excessive thirst", category: "general", en: "Excessive thirst", tl: "Matinding uhaw", icon: <IconDroplets size={18} /> },
-  { value: "unintentional weight loss", category: "general", en: "Unintentional weight loss", tl: "Pagpayat nang hindi sinasadya", icon: <IconStomach size={18} /> },
-  { value: "easy bruising", category: "general", en: "Easy bruising", tl: "Madaling magkapasa", icon: <IconDroplets size={18} /> },
-] as const;
-
-const SYMPTOM_CATEGORIES = [
-  { key: "general", en: "General", tl: "Pangkalahatan" },
-  { key: "respiratory", en: "Respiratory", tl: "Paghinga" },
-  { key: "ear-nose-throat", en: "Ear, nose & throat", tl: "Tainga, ilong at lalamunan" },
-  { key: "eyes", en: "Eyes", tl: "Mga mata" },
-  { key: "cardiovascular", en: "Cardiovascular", tl: "Puso at sirkulasyon" },
-  { key: "digestive", en: "Digestive", tl: "Pantunaw" },
-  { key: "urinary-reproductive", en: "Urinary & reproductive", tl: "Ihi at reproduktibo" },
-  { key: "neurological", en: "Neurological", tl: "Sistema ng nerbiyos" },
-  { key: "pain", en: "Pain", tl: "Pananakit" },
-  { key: "skin", en: "Skin", tl: "Balat" },
-] as const;
+import { SYMPTOM_CATEGORIES, SYMPTOMS } from "./symptoms";
 
 // Symptoms that warrant a plain-language "don't wait" nudge before submit.
 // Deliberately NOT styled in the red/yellow/green triage palette — that
@@ -111,50 +70,36 @@ const ABDOMINAL_LOCATION_OPTIONS = [
 ] as const;
 
 const ABDOMINAL_QUALITY_OPTIONS = [
-  { en: "Cramping / wave-like", tl: "Pamumulikat / parang alon" },
-  { en: "Burning", tl: "Nagkakaroon ng hapdi" },
-  { en: "Dull / achy", tl: "Pahingang masakit" },
-  { en: "Sharp / stabbing", tl: "Matulis / tumutusok" },
-] as const;
+  ...ABDOMINAL_PAIN_CLASSIFICATIONS,
+];
 
-const TYPE_CHIPS: Record<string, { en: string; tl: string }[]> = {
+const TYPE_CHIPS: Record<string, { en: string; tl: string; description?: string }[]> = {
   fever: [
+    ...FEVER_CLASSIFICATIONS,
     { en: "Dizziness", tl: "Pagkahilo" },
   ],
-  cough: [
-    { en: "Acute", tl: "Biglaang ubo" },
-    { en: "Chronic", tl: "Pangmatagalang ubo" },
-    { en: "Dry cough", tl: "Tuyong ubo" },
-    { en: "With phlegm", tl: "May plema" },
-  ],
+  cough: COUGH_CLASSIFICATIONS,
   headache: [
-    { en: "Tension-type", tl: "Dahil sa tensyon" },
-    { en: "Migraine-type", tl: "Migraine" },
-    { en: "Cluster headache", tl: "Kumpol-kumpol na sakit ng ulo" },
-    { en: "Sinus headache", tl: "Sakit ng ulo dahil sa sinus" },
+    ...HEADACHE_CLASSIFICATIONS,
     { en: "Thunderclap headache", tl: "Biglaang matinding sakit ng ulo" },
     { en: "Dizziness", tl: "Pagkahilo" },
   ],
+  "muscle ache / body soreness": BODY_PAIN_CLASSIFICATIONS,
   "abdominal pain": [...ABDOMINAL_LOCATION_OPTIONS, ...ABDOMINAL_QUALITY_OPTIONS],
   vomiting: [
+    ...VOMITING_CLASSIFICATIONS,
     { en: "Nausea", tl: "Pagduduwal" },
     { en: "Retching", tl: "Pag-uurong-suka" },
     { en: "Vomiting", tl: "Pagsusuka" },
     { en: "Dizziness", tl: "Pagkahilo" },
   ],
   diarrhea: [
-    { en: "Watery stool", tl: "Tubig ang dumi" },
+    ...DIARRHEA_CLASSIFICATIONS,
     { en: "Frequent stool", tl: "Madalas dumumi" },
-    { en: "Blood in stool", tl: "Dugo sa dumi" },
   ],
-  rash: [
-    { en: "Skin rash", tl: "Pantal sa balat" },
-    { en: "Redness of skin", tl: "Pula ng balat" },
-    { en: "Itchiness", tl: "Kati" },
-  ],
+  rash: RASH_CLASSIFICATIONS,
   "colds / rhinitis": [
-    { en: "Runny nose", tl: "Tulo ng ilong" },
-    { en: "Sneezing", tl: "Pagbahing / pag-ubo ng ilong" },
+    ...COLD_SYMPTOM_CLASSIFICATIONS,
   ],
   "difficulty breathing": [
     { en: "Shortness of breath", tl: "Kapos sa paghinga" },
@@ -167,6 +112,7 @@ const TYPE_CHIPS: Record<string, { en: string; tl: string }[]> = {
 
 export default function AssessmentPage() {
   const router = useRouter();
+  const { language } = useInterfaceLanguage();
   const [text, setText] = useState("");
   const [showTextInput, setShowTextInput] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
@@ -178,9 +124,9 @@ export default function AssessmentPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; tone: "success" | "error" } | null>(null);
-  const [authChecking, setAuthChecking] = useState(true);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [processingStep, setProcessingStep] = useState(0);
+  const guestAssessmentStarted = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -191,9 +137,9 @@ export default function AssessmentPage() {
         router.replace(user.role === "admin" ? "/admin" : "/dashboard");
         return;
       }
-      setAuthChecking(false);
-    }).catch(() => {
-      if (active) setAuthChecking(false);
+      if (user && !guestAssessmentStarted.current) {
+        setCurrentUser(user);
+      }
     });
     return () => {
       active = false;
@@ -266,15 +212,19 @@ export default function AssessmentPage() {
     return null;
   };
 
-  if (authChecking) return null;
   if (!currentUser) {
     return (
       <div className="premium-page min-h-screen">
         <PageHeader />
         <PageMain narrow>
-          <AssessmentTargetProvider mode="self">
-            <PersonAssessmentPage />
-          </AssessmentTargetProvider>
+          <div
+            onFocusCapture={() => { guestAssessmentStarted.current = true; }}
+            onClickCapture={() => { guestAssessmentStarted.current = true; }}
+          >
+            <AssessmentTargetProvider mode="self">
+              <PersonAssessmentPage />
+            </AssessmentTargetProvider>
+          </div>
         </PageMain>
       </div>
     );
@@ -299,6 +249,9 @@ export default function AssessmentPage() {
         symptomText ? symptomText : "",
         Object.values(selectedTypes).flat().length > 0
           ? `Selected symptom types: ${Object.values(selectedTypes).flat().join(", ")}.`
+          : "",
+        selectedTypes.cough?.length
+          ? `Cough type: ${selectedTypes.cough.join(", ")}.`
           : "",
         exactDurationMode
           ? `Symptoms started ${exactDaysValue} ${exactDaysValue === 1 ? "day" : "days"} ago.`
@@ -381,14 +334,28 @@ export default function AssessmentPage() {
               </div>
             ) : (
               <>
-                <PageTitle subtitle="Tap what you're feeling, then tap when it started.">
-                  How are you feeling?
+                <PageTitle subtitle={localizedText(language, "Tap what you're feeling, then tap when it started.", "Piliin ang nararamdaman mo at kung kailan ito nagsimula.")}>
+                  {localizedText(language, "How are you feeling?", "Ano ang nararamdaman mo?")}
                 </PageTitle>
                 {currentUser && (
                   <div className="mt-5 flex justify-end">
-                    <div className="inline-flex max-w-full rounded-xl border border-[#D8E2D3] bg-white/80 p-1 shadow-[0_4px_14px_rgba(24,38,25,0.06)]" role="group" aria-label="Assessment type">
-                      <span aria-current="page" className="inline-flex min-h-10 items-center rounded-lg bg-gradient-to-r from-brand to-brand-dark px-3 text-center text-xs font-semibold text-brand-foreground shadow-[0_3px_8px_rgba(31,74,54,0.2)] sm:px-4 sm:text-sm">For myself / Sarili</span>
-                      <Link href="/assessment/child" className="group inline-flex min-h-10 items-center justify-center rounded-lg px-3 text-center text-xs font-semibold text-ink-secondary transition duration-200 ease-out hover:-translate-y-0.5 hover:bg-brand-tint hover:text-brand-dark hover:shadow-[0_6px_14px_rgba(47,107,79,0.12)] active:translate-y-0 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30 sm:px-4 sm:text-sm">Assess someone / Ibang tao</Link>
+                    <div
+                      className="inline-flex max-w-full items-center gap-1 rounded-2xl border border-[#D8E2D3] bg-[linear-gradient(180deg,rgba(255,255,255,0.94)_0%,rgba(245,249,243,0.9)_100%)] p-1 shadow-[0_10px_22px_rgba(24,38,25,0.07),inset_0_1px_0_rgba(255,255,255,0.86)] ring-1 ring-white/75"
+                      role="group"
+                      aria-label="Assessment type"
+                    >
+                      <span
+                        aria-current="page"
+                        className="inline-flex min-h-10 items-center rounded-xl bg-[linear-gradient(135deg,#2F6B4F_0%,#1F4A36_100%)] px-3 text-center text-xs font-semibold text-brand-foreground shadow-[0_6px_14px_rgba(31,74,54,0.18)] ring-1 ring-white/10 sm:px-4 sm:text-sm"
+                      >
+                        {localizedText(language, "For myself", "Sarili")}
+                      </span>
+                      <Link
+                        href="/assessment/child"
+                        className="group inline-flex min-h-10 items-center justify-center rounded-xl px-3 text-center text-xs font-semibold text-ink-secondary transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-[linear-gradient(180deg,#F2F8F0_0%,#EBF3EA_100%)] hover:text-brand-dark hover:shadow-[0_8px_18px_rgba(47,107,79,0.1)] active:translate-y-0 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30 sm:px-4 sm:text-sm"
+                      >
+                        {localizedText(language, "Assess someone", "Magsuri ng ibang tao")}
+                      </Link>
                     </div>
                   </div>
                 )}
@@ -396,7 +363,7 @@ export default function AssessmentPage() {
                 <div className="mt-8 flex gap-3 rounded-2xl border border-[#D9E5D8] bg-brand-tint/55 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
                   <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand text-sm font-semibold text-brand-foreground shadow-sm" aria-hidden="true">i</span>
                   <p className="min-w-0 flex-1 text-base leading-relaxed text-ink-secondary">
-                    Struggling to breathe right now? Don&apos;t wait — go to the nearest clinic or hospital.
+                    {localizedText(language, "Struggling to breathe right now? Don’t wait — go to the nearest clinic or hospital.", "Hirap ka bang huminga ngayon? Huwag maghintay — pumunta agad sa pinakamalapit na klinika o ospital.")}
                   </p>
                 </div>
 
@@ -405,14 +372,14 @@ export default function AssessmentPage() {
                 <div className="mt-10 flex min-w-0 flex-wrap items-start gap-3 sm:items-center sm:gap-4">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/20 bg-gradient-to-br from-brand to-brand-dark font-mono text-sm font-semibold text-brand-foreground shadow-[0_6px_16px_rgba(31,74,54,0.2)]">1</span>
                   <div className="min-w-0 flex-1">
-                    <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-brand">Step 1 <span className="text-ink-faint">/ Hakbang 1</span></p>
-                    <h2 className="mt-0.5 text-lg font-semibold leading-snug tracking-[-0.02em] text-ink sm:text-xl">Select symptoms</h2>
-                    <p className="mt-0.5 text-xs leading-relaxed text-ink-muted sm:text-sm">Choose all that apply / Piliin ang lahat ng naaangkop</p>
+                    <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-brand">{localizedText(language, "Step 1", "Hakbang 1")}</p>
+                    <h2 className="mt-0.5 text-lg font-semibold leading-snug tracking-[-0.02em] text-ink sm:text-xl">{localizedText(language, "Select symptoms", "Piliin ang mga sintomas")}</h2>
+                    <p className="mt-0.5 text-xs leading-relaxed text-ink-muted sm:text-sm">{localizedText(language, "Choose all that apply", "Piliin ang lahat ng naaangkop")}</p>
                   </div>
                   {selected.length > 0 && (
                     <span aria-live="polite" className="ml-[3.25rem] inline-flex items-center gap-2 rounded-full border border-brand/15 bg-white/80 px-3 py-1.5 text-xs font-semibold text-brand-dark shadow-[0_3px_10px_rgba(31,74,54,0.06)] sm:ml-0">
                       <span className="h-1.5 w-1.5 rounded-full bg-brand" aria-hidden="true" />
-                      {selected.length} selected / Napili
+                      {localizedText(language, `${selected.length} selected`, `${selected.length} napili`)}
                     </span>
                   )}
                   <span className="hidden h-px w-12 shrink-0 bg-gradient-to-r from-[#DDE7DB] to-transparent sm:block" aria-hidden="true" />
@@ -425,7 +392,7 @@ export default function AssessmentPage() {
                         <div className="flex items-center gap-3">
                           <span className="h-5 w-1 shrink-0 rounded-full bg-gradient-to-b from-brand to-[#C7B37A]" aria-hidden="true" />
                           <h3 id={`symptom-category-${category.key}`} className="text-sm font-semibold text-ink-secondary">
-                            {category.en} <span className="font-normal text-ink-faint">/ {category.tl}</span>
+                            {localizedText(language, category.en, category.tl)}
                           </h3>
                           <span className="h-px flex-1 bg-gradient-to-r from-[#DDE7DB] to-transparent" aria-hidden="true" />
                         </div>
@@ -433,9 +400,9 @@ export default function AssessmentPage() {
                           {categorySymptoms.map((s) => (
                             <SymptomChip
                               key={s.value}
-                              label={s.en}
+                              label={language === "both" ? s.en : localizedText(language, s.en, s.tl)}
                               icon={s.icon}
-                              subLabel={s.tl}
+                              subLabel={language === "both" ? s.tl : undefined}
                               selected={selected.includes(s.value)}
                               onToggle={() => toggle(s.value)}
                             />
@@ -452,8 +419,8 @@ export default function AssessmentPage() {
                     <div className="flex flex-wrap items-center gap-3">
                       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#1F4A36] font-mono text-xs font-semibold text-white shadow-[0_6px_14px_rgba(31,74,54,0.2)]">02</span>
                       <div>
-                        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-brand">Optional classification</p>
-                        <h2 id="type-chip-heading" className="mt-0.5 text-base font-semibold text-ink lg:text-lg">Choose the classification</h2>
+                        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-brand">{localizedText(language, "Optional classification", "Opsyonal na klasipikasyon")}</p>
+                        <h2 id="type-chip-heading" className="mt-0.5 text-base font-semibold text-ink lg:text-lg">{localizedText(language, "Choose the classification", "Piliin ang klasipikasyon")}</h2>
                       </div>
                       <span className="ml-12 w-fit rounded-full border border-[#D9E3D6] bg-white/80 px-2.5 py-1 font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-ink-muted sm:ml-auto">Piliin kung alam</span>
                     </div>
@@ -466,10 +433,10 @@ export default function AssessmentPage() {
                         if (symptom === "abdominal pain") {
                           return (
                             <div key={symptom} className="border-t border-[#E4EBE1] pt-4 first:border-t-0 first:pt-0">
-                              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-ink-muted">{symptomInfo?.en} <span className="font-normal normal-case tracking-normal text-ink-faint">/ {symptomInfo?.tl}</span></p>
+                              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-ink-muted">{symptomInfo && localizedText(language, symptomInfo.en, symptomInfo.tl)}</p>
 
                               <div className="mt-3">
-                                <p className="text-sm font-semibold text-ink">Where exactly? <span className="font-normal text-ink-faint">/ Saan eksakto?</span></p>
+                                <p className="text-sm font-semibold text-ink">{localizedText(language, "Where exactly?", "Saan eksakto?")}</p>
                                 <div className="mt-2.5 grid grid-cols-1 gap-2 min-[400px]:grid-cols-2 sm:gap-2.5 lg:grid-cols-4">
                                   {ABDOMINAL_LOCATION_OPTIONS.map((type) => {
                                     const isSelected = selectedTypes[symptom]?.includes(type.en) ?? false;
@@ -482,10 +449,9 @@ export default function AssessmentPage() {
                                         className={`group flex min-h-[76px] w-full flex-col justify-center rounded-xl border px-3 py-2.5 text-left transition duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15 ${isSelected ? "border-[#1F4A36] bg-[linear-gradient(145deg,#2F6B4F_0%,#1F4A36_100%)] text-white shadow-[0_8px_18px_rgba(31,74,54,0.2)]" : "border-[#DCE5D8] bg-white/90 text-ink-secondary shadow-[0_3px_10px_rgba(24,38,25,0.035)] hover:-translate-y-0.5 hover:border-brand/45 hover:bg-white hover:shadow-[0_8px_16px_rgba(31,74,54,0.09)]"}`}
                                       >
                                         <span className="flex w-full items-center justify-between gap-2 font-semibold">
-                                          <span>{type.en}</span>
+                                          <span>{localizedText(language, type.en, type.tl)}</span>
                                           <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-[10px] leading-none transition ${isSelected ? "border-white/55 bg-white/15 text-white" : "border-[#CBD8CA] text-transparent group-hover:border-brand/50"}`} aria-hidden="true">✓</span>
                                         </span>
-                                        <span className={`mt-1 block text-xs ${isSelected ? "text-white/75" : "text-ink-faint"}`}>{type.tl}</span>
                                       </button>
                                     );
                                   })}
@@ -493,7 +459,7 @@ export default function AssessmentPage() {
                               </div>
 
                               <div className="mt-5">
-                                <p className="text-sm font-semibold text-ink">What does it feel like? <span className="font-normal text-ink-faint">/ Ano ang klase ng sakit?</span></p>
+                                <p className="text-sm font-semibold text-ink">{localizedText(language, "What does it feel like?", "Ano ang klase ng sakit?")}</p>
                                 <div className="mt-2.5 grid grid-cols-1 gap-2 min-[400px]:grid-cols-2 sm:gap-2.5 lg:grid-cols-4">
                                   {ABDOMINAL_QUALITY_OPTIONS.map((type) => {
                                     const isSelected = selectedTypes[symptom]?.includes(type.en) ?? false;
@@ -506,10 +472,10 @@ export default function AssessmentPage() {
                                         className={`group flex min-h-[76px] w-full flex-col justify-center rounded-xl border px-3 py-2.5 text-left transition duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15 ${isSelected ? "border-[#1F4A36] bg-[linear-gradient(145deg,#2F6B4F_0%,#1F4A36_100%)] text-white shadow-[0_8px_18px_rgba(31,74,54,0.2)]" : "border-[#DCE5D8] bg-white/90 text-ink-secondary shadow-[0_3px_10px_rgba(24,38,25,0.035)] hover:-translate-y-0.5 hover:border-brand/45 hover:bg-white hover:shadow-[0_8px_16px_rgba(31,74,54,0.09)]"}`}
                                       >
                                         <span className="flex w-full items-center justify-between gap-2 font-semibold">
-                                          <span>{type.en}</span>
+                                          <span>{localizedText(language, type.en, type.tl)}</span>
                                           <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-[10px] leading-none transition ${isSelected ? "border-white/55 bg-white/15 text-white" : "border-[#CBD8CA] text-transparent group-hover:border-brand/50"}`} aria-hidden="true">✓</span>
                                         </span>
-                                        <span className={`mt-1 block text-xs ${isSelected ? "text-white/75" : "text-ink-faint"}`}>{type.tl}</span>
+                                        <span className={`mt-1 block text-xs leading-relaxed ${isSelected ? "text-white/80" : "text-ink-secondary"}`}>{type.description}</span>
                                       </button>
                                     );
                                   })}
@@ -521,10 +487,34 @@ export default function AssessmentPage() {
 
                         return (
                           <div key={symptom} className="border-t border-[#E4EBE1] pt-4 first:border-t-0 first:pt-0">
-                            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-ink-muted">{symptomInfo?.en} <span className="font-normal normal-case tracking-normal text-ink-faint">/ {symptomInfo?.tl}</span></p>
-                            <div className="mt-2.5 grid grid-cols-1 gap-2 min-[400px]:grid-cols-2 sm:gap-2.5 lg:grid-cols-4">
+                            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-ink-muted">{symptomInfo && localizedText(language, symptomInfo.en, symptomInfo.tl)}</p>
+                            <div className={symptom === "difficulty breathing" ? "mt-2 flex flex-wrap gap-2" : "mt-2.5 grid grid-cols-1 gap-2 min-[400px]:grid-cols-2 sm:gap-2.5 lg:grid-cols-4"}>
                               {typeOptions.map((type) => {
                                 const isSelected = selectedTypes[symptom]?.includes(type.en) ?? false;
+                                const description = type.description ?? [
+                                  ...COUGH_CLASSIFICATIONS,
+                                  ...FEVER_CLASSIFICATIONS,
+                                  ...ABDOMINAL_PAIN_CLASSIFICATIONS,
+                                  ...BODY_PAIN_CLASSIFICATIONS,
+                                  ...DIARRHEA_CLASSIFICATIONS,
+                                  ...VOMITING_CLASSIFICATIONS,
+                                  ...COLD_SYMPTOM_CLASSIFICATIONS,
+                                  ...RASH_CLASSIFICATIONS,
+                                ].find((classification) => classification.en === type.en)?.description;
+                                if (symptom === "difficulty breathing") {
+                                  return (
+                                    <button
+                                      key={type.en}
+                                      type="button"
+                                      aria-pressed={isSelected}
+                                      onClick={() => toggleType(symptom, type.en)}
+                                      className={`rounded-xl border px-3 py-2 text-left text-sm transition ${isSelected ? "border-brand bg-brand text-brand-foreground shadow-sm" : "border-[#DCE5D8] bg-white/85 text-ink-secondary hover:border-brand/50"}`}
+                                    >
+                                      <span className="block font-semibold">{localizedText(language, type.en, type.tl)}</span>
+                                      {description && <span className={`mt-1 block max-w-56 text-xs leading-relaxed ${isSelected ? "text-brand-foreground/80" : "text-ink-secondary"}`}>{description}</span>}
+                                    </button>
+                                  );
+                                }
                                 return (
                                   <button
                                     key={type.en}
@@ -534,10 +524,10 @@ export default function AssessmentPage() {
                                     className={`group flex min-h-[76px] w-full flex-col justify-center rounded-xl border px-3 py-2.5 text-left transition duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15 ${isSelected ? "border-[#1F4A36] bg-[linear-gradient(145deg,#2F6B4F_0%,#1F4A36_100%)] text-white shadow-[0_8px_18px_rgba(31,74,54,0.2)]" : "border-[#DCE5D8] bg-white/90 text-ink-secondary shadow-[0_3px_10px_rgba(24,38,25,0.035)] hover:-translate-y-0.5 hover:border-brand/45 hover:bg-white hover:shadow-[0_8px_16px_rgba(31,74,54,0.09)]"}`}
                                   >
                                     <span className="flex w-full items-center justify-between gap-2 font-semibold">
-                                      <span>{type.en}</span>
+                                      <span>{localizedText(language, type.en, type.tl)}</span>
                                       <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-[10px] leading-none transition ${isSelected ? "border-white/55 bg-white/15 text-white" : "border-[#CBD8CA] text-transparent group-hover:border-brand/50"}`} aria-hidden="true">✓</span>
                                     </span>
-                                    <span className={`mt-1 block text-xs ${isSelected ? "text-white/75" : "text-ink-faint"}`}>{type.tl}</span>
+                                    {description && <span className={`mt-1 block text-xs leading-relaxed ${isSelected ? "text-white/80" : "text-ink-secondary"}`}>{description}</span>}
                                   </button>
                                 );
                               })}
@@ -551,8 +541,7 @@ export default function AssessmentPage() {
 
                 {showUrgentNudge && (
                   <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900 lg:text-base">
-                    <span className="font-semibold">If you&apos;re struggling to breathe right now, </span>
-                    don&apos;t wait for this result — go to the nearest hospital or call for help.
+                    {localizedText(language, "If you’re struggling to breathe right now, don’t wait for this result — go to the nearest hospital or call for help.", "Kung hirap kang huminga ngayon, huwag hintayin ang resulta — pumunta agad sa pinakamalapit na ospital o humingi ng tulong.")}
                   </div>
                 )}
 
@@ -564,8 +553,8 @@ export default function AssessmentPage() {
                     <span className="inline-flex max-w-full items-center gap-3 rounded-2xl border border-[#DCE6D9] bg-white/95 px-3 py-2.5 shadow-[0_6px_18px_rgba(31,74,54,0.08)] sm:px-4">
                       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand to-brand-dark font-mono text-sm text-brand-foreground shadow-[0_4px_10px_rgba(31,74,54,0.2)]">3</span>
                       <span className="min-w-0">
-                        <span className="block text-sm font-semibold leading-tight text-ink sm:text-base">When did it start?</span>
-                        <span className="mt-0.5 block text-xs font-normal leading-tight text-ink-muted">Kailan nagsimula? <span className="text-ink-faint">(optional)</span></span>
+                        <span className="block text-sm font-semibold leading-tight text-ink sm:text-base">{localizedText(language, "When did it start?", "Kailan nagsimula?")}</span>
+                        {language !== "en" && <span className="mt-0.5 block text-xs font-normal leading-tight text-ink-muted">{language === "both" ? "(optional)" : "Opsyonal"}</span>}
                       </span>
                     </span>
                   </legend>
@@ -575,7 +564,7 @@ export default function AssessmentPage() {
                   </p>
                   <div className="mt-4 grid grid-cols-1 gap-4">
                     <div>
-                      <p className="mb-2.5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted"><span className="h-px w-5 bg-brand/35" aria-hidden="true" />Recent / Kamakailan lang</p>
+                      <p className="mb-2.5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted"><span className="h-px w-5 bg-brand/35" aria-hidden="true" />{localizedText(language, "Recent", "Kamakailan lang")}</p>
                       <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-3 sm:gap-3">
                   {DURATION_OPTIONS.filter((duration) => duration.tier === "recent").map((d) => {
                     const isSelected = durationKey === d.key;
@@ -596,8 +585,7 @@ export default function AssessmentPage() {
                       >
                         <span className={`pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent ${isSelected ? "opacity-60" : "opacity-90"}`} aria-hidden="true" />
                         {isSelected && <span className="absolute right-2.5 top-2.5 flex h-5 w-5 items-center justify-center rounded-full bg-white/15 text-[11px] text-white ring-1 ring-white/25" aria-hidden="true">✓</span>}
-                        <span className="relative block">{d.en}</span>
-                        <span className={`relative mt-0.5 block text-xs font-normal ${isSelected ? "text-white/80" : "text-ink-faint"}`}>{d.tl}</span>
+                        <span className="relative block">{localizedText(language, d.en, d.tl)}</span>
                       </button>
                     );
                   })}
@@ -626,8 +614,7 @@ export default function AssessmentPage() {
                               >
                                 <span className={`pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent ${isSelected ? "opacity-60" : "opacity-90"}`} aria-hidden="true" />
                                 {isSelected && <span className="absolute right-2.5 top-2.5 flex h-5 w-5 items-center justify-center rounded-full bg-white/15 text-[11px] text-white ring-1 ring-white/25" aria-hidden="true">✓</span>}
-                                <span className="relative">{d.en}</span>
-                                <span className={`relative mt-0.5 text-xs font-normal ${isSelected ? "text-white/80" : "text-ink-faint"}`}>{d.tl}</span>
+                                <span className="relative">{localizedText(language, d.en, d.tl)}</span>
                               </button>
                             );
                           })}
@@ -647,8 +634,9 @@ export default function AssessmentPage() {
                     aria-expanded={showLongerDurations}
                     className="text-action mt-3 cursor-pointer border-0 bg-transparent p-0 text-left text-sm font-semibold text-brand underline decoration-brand/40 underline-offset-4"
                   >
-                    {showLongerDurations ? "Show recent only ↑" : "Longer than 2 days? See more →"}
-                    <span className="sr-only"> / Mahigit 2 araw? Ipakita ang iba pang pagpipilian</span>
+                    {showLongerDurations
+                      ? localizedText(language, "Show recent only ↑", "Ipakita ang kamakailan lamang ↑")
+                      : localizedText(language, "Longer than 2 days? See more →", "Mahigit 2 araw? Ipakita ang iba pang pagpipilian →")}
                   </button>
                   {!exactDurationMode ? (
                     <button
@@ -659,11 +647,11 @@ export default function AssessmentPage() {
                       }}
                       className="text-action mt-3 block cursor-pointer border-0 bg-transparent p-0 text-left text-sm font-medium text-brand underline decoration-brand/40 underline-offset-4"
                     >
-                      Need an exact duration? Type the days → / Hindi sigurado sa saklaw? Mag-type ng eksaktong araw →
+                      {localizedText(language, "Need an exact duration? Type the days →", "Hindi sigurado sa saklaw? Mag-type ng eksaktong araw →")}
                     </button>
                   ) : (
                     <div className="mt-4 max-w-sm">
-                      <label htmlFor="exact-duration-days" className="block text-sm font-medium text-ink-secondary">Exact duration in days / Eksaktong bilang ng araw</label>
+                      <label htmlFor="exact-duration-days" className="block text-sm font-medium text-ink-secondary">{localizedText(language, "Exact duration in days", "Eksaktong bilang ng araw")}</label>
                       <div className="mt-2 flex items-center gap-3">
                         <input
                           id="exact-duration-days"
@@ -680,51 +668,31 @@ export default function AssessmentPage() {
                           className={`${inputClass} max-w-40`}
                           placeholder="e.g. 4"
                         />
-                        <span className="text-sm text-ink-muted">days / araw</span>
+                        <span className="text-sm text-ink-muted">{localizedText(language, "days", "araw")}</span>
                       </div>
                       <p id="exact-duration-hint" className={`mt-1.5 text-xs ${exactDurationDays !== "" && !exactDurationValid ? "text-emergency-red" : "text-ink-muted"}`}>
-                        Enter digits and an optional decimal; minimum 0.01 day.
+                        {localizedText(language, "Enter digits and an optional decimal; minimum 0.01 day.", "Maglagay ng numero, maaaring may decimal; hindi bababa sa 0.01 araw.")}
                       </p>
-                      <button type="button" onClick={() => setExactDurationMode(false)} className="text-action mt-2 cursor-pointer border-0 bg-transparent p-0 text-left text-xs font-medium text-brand underline underline-offset-4">Use time-range buttons / Pumili ng saklaw</button>
+                      <button type="button" onClick={() => setExactDurationMode(false)} className="text-action mt-2 cursor-pointer border-0 bg-transparent p-0 text-left text-xs font-medium text-brand underline underline-offset-4">{localizedText(language, "Use time-range buttons", "Pumili ng saklaw")}</button>
                     </div>
                   )}
                 </fieldset>
 
                 {/* Free-text path kept out of the default view so it doesn't
                     compete with the two-step tap flow above. */}
-                <section className="relative mt-8 overflow-hidden rounded-3xl border border-[#DCE6D9] bg-[linear-gradient(145deg,rgba(255,255,255,0.96)_0%,rgba(247,250,245,0.92)_100%)] p-4 shadow-[0_14px_34px_rgba(31,74,54,0.06)] sm:p-5">
+                <section className="relative mt-8 overflow-hidden rounded-3xl border border-[#D6E3D4] bg-[linear-gradient(145deg,#FFFFFF_0%,#F4F8F2_100%)] p-3 shadow-[0_16px_38px_rgba(31,74,54,0.08)] ring-1 ring-white/80 sm:p-4">
                   <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent" aria-hidden="true" />
-                  <button
-                    type="button"
-                    aria-expanded={showTextInput}
-                    aria-controls="symptoms-text-panel"
-                    onClick={() => setShowTextInput((visible) => !visible)}
-                    className="group flex w-full min-w-0 flex-col items-stretch gap-3 rounded-2xl text-left outline-none focus-visible:ring-4 focus-visible:ring-brand/15 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
-                  >
-                    <span className="flex min-w-0 items-start gap-2.5 sm:items-center sm:gap-3">
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[#DCE6D9] bg-white text-brand shadow-[0_4px_12px_rgba(31,74,54,0.07)]" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
-                          <path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H7l-4 2v-5.5A7.5 7.5 0 1 1 20 11.5Z" />
-                          <path d="M8 11h8M8 14h5" />
-                        </svg>
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-brand">Another way to share</span>
-                        <span className="mt-0.5 block break-words text-sm font-semibold leading-snug text-ink sm:text-base">Describe symptoms in your own words</span>
-                        <span className="mt-0.5 block break-words text-xs leading-relaxed text-ink-muted">Ilarawan ang mga sintomas sa sarili mong salita</span>
-                      </span>
-                    </span>
-                    <span className="inline-flex w-fit shrink-0 items-center gap-2 rounded-full border border-[#DCE6D9] bg-white/80 px-3 py-1.5 text-xs font-semibold text-brand-dark shadow-sm transition-colors group-hover:bg-white sm:ml-auto sm:py-2">
-                      {showTextInput ? "Hide / Itago" : "Type instead / Mag-type"}
-                      <IconChevronDown size={16} className={`transition-transform duration-200 ${showTextInput ? "rotate-180" : ""}`} aria-hidden="true" />
-                    </span>
-                  </button>
-                  <div id="symptoms-text-panel" hidden={!showTextInput} className="mt-4 border-t border-[#E3EBE0] pt-4">
+                  <FreeTextSymptomToggle
+                    expanded={showTextInput}
+                    controls="symptoms-text-panel"
+                    onToggle={() => setShowTextInput((visible) => !visible)}
+                  />
+                  <div id="symptoms-text-panel" hidden={!showTextInput} className="mt-3 rounded-2xl border border-[#E1EAE0] bg-white/80 p-4 sm:p-5">
                     <label htmlFor="symptoms" className="block text-sm font-semibold text-ink">
-                      What are you experiencing? / Ano ang nararamdaman?
+                      {localizedText(language, "What are you experiencing?", "Ano ang nararamdaman?")}
                     </label>
                     <p id="symptoms-text-hint" className="mt-1 text-xs leading-relaxed text-ink-muted">
-                      Include when it started and anything else that may help. / Isama kung kailan nagsimula at iba pang mahahalagang detalye.
+                      {localizedText(language, "Include when it started and anything else that may help.", "Isama kung kailan nagsimula at iba pang mahahalagang detalye.")}
                     </p>
                     <textarea
                       id="symptoms"
@@ -732,8 +700,8 @@ export default function AssessmentPage() {
                       onChange={(e) => setText(e.target.value)}
                       rows={5}
                       aria-describedby="symptoms-text-hint"
-                      placeholder={'For example: “I have had a fever and cough since yesterday.”\nHalimbawa: “May lagnat at ubo ako simula kahapon.”'}
-                      className={`mt-3 min-h-36 resize-y border-[#D6E1D3] bg-white/90 leading-relaxed shadow-[inset_0_1px_2px_rgba(24,38,25,0.03),0_6px_18px_rgba(24,38,25,0.035)] transition-[border-color,box-shadow] placeholder:whitespace-pre-line placeholder:text-ink-faint hover:border-brand/45 focus:border-brand focus:ring-4 focus:ring-brand/10 ${inputClass}`}
+                      placeholder={localizedText(language, "For example: “I have had a fever and cough since yesterday.”", "Halimbawa: “May lagnat at ubo ako simula kahapon.”")}
+                      className={textareaClass}
                     />
                   </div>
                 </section>
@@ -746,10 +714,12 @@ export default function AssessmentPage() {
 
                 <div className="mt-10 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <button type="button" onClick={() => router.back()} className="min-h-11 w-full rounded-xl border border-border bg-white px-5 font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark sm:w-auto">
-                    Back
+                    {localizedText(language, "Back", "Bumalik")}
                   </button>
                   <button type="button" onClick={handleSubmit} disabled={!canSubmit || submitting} className={`${submitButtonClass} sm:min-w-64`}>
-                    <span>{submitting ? "Checking…" : "Submit Assessment"}</span>
+                    <span>{submitting
+                      ? localizedText(language, "Checking…", "Sinusuri…")
+                      : localizedText(language, "Submit Assessment", "Isumite ang pagsusuri")}</span>
                     {!submitting && <IconChevronDown size={17} className="rotate-[-90deg] transition-transform duration-200 group-hover:translate-x-0.5" aria-hidden="true" />}
                   </button>
                 </div>

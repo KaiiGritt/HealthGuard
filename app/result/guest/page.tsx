@@ -7,14 +7,12 @@ import Disclaimer from "../../components/Disclaimer";
 import MedicationGuidanceCard from "../../components/MedicationGuidanceCard";
 import PageHeader from "../../components/PageHeader";
 import RiskCard from "../../components/RiskCard";
+import ResultText from "../../components/ResultText";
+import SymptomSummaryChip from "../../components/SymptomSummaryChip";
 import { IconAssessment, IconCheck, IconChevronDown, IconHistory } from "../../components/ui/icons";
 import { clearPendingGuestPayload, type AnalyzeResult } from "@/lib/api";
-
-const MESSAGES: Record<string, string> = {
-  GREEN: "Monitor your symptoms / I-monitor ang iyong mga sintomas.",
-  YELLOW: "Consult a healthcare professional / Kumonsulta sa health worker.",
-  RED: "Seek urgent medical help / Humingi agad ng tulong medikal.",
-};
+import { getReportedSymptomClassifications } from "@/lib/coughClassifications";
+import { translatedAssessmentReason, translatedRuleDescription, translatedRuleTitle } from "../resultTranslations";
 
 const RULE_TITLES: Record<string, string> = {
   "duration-score": "Symptom duration",
@@ -83,11 +81,11 @@ export default function GuestResultPage() {
   }, []);
 
   if (!sessionChecked) {
-    return <PageMain narrow><h1 className="sr-only">Loading assessment summary</h1><p role="status" className="text-sm text-ink-muted">Loading assessment summary…</p></PageMain>;
+    return <PageMain narrow><h1 className="sr-only">Loading assessment summary</h1><ResultText as="p" role="status" className="text-sm text-ink-muted" english="Loading assessment summary…" filipino="Nilo-load ang buod ng pagsusuri…" /></PageMain>;
   }
 
   if (!result) {
-    return <PageMain narrow><PageTitle>Assessment summary unavailable</PageTitle><PrimaryLink href="/assessment" className="mt-6">Start a new assessment</PrimaryLink></PageMain>;
+    return <PageMain narrow><PageTitle><ResultText english="Assessment summary unavailable" filipino="Hindi makita ang buod ng pagsusuri" /></PageTitle><PrimaryLink href="/assessment" className="mt-6"><ResultText english="Start a new assessment" filipino="Magsimula ng bagong pagsusuri" /></PrimaryLink></PageMain>;
   }
 
   return (
@@ -99,17 +97,17 @@ export default function GuestResultPage() {
           <div className="relative">
             <p className="inline-flex items-center gap-2 rounded-full border border-[#DCE7D9] bg-white/85 px-3 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.13em] text-brand-dark shadow-[0_2px_8px_rgba(31,74,54,0.04)] sm:text-[11px]">
               <span className="h-1.5 w-1.5 rounded-full bg-brand" aria-hidden="true" />
-              HealthGuard clinical summary
+              <ResultText english="HealthGuard clinical summary" filipino="Buod pangkalusugan ng HealthGuard" />
             </p>
-            <h1 className="mt-3 font-display text-3xl font-semibold leading-tight tracking-tight text-ink sm:mt-2 sm:text-4xl">Assessment summary</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-muted sm:text-base">This result is available now. No account is required to view it.</p>
+            <ResultText as="h1" className="mt-3 font-display text-3xl font-semibold leading-tight tracking-tight text-ink sm:mt-2 sm:text-4xl" english="Assessment summary" filipino="Buod ng pagsusuri" />
+            <ResultText as="p" className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-muted sm:text-base" english="This result is available now. No account is required to view it." filipino="Makikita na ang resultang ito. Hindi kailangan ng account para makita ito." />
           </div>
         </div>
 
         <div className="space-y-6">
           <Card className="!p-4 sm:!p-6 lg:!p-7 overflow-hidden rounded-[24px] border border-[#dfe7dc] bg-[linear-gradient(180deg,#ffffff_0%,#f8faf5_100%)] shadow-[0_20px_55px_rgba(15,23,42,0.06)] xl:grid xl:grid-cols-2 xl:items-start xl:gap-4">
             <div className="xl:col-span-2">
-              <RiskCard level={result.risk_level} message={MESSAGES[result.risk_level] ?? result.message} recommendation={result.recommendation} />
+              <RiskCard level={result.risk_level} message={result.message} recommendation={result.recommendation} />
             </div>
 
             <section className="relative mt-6 overflow-hidden rounded-3xl border border-[#DCE6D9] bg-[linear-gradient(145deg,#FFFFFF_0%,#F8FAF6_100%)] p-4 shadow-[0_12px_30px_rgba(31,74,54,0.05)] sm:p-5 xl:mt-0">
@@ -120,31 +118,20 @@ export default function GuestResultPage() {
                     <IconCheck size={16} />
                   </span>
                   <div className="min-w-0">
-                    <h3 className="font-display text-base font-semibold leading-tight text-ink sm:text-lg">Condition summary</h3>
-                    <p className="mt-1 text-xs leading-relaxed text-ink-muted sm:text-sm">Text-match confidence is not medical certainty.</p>
+                    <ResultText as="h3" className="font-display text-base font-semibold leading-tight text-ink sm:text-lg" english="Condition summary" filipino="Buod ng kondisyon" />
+                    <ResultText as="p" className="mt-1 text-xs leading-relaxed text-ink-muted sm:text-sm" english="Symptoms are summaries, not diagnoses. Text-match confidence is not medical certainty." filipino="Mga buod lamang ang mga sintomas, hindi diagnosis. Hindi garantiya ng katiyakang medikal ang pagtutugma ng teksto." />
                   </div>
                 </div>
-                <span className="shrink-0 rounded-full border border-[#cfe0cf] bg-white px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-brand-dark shadow-[0_2px_8px_rgba(47,107,79,0.05)]">{result.detected_symptoms.length} noted</span>
+                <span className="shrink-0 rounded-full border border-[#cfe0cf] bg-white px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-brand-dark shadow-[0_2px_8px_rgba(47,107,79,0.05)]"><ResultText english={`${result.detected_symptoms.length} noted`} filipino={`${result.detected_symptoms.length} naitala`} /></span>
               </div>
               {result.detected_symptoms.length > 0 ? (
                 <ul className="mt-4 flex flex-wrap gap-2">
                   {result.detected_symptoms.map((symptom) => {
-                    const confidence = symptom.confidence;
-                    const level = confidence === undefined ? null : confidence >= 0.85 ? "High" : confidence >= 0.65 ? "Medium" : "Low";
-                    return (
-                      <li key={symptom.medical_term} className="inline-flex max-w-full flex-wrap items-center gap-2 rounded-2xl border border-[#cfe0cf] bg-[linear-gradient(180deg,#F2FAEF_0%,#EAF5EA_100%)] px-3 py-2 text-sm font-semibold capitalize text-[#1f4b3d] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
-                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#e1f1e3] text-[#1d6b4d]" aria-hidden="true"><IconCheck size={12} /></span>
-                        <span className="min-w-0 break-words">{symptom.medical_term}</span>
-                        {confidence !== undefined && level && (
-                          <span aria-label={`Text-match confidence: ${level}, ${Math.round(confidence * 100)} percent`} className="rounded-full border border-[#d6e3d3] bg-white/75 px-2 py-0.5 font-mono text-[9px] font-semibold normal-case tracking-normal text-[#51664F]">
-                            Text match · {level} · {Math.round(confidence * 100)}%
-                          </span>
-                        )}
-                      </li>
-                    );
+                    const reportedTypes = getReportedSymptomClassifications(symptom.medical_term, result.input_text);
+                    return <SymptomSummaryChip key={symptom.medical_term} symptom={symptom.medical_term} reportedTypes={reportedTypes} confidence={symptom.confidence} />;
                   })}
                 </ul>
-              ) : <p className="mt-3 text-sm leading-relaxed text-ink-muted">No recognizable symptoms were detected.</p>}
+              ) : <ResultText as="p" className="mt-3 text-sm leading-relaxed text-ink-muted" english="No recognizable symptoms were detected." filipino="Walang nakilalang sintomas." />}
             </section>
 
             <details className="group mt-4 min-w-0 rounded-2xl border border-[#dfe8dc] bg-[linear-gradient(145deg,#FFFFFF_0%,#F8FAF6_100%)] p-3 shadow-[0_8px_22px_rgba(31,74,54,0.04)] transition-[border-color,box-shadow] duration-200 open:border-[#cbdac8] open:shadow-[0_14px_30px_rgba(31,74,54,0.07)] sm:p-4 xl:mt-0">
@@ -154,18 +141,18 @@ export default function GuestResultPage() {
                     <IconAssessment size={17} />
                   </span>
                   <span className="min-w-0">
-                    <span className="block text-sm font-semibold text-ink sm:text-base">Clinical explanation</span>
-                    <span className="mt-0.5 block text-xs leading-relaxed text-ink-muted sm:text-sm">View assessment reasoning</span>
+                    <ResultText as="span" className="block text-sm font-semibold text-ink sm:text-base" english="Clinical explanation" filipino="Paliwanag sa pagsusuri" />
+                    <ResultText as="span" className="mt-0.5 block text-xs leading-relaxed text-ink-muted sm:text-sm" english="View assessment reasoning" filipino="Tingnan ang batayan ng pagsusuri" />
                   </span>
                 </span>
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#dce7d9] bg-white text-brand transition-transform duration-200 group-open:rotate-180" aria-hidden="true">
                   <IconChevronDown size={16} />
                 </span>
               </summary>
-              <p className="mt-4 border-t border-[#e4ebe1] pt-4 text-sm leading-6 text-ink-secondary sm:text-base sm:leading-7">{result.reason}</p>
+              <ResultText as="p" className="mt-4 border-t border-[#e4ebe1] pt-4 text-sm leading-6 text-ink-secondary sm:text-base sm:leading-7" english={result.reason} filipino={translatedAssessmentReason(result.reason, result.risk_level)} />
               {result.input_text && (
                 <p className="mt-4 rounded-xl border border-[#e2e9de] bg-white/80 px-3.5 py-3 text-xs leading-5 text-ink-faint sm:text-sm sm:leading-relaxed">
-                  <span className="mb-1 block font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-ink-muted sm:text-[10px]">Reported information</span>
+                  <ResultText as="span" className="mb-1 block font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-ink-muted sm:text-[10px]" english="Reported information" filipino="Iniulat na impormasyon" />
                   <span className="italic text-ink-muted">“{result.input_text}”</span>
                 </p>
               )}
@@ -178,27 +165,27 @@ export default function GuestResultPage() {
                     <IconCheck size={17} />
                   </span>
                   <span className="min-w-0">
-                    <span className="block text-sm font-semibold text-ink sm:text-base">Rules used</span>
-                    <span className="mt-0.5 block text-xs leading-relaxed text-ink-muted sm:text-sm">View applied assessment rules</span>
+                    <ResultText as="span" className="block text-sm font-semibold text-ink sm:text-base" english="Rules used" filipino="Mga ginamit na tuntunin" />
+                    <ResultText as="span" className="mt-0.5 block text-xs leading-relaxed text-ink-muted sm:text-sm" english="View applied assessment rules" filipino="Tingnan ang mga ginamit na tuntunin" />
                   </span>
                 </span>
                 <span className="flex shrink-0 items-center gap-2">
-                  <span className="rounded-full border border-[#c9d8cb] bg-white/85 px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-dark shadow-[0_2px_8px_rgba(31,74,54,0.05)] sm:text-[11px]">{result.triggered_rules.length} applied</span>
+                  <span className="rounded-full border border-[#c9d8cb] bg-white/85 px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-dark shadow-[0_2px_8px_rgba(31,74,54,0.05)] sm:text-[11px]"><ResultText english={`${result.triggered_rules.length} applied`} filipino={`${result.triggered_rules.length} nailapat`} /></span>
                   <span className="flex h-8 w-8 items-center justify-center rounded-full border border-[#d5e2d2] bg-white text-brand transition-transform duration-200 group-open/rules:rotate-180" aria-hidden="true">
                     <IconChevronDown size={16} />
                   </span>
                 </span>
               </summary>
               <ol className="mt-4 space-y-2.5 sm:mt-5 sm:space-y-3">
-                {result.triggered_rules.map((rule, index) => <li key={`${rule.name}-${index}`} className="group relative rounded-xl border border-[#dfe8dc] bg-white/90 px-3.5 py-3 shadow-[0_3px_10px_rgba(31,74,54,0.03)] transition-colors duration-200 hover:border-[#b9ceb9] sm:px-4 sm:py-3.5"><span className="absolute inset-y-3 left-0 w-0.5 rounded-r-full bg-brand/45 transition-colors duration-200 group-hover:bg-brand" aria-hidden="true" /><div className="flex min-w-0 items-start gap-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[#dce8d8] bg-[#f4f8f0] font-mono text-[11px] font-semibold text-brand-dark">{index + 1}</span><div className="min-w-0"><p className="font-mono text-[10px] font-semibold uppercase tracking-[0.06em] text-ink-secondary sm:text-[11px] sm:tracking-[0.08em]">{ruleTitle(rule.name)}</p><p className="mt-1 text-[13px] leading-5 text-ink-muted sm:mt-1.5 sm:text-sm sm:leading-6">{ruleDescription(rule.name, rule.description)}</p></div></div></li>)}
+                {result.triggered_rules.map((rule, index) => <li key={`${rule.name}-${index}`} className="group relative rounded-xl border border-[#dfe8dc] bg-white/90 px-3.5 py-3 shadow-[0_3px_10px_rgba(31,74,54,0.03)] transition-colors duration-200 hover:border-[#b9ceb9] sm:px-4 sm:py-3.5"><span className="absolute inset-y-3 left-0 w-0.5 rounded-r-full bg-brand/45 transition-colors duration-200 group-hover:bg-brand" aria-hidden="true" /><div className="flex min-w-0 items-start gap-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[#dce8d8] bg-[#f4f8f0] font-mono text-[11px] font-semibold text-brand-dark">{index + 1}</span><div className="min-w-0"><ResultText as="p" className="font-mono text-[10px] font-semibold uppercase tracking-[0.06em] text-ink-secondary sm:text-[11px] sm:tracking-[0.08em]" english={ruleTitle(rule.name)} filipino={translatedRuleTitle(rule.name, ruleTitle(rule.name))} /><ResultText as="p" className="mt-1 text-[13px] leading-5 text-ink-muted sm:mt-1.5 sm:text-sm sm:leading-6" english={ruleDescription(rule.name, rule.description)} filipino={translatedRuleDescription(rule.name, rule.description)} /></div></div></li>)}
               </ol>
             </details>
 
             {result.risk_level !== "RED" && result.pre_medication && (
               <details className="mt-4 rounded-[18px] border border-[#E4C77C] bg-[linear-gradient(135deg,#FFFDF2_0%,#FFF8DC_58%,#FFF4C8_100%)] p-3 sm:p-5 xl:col-span-2 xl:mt-0">
                 <summary className="cursor-pointer list-none">
-                  <span className="font-mono text-xs font-semibold uppercase tracking-[0.12em] text-[#966719]">Pre-medication guidance</span>
-                  <span className="mt-1 block text-xs leading-5 text-ink-secondary sm:text-sm">View safety information</span>
+                  <ResultText className="font-mono text-xs font-semibold uppercase tracking-[0.12em] text-[#966719]" english="Pre-medication guidance" filipino="Gabay bago uminom ng gamot" />
+                  <ResultText className="mt-1 block text-xs leading-5 text-ink-secondary sm:text-sm" english="View safety information" filipino="Tingnan ang impormasyong pangkaligtasan" />
                 </summary>
                 <MedicationGuidanceCard riskLevel={result.risk_level} inputText={result.input_text} detectedSymptoms={result.detected_symptoms.map((symptom) => symptom.medical_term)} guidance={{ drugName: result.pre_medication.medication_name, dosage: result.pre_medication.dosage, contraindications: result.pre_medication.contraindications, sideEffects: result.pre_medication.side_effects, precautions: result.pre_medication.precautions, note: result.pre_medication.note }} />
               </details>
@@ -209,22 +196,21 @@ export default function GuestResultPage() {
               <div className="relative flex items-start gap-3">
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand text-brand-foreground shadow-[0_8px_16px_rgba(31,74,54,0.18)]"><IconHistory size={20} /></span>
                 <div>
-                  <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-dark">Keep your record</p>
-                  <h2 className="mt-1 font-display text-xl font-semibold leading-tight text-ink sm:text-2xl">Save this assessment</h2>
-                  <p className="mt-2 max-w-xl text-sm leading-relaxed text-ink-secondary">Guest results stay in this browser tab. Create an account or sign in to save this result in your health history.</p>
-                  <p className="mt-1 text-xs text-ink-muted">Pansamantala ang resulta ng bisita. Mag-sign in o gumawa ng account para i-save sa history.</p>
+                  <ResultText as="p" className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-dark" english="Keep your record" filipino="I-save ang iyong tala" />
+                  <ResultText as="h2" className="mt-1 font-display text-xl font-semibold leading-tight text-ink sm:text-2xl" english="Save this assessment" filipino="I-save ang pagsusuring ito" />
+                  <ResultText as="p" className="mt-2 max-w-xl text-sm leading-relaxed text-ink-secondary" english="Guest results stay in this browser tab. Create an account or sign in to save this result in your health history." filipino="Mananatili sa tab ng browser na ito ang resulta ng bisita. Gumawa ng account o mag-sign in upang mai-save ito sa iyong kasaysayang pangkalusugan." />
                 </div>
               </div>
               <div className="relative mt-5 flex flex-col gap-3 sm:flex-row">
-                <Link href="/register?next=/result/guest" className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-brand px-4 font-semibold text-brand-foreground shadow-[0_8px_18px_rgba(31,74,54,0.16)] transition hover:bg-brand-dark">Create account</Link>
-                <Link href="/login?next=/result/guest" className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl border border-brand/25 bg-white/85 px-4 font-semibold text-brand-dark transition hover:border-brand/50 hover:bg-white">Log in</Link>
+                <Link href="/register?next=/result/guest" className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-brand px-4 font-semibold text-brand-foreground shadow-[0_8px_18px_rgba(31,74,54,0.16)] transition hover:bg-brand-dark"><ResultText english="Create account" filipino="Gumawa ng account" /></Link>
+                <Link href="/login?next=/result/guest" className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl border border-brand/25 bg-white/85 px-4 font-semibold text-brand-dark transition hover:border-brand/50 hover:bg-white"><ResultText english="Log in" filipino="Mag-sign in" /></Link>
               </div>
             </section>
             <div className="mt-6 rounded-2xl border border-[#DDE7DB] bg-[#F7FAF5] p-3 shadow-[0_10px_24px_rgba(31,74,54,0.05)] sm:p-4 xl:mt-0">
-              <p className="px-1 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-faint">Continue</p>
+              <ResultText as="p" className="px-1 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-faint" english="Continue" filipino="Magpatuloy" />
               <div className="mt-3 flex flex-col gap-3 sm:flex-row">
-                <PrimaryLink href="/assessment" className="min-h-12 flex-1 rounded-xl bg-gradient-to-r from-brand to-brand-dark font-semibold shadow-[0_10px_20px_rgba(31,74,54,0.16)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_26px_rgba(31,74,54,0.22)]">New assessment</PrimaryLink>
-                <Link href="/" onClick={clearPendingGuestPayload} className="inline-flex min-h-12 flex-1 items-center justify-center rounded-xl border border-[#CBDACB] bg-white px-4 font-semibold text-ink-secondary transition hover:-translate-y-0.5 hover:border-brand/45 hover:text-brand-dark">Continue without saving</Link>
+                <PrimaryLink href="/assessment" className="min-h-12 flex-1 rounded-xl bg-gradient-to-r from-brand to-brand-dark font-semibold shadow-[0_10px_20px_rgba(31,74,54,0.16)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_26px_rgba(31,74,54,0.22)]"><ResultText english="New assessment" filipino="Bagong pagsusuri" /></PrimaryLink>
+                <Link href="/" onClick={clearPendingGuestPayload} className="inline-flex min-h-12 flex-1 items-center justify-center rounded-xl border border-[#CBDACB] bg-white px-4 font-semibold text-ink-secondary transition hover:-translate-y-0.5 hover:border-brand/45 hover:text-brand-dark"><ResultText english="Continue without saving" filipino="Magpatuloy nang hindi sine-save" /></Link>
               </div>
             </div>
             <Disclaimer className="mt-6 xl:col-span-2 xl:mt-0" />
@@ -232,25 +218,25 @@ export default function GuestResultPage() {
 
           <aside className="grid gap-6 lg:grid-cols-2">
             <div className="relative overflow-hidden rounded-[28px] border border-[#F0B5AA] bg-[linear-gradient(135deg,#8E2F24_0%,#6F211C_52%,#4B1715_100%)] p-4 text-[#FFF7F3] shadow-[0_22px_60px_rgba(120,35,28,0.28)] sm:p-6">
-              <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[#FFD2C8]">Irosin emergency</p>
-              <h2 className="mt-2 font-display text-xl font-semibold leading-tight text-white sm:mt-3 sm:text-2xl">Call if symptoms worsen</h2>
+              <ResultText as="p" className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[#FFD2C8]" english="Irosin emergency" filipino="Emergency sa Irosin" />
+              <ResultText as="h2" className="mt-2 font-display text-xl font-semibold leading-tight text-white sm:mt-3 sm:text-2xl" english="Call if symptoms worsen" filipino="Tumawag kung lumala ang mga sintomas" />
               <div className="mt-4 grid grid-cols-2 gap-2.5 sm:mt-5 sm:grid-cols-3 sm:gap-3">
                 <div className="col-span-2 rounded-2xl border border-white/25 bg-white/10 p-3 sm:col-span-1 sm:p-3.5">
-                  <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-[#FFD2C8] sm:text-[10px] sm:tracking-[0.12em]">EMERGENCY HOTLINE</p>
+                  <ResultText as="p" className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-[#FFD2C8] sm:text-[10px] sm:tracking-[0.12em]" english="EMERGENCY HOTLINE" filipino="LINYA NG EMERGENCY" />
                   <p className="mt-1 text-xl font-semibold tracking-wide text-white sm:text-2xl">911</p>
                 </div>
                 <div className="rounded-2xl border border-white/25 bg-white/10 p-3 sm:p-3.5">
-                  <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-[#FFD2C8] sm:text-[10px] sm:tracking-[0.12em]">RHU CONTACT</p>
+                  <ResultText as="p" className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-[#FFD2C8] sm:text-[10px] sm:tracking-[0.12em]" english="RHU CONTACT" filipino="KONTAK NG RHU" />
                   <p className="mt-1 whitespace-nowrap text-base font-semibold tracking-tight text-white sm:text-lg sm:tracking-normal">09702480983</p>
-                  <p className="text-sm text-[#FFE4DD]">Lying In</p>
+                  <ResultText as="p" className="text-sm text-[#FFE4DD]" english="Lying In" filipino="Pasilidad para sa panganganak" />
                 </div>
                 <div className="rounded-2xl border border-white/25 bg-white/10 p-3 sm:p-3.5">
-                  <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-[#FFD2C8] sm:text-[10px] sm:tracking-[0.12em]">OPD</p>
+                  <ResultText as="p" className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-[#FFD2C8] sm:text-[10px] sm:tracking-[0.12em]" english="OPD" filipino="OPD" />
                   <p className="mt-1 whitespace-nowrap text-base font-semibold tracking-tight text-white sm:text-lg sm:tracking-normal">09702576740</p>
                 </div>
               </div>
             </div>
-            <div className="rounded-[28px] border border-[#dfe7dc] bg-[linear-gradient(180deg,#ffffff_0%,#f8faf5_100%)] p-6 shadow-[0_18px_40px_rgba(15,23,42,0.04)]"><p className="font-mono text-[11px] uppercase tracking-[0.12em] text-ink-faint">What to do now</p><ul className="mt-4 space-y-3 text-sm leading-relaxed text-ink-secondary"><li>Rest, hydrate, and monitor your symptoms closely.</li><li>Follow up with a barangay health worker or clinic if symptoms remain active.</li><li>If breathing is difficult, chest pain is severe, or you feel faint, call emergency services immediately.</li></ul></div>
+            <div className="rounded-[28px] border border-[#dfe7dc] bg-[linear-gradient(180deg,#ffffff_0%,#f8faf5_100%)] p-6 shadow-[0_18px_40px_rgba(15,23,42,0.04)]">            <ResultText as="p" className="font-mono text-[11px] uppercase tracking-[0.12em] text-ink-faint" english="What to do now" filipino="Ano ang dapat gawin ngayon" /><ul className="mt-4 space-y-3 text-sm leading-relaxed text-ink-secondary"><li><ResultText english="Rest, hydrate, and monitor your symptoms closely." filipino="Magpahinga, uminom ng sapat na tubig, at bantayang mabuti ang mga sintomas." /></li><li><ResultText english="Follow up with a barangay health worker or clinic if symptoms remain active." filipino="Mag-follow up sa barangay health worker o klinika kung nagpapatuloy ang mga sintomas." /></li><li><ResultText english="If breathing is difficult, chest pain is severe, or you feel faint, call emergency services immediately." filipino="Kung hirap huminga, matindi ang pananakit ng dibdib, o nahihilo, tumawag agad sa emergency services." /></li></ul></div>
           </aside>
         </div>
       </PageMain>
