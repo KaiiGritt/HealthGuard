@@ -770,6 +770,7 @@ def test_weighted_score_and_duration_rules() -> None:
     cough = Match(medical_term="cough", matched_text="cough", language="en", category="respiratory", severity_weight=1)
     headache = Match(medical_term="headache", matched_text="headache", language="en", category="neurological", severity_weight=2)
     fever = Match(medical_term="fever", matched_text="fever", language="en", category="general", severity_weight=2)
+    vomiting = Match(medical_term="vomiting", matched_text="vomiting", language="en", category="gastrointestinal", severity_weight=3)
     breathing = Match(medical_term="difficulty breathing", matched_text="difficulty breathing", language="en", category="respiratory", severity_weight=6)
 
     assert classify([cough, headache]).risk_level == "YELLOW"
@@ -777,6 +778,9 @@ def test_weighted_score_and_duration_rules() -> None:
     assert any(rule.name == "symptom-combination-score" for rule in classify([fever, cough]).triggered_rules)
     assert any(rule.name == "weighted-symptom-score" for rule in classify([fever, cough]).triggered_rules)
     assert classify([fever, cough, headache]).risk_level == "YELLOW"
+    fever_cough_vomiting = classify([fever, cough, vomiting])
+    assert fever_cough_vomiting.score == 6
+    assert fever_cough_vomiting.risk_level == "YELLOW"
     assert classify([breathing]).risk_level == "RED"
     assert classify([breathing, cough]).risk_level == "RED"
 

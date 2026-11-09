@@ -42,19 +42,16 @@ import { SYMPTOM_CATEGORIES, SYMPTOMS } from "./symptoms";
 // with whoever validated the triage rules before shipping it.
 const URGENT_NUDGE_SYMPTOMS = new Set(["difficulty breathing"]);
 
-// Tap-to-pick duration options. Replaces a free-text field where users had
-// to know to type a value in a parseable format ("2 days"). `days` is the
-// representative value sent to the API as duration_days.
+// `days` is the representative value sent to the API as duration_days.
 const DURATION_OPTIONS = [
-  { key: "few_hours", en: "A few hours ago", tl: "Ilang oras pa lang", phrase: "about 1–6 hours ago", days: 3.5 / 24, tier: "recent" },
-  { key: "today", en: "Today", tl: "Ngayong araw", phrase: "sometime today", days: 0.5, tier: "recent" },
-  { key: "one_two_days", en: "1–2 days", tl: "1–2 araw", phrase: "about 1–2 days ago", days: 1.5, tier: "recent" },
-  { key: "three_four_days", en: "3–4 days", tl: "3–4 araw", phrase: "about 3–4 days ago", days: 3.5, tier: "longer" },
-  { key: "five_seven_days", en: "5–7 days", tl: "5–7 araw", phrase: "about 5–7 days ago", days: 6, tier: "longer" },
-  { key: "one_two_weeks", en: "1–2 weeks", tl: "1–2 linggo", phrase: "about 1–2 weeks ago", days: 10.5, tier: "longer" },
-  { key: "over_two_weeks", en: "More than 2 weeks", tl: "Mahigit 2 linggo", phrase: "more than 2 weeks ago", days: 14.5, tier: "longer" },
+  { key: "less_than_24_hours", en: "Less than 24 hours ago", tl: "Wala pang 24 oras", phrase: "less than 24 hours ago", days: 0.5 },
+  { key: "one_two_days", en: "1–2 days ago", tl: "1–2 araw na ang nakalipas", phrase: "1–2 days ago", days: 1.5 },
+  { key: "three_seven_days", en: "3–7 days ago", tl: "3–7 araw na ang nakalipas", phrase: "3–7 days ago", days: 5 },
+  { key: "more_than_seven_days", en: "More than 7 days ago", tl: "Mahigit 7 araw na ang nakalipas", phrase: "more than 7 days ago", days: 8 },
+  { key: "not_sure", en: "Not sure", tl: "Hindi sigurado", phrase: null, days: null },
 ] as const;
 
+const MAX_EXACT_DURATION_DAYS = 365;
 const MIN_PROCESSING_TIME_MS = 7000;
 const PROCESSING_STEP_INTERVAL_MS = 2200;
 
@@ -118,7 +115,6 @@ export default function AssessmentPage() {
   const [selected, setSelected] = useState<string[]>([]);
   const [selectedTypes, setSelectedTypes] = useState<Record<string, string[]>>({});
   const [durationKey, setDurationKey] = useState<string | null>(null);
-  const [showLongerDurations, setShowLongerDurations] = useState(false);
   const [exactDurationMode, setExactDurationMode] = useState(false);
   const [exactDurationDays, setExactDurationDays] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -196,7 +192,8 @@ export default function AssessmentPage() {
     exactDurationMode &&
     /^(?:\d+(?:\.\d*)?|\.\d+)$/.test(exactDurationDays) &&
     Number.isFinite(exactDaysValue) &&
-    exactDaysValue >= 0.01;
+    exactDaysValue >= 0.01 &&
+    exactDaysValue <= MAX_EXACT_DURATION_DAYS;
 
   const getSubmissionValidationError = () => {
     const trimmedText = text.trim();
@@ -207,6 +204,9 @@ export default function AssessmentPage() {
       return "We could not recognize a symptom in your message. Please check the spelling and describe a symptom such as fever, cough, headache, or difficulty breathing.";
     }
     if (exactDurationMode && !exactDurationValid) {
+      if (exactDaysValue > MAX_EXACT_DURATION_DAYS) {
+        return "Enter a duration of 365 days or less.";
+      }
       return "Enter the number of days since symptoms started, or go back to choose a time range.";
     }
     return null;
@@ -255,7 +255,9 @@ export default function AssessmentPage() {
           : "",
         exactDurationMode
           ? `Symptoms started ${exactDaysValue} ${exactDaysValue === 1 ? "day" : "days"} ago.`
-          : selectedDuration ? `Symptoms started ${selectedDuration.phrase}.` : "",
+          : selectedDuration?.phrase
+            ? `Symptoms started ${selectedDuration.phrase}.`
+            : selectedDuration ? "The symptom start time is unknown." : "",
       ]
         .filter(Boolean)
         .join(" ");
@@ -373,8 +375,8 @@ export default function AssessmentPage() {
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/20 bg-gradient-to-br from-brand to-brand-dark font-mono text-sm font-semibold text-brand-foreground shadow-[0_6px_16px_rgba(31,74,54,0.2)]">1</span>
                   <div className="min-w-0 flex-1">
                     <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-brand">{localizedText(language, "Step 1", "Hakbang 1")}</p>
-                    <h2 className="mt-0.5 text-lg font-semibold leading-snug tracking-[-0.02em] text-ink sm:text-xl">{localizedText(language, "Select symptoms", "Piliin ang mga sintomas")}</h2>
-                    <p className="mt-0.5 text-xs leading-relaxed text-ink-muted sm:text-sm">{localizedText(language, "Choose all that apply", "Piliin ang lahat ng naaangkop")}</p>
+                    <h2 className="mt-0.5 text-lg font-semibold leading-snug tracking-[-0.02em] text-ink sm:text-xl">{localizedText(language, "Select Your Symptoms", "Piliin ang iyong mga sintomas")}</h2>
+                    <p className="mt-0.5 text-xs leading-relaxed text-ink-muted sm:text-sm">{localizedText(language, "Choose all the symptoms you are currently experiencing. You may select more than one.", "Piliin ang lahat ng sintomas na nararanasan mo ngayon. Maaari kang pumili ng higit sa isa.")}</p>
                   </div>
                   {selected.length > 0 && (
                     <span aria-live="polite" className="ml-[3.25rem] inline-flex items-center gap-2 rounded-full border border-brand/15 bg-white/80 px-3 py-1.5 text-xs font-semibold text-brand-dark shadow-[0_3px_10px_rgba(31,74,54,0.06)] sm:ml-0">
@@ -419,10 +421,10 @@ export default function AssessmentPage() {
                     <div className="flex flex-wrap items-center gap-3">
                       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#1F4A36] font-mono text-xs font-semibold text-white shadow-[0_6px_14px_rgba(31,74,54,0.2)]">02</span>
                       <div>
-                        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-brand">{localizedText(language, "Optional classification", "Opsyonal na klasipikasyon")}</p>
-                        <h2 id="type-chip-heading" className="mt-0.5 text-base font-semibold text-ink lg:text-lg">{localizedText(language, "Choose the classification", "Piliin ang klasipikasyon")}</h2>
+                        <h2 id="type-chip-heading" className="text-base font-semibold text-ink lg:text-lg">{localizedText(language, "Additional Symptom Details", "Karagdagang Detalye ng Sintomas")}</h2>
+                        <p className="mt-1 text-sm font-semibold text-ink-secondary">{localizedText(language, "What type of symptom are you experiencing?", "Anong uri ng sintomas ang nararanasan mo?")}</p>
+                        <p className="mt-1 text-xs leading-relaxed text-ink-muted">{localizedText(language, "Select a category if you know it. This step is optional.", "Pumili ng kategorya kung alam mo. Opsyonal ang hakbang na ito.")}</p>
                       </div>
-                      <span className="ml-12 w-fit rounded-full border border-[#D9E3D6] bg-white/80 px-2.5 py-1 font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-ink-muted sm:ml-auto">Piliin kung alam</span>
                     </div>
                     <div className="mt-5 space-y-5 border-t border-[#DCE7DA] pt-4">
                       {selectedSymptomsWithTypes.map((symptom) => {
@@ -559,85 +561,33 @@ export default function AssessmentPage() {
                     </span>
                   </legend>
                   <p className="mt-2 pl-10 text-xs leading-relaxed text-ink-muted">
-                    Choose the closest time range. It’s okay if you’re not sure; you can leave this blank.
-                    <span className="mt-0.5 block">Piliin ang pinakamalapit na tagal. Puwedeng hindi pumili kung hindi sigurado.</span>
+                    {localizedText(language, "Choose the closest time range, select “Not sure,” or leave this optional question unanswered.", "Piliin ang pinakamalapit na tagal, piliin ang “Hindi sigurado,” o laktawan ang opsyonal na tanong na ito.")}
                   </p>
-                  <div className="mt-4 grid grid-cols-1 gap-4">
-                    <div>
-                      <p className="mb-2.5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted"><span className="h-px w-5 bg-brand/35" aria-hidden="true" />{localizedText(language, "Recent", "Kamakailan lang")}</p>
-                      <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-3 sm:gap-3">
-                  {DURATION_OPTIONS.filter((duration) => duration.tier === "recent").map((d) => {
-                    const isSelected = durationKey === d.key;
-                    return (
-                      <button
-                        key={d.key}
-                        type="button"
-                        aria-pressed={isSelected}
-                        onClick={() => {
-                          setDurationKey(isSelected ? null : d.key);
-                          setExactDurationMode(false);
-                        }}
-                        className={`group relative flex min-h-[76px] flex-col items-center justify-center overflow-hidden rounded-2xl border px-2 py-3 text-center text-sm font-semibold transition-all duration-200 ease-out hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/20 motion-reduce:transition-none sm:px-3 ${
-                          isSelected
-                            ? "border-[#1F4A36] bg-[linear-gradient(145deg,#347454_0%,#1F4A36_100%)] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_rgba(31,74,54,0.22)] ring-1 ring-brand/20"
-                            : "border-[#DCE5D8] bg-[linear-gradient(145deg,#FFFFFF_0%,#F9FBF7_100%)] text-ink-secondary shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_4px_12px_rgba(24,38,25,0.04)] hover:border-brand/40 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_12px_22px_rgba(31,74,54,0.11)]"
-                        }`}
-                      >
-                        <span className={`pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent ${isSelected ? "opacity-60" : "opacity-90"}`} aria-hidden="true" />
-                        {isSelected && <span className="absolute right-2.5 top-2.5 flex h-5 w-5 items-center justify-center rounded-full bg-white/15 text-[11px] text-white ring-1 ring-white/25" aria-hidden="true">✓</span>}
-                        <span className="relative block">{localizedText(language, d.en, d.tl)}</span>
-                      </button>
-                    );
-                  })}
-                      </div>
-                    </div>
-                    {showLongerDurations && (
-                      <div>
-                        <p className="mb-2.5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted"><span className="h-px w-5 bg-brand/35" aria-hidden="true" />Longer / Matagal na</p>
-                        <div className="grid grid-cols-2 gap-2 min-[640px]:grid-cols-4 sm:gap-3">
-                          {DURATION_OPTIONS.filter((duration) => duration.tier === "longer").map((d) => {
-                            const isSelected = durationKey === d.key;
-                            return (
-                              <button
-                                key={d.key}
-                                type="button"
-                                aria-pressed={isSelected}
-                                onClick={() => {
-                                  setDurationKey(isSelected ? null : d.key);
-                                  setExactDurationMode(false);
-                                }}
-                                className={`group relative flex min-h-[76px] flex-col items-center justify-center overflow-hidden rounded-2xl border px-2 py-3 text-center text-sm font-semibold transition-all duration-200 ease-out hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/20 motion-reduce:transition-none sm:px-3 ${
-                                  isSelected
-                                    ? "border-[#1F4A36] bg-[linear-gradient(145deg,#347454_0%,#1F4A36_100%)] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_rgba(31,74,54,0.22)] ring-1 ring-brand/20"
-                                    : "border-[#DCE5D8] bg-[linear-gradient(145deg,#FFFFFF_0%,#F9FBF7_100%)] text-ink-secondary shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_4px_12px_rgba(24,38,25,0.04)] hover:border-brand/40 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_12px_22px_rgba(31,74,54,0.11)]"
-                                }`}
-                              >
-                                <span className={`pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent ${isSelected ? "opacity-60" : "opacity-90"}`} aria-hidden="true" />
-                                {isSelected && <span className="absolute right-2.5 top-2.5 flex h-5 w-5 items-center justify-center rounded-full bg-white/15 text-[11px] text-white ring-1 ring-white/25" aria-hidden="true">✓</span>}
-                                <span className="relative">{localizedText(language, d.en, d.tl)}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
+                  <div className="mt-4 grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:gap-3 lg:grid-cols-3">
+                    {DURATION_OPTIONS.map((duration) => {
+                      const isSelected = durationKey === duration.key;
+                      return (
+                        <button
+                          key={duration.key}
+                          type="button"
+                          aria-pressed={isSelected}
+                          onClick={() => {
+                            setDurationKey(isSelected ? null : duration.key);
+                            setExactDurationMode(false);
+                          }}
+                          className={`group relative flex min-h-[76px] flex-col items-center justify-center overflow-hidden rounded-2xl border px-2 py-3 text-center text-sm font-semibold transition-all duration-200 ease-out hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/20 motion-reduce:transition-none sm:px-3 ${
+                            isSelected
+                              ? "border-[#1F4A36] bg-[linear-gradient(145deg,#347454_0%,#1F4A36_100%)] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_22px_rgba(31,74,54,0.22)] ring-1 ring-brand/20"
+                              : "border-[#DCE5D8] bg-[linear-gradient(145deg,#FFFFFF_0%,#F9FBF7_100%)] text-ink-secondary shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_4px_12px_rgba(24,38,25,0.04)] hover:border-brand/40 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_12px_22px_rgba(31,74,54,0.11)]"
+                          }`}
+                        >
+                          <span className={`pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent ${isSelected ? "opacity-60" : "opacity-90"}`} aria-hidden="true" />
+                          {isSelected && <span className="absolute right-2.5 top-2.5 flex h-5 w-5 items-center justify-center rounded-full bg-white/15 text-[11px] text-white ring-1 ring-white/25" aria-hidden="true">✓</span>}
+                          <span className="relative block">{localizedText(language, duration.en, duration.tl)}</span>
+                        </button>
+                      );
+                    })}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (showLongerDurations && selectedDuration?.tier === "longer") {
-                        setDurationKey(null);
-                      }
-                      setShowLongerDurations(!showLongerDurations);
-                      setExactDurationMode(false);
-                    }}
-                    aria-expanded={showLongerDurations}
-                    className="text-action mt-3 cursor-pointer border-0 bg-transparent p-0 text-left text-sm font-semibold text-brand underline decoration-brand/40 underline-offset-4"
-                  >
-                    {showLongerDurations
-                      ? localizedText(language, "Show recent only ↑", "Ipakita ang kamakailan lamang ↑")
-                      : localizedText(language, "Longer than 2 days? See more →", "Mahigit 2 araw? Ipakita ang iba pang pagpipilian →")}
-                  </button>
                   {!exactDurationMode ? (
                     <button
                       type="button"
@@ -655,9 +605,11 @@ export default function AssessmentPage() {
                       <div className="mt-2 flex items-center gap-3">
                         <input
                           id="exact-duration-days"
-                          type="text"
+                          type="number"
                           inputMode="decimal"
-                          pattern="(?:\d+(?:\.\d*)?|\.\d+)"
+                          min="0.01"
+                          max={MAX_EXACT_DURATION_DAYS}
+                          step="any"
                           value={exactDurationDays}
                           onChange={(event) => {
                             const value = event.currentTarget.value;
@@ -671,7 +623,7 @@ export default function AssessmentPage() {
                         <span className="text-sm text-ink-muted">{localizedText(language, "days", "araw")}</span>
                       </div>
                       <p id="exact-duration-hint" className={`mt-1.5 text-xs ${exactDurationDays !== "" && !exactDurationValid ? "text-emergency-red" : "text-ink-muted"}`}>
-                        {localizedText(language, "Enter digits and an optional decimal; minimum 0.01 day.", "Maglagay ng numero, maaaring may decimal; hindi bababa sa 0.01 araw.")}
+                        {localizedText(language, "Enter a duration from 0.01 to 365 days.", "Maglagay ng tagal mula 0.01 hanggang 365 araw.")}
                       </p>
                       <button type="button" onClick={() => setExactDurationMode(false)} className="text-action mt-2 cursor-pointer border-0 bg-transparent p-0 text-left text-xs font-medium text-brand underline underline-offset-4">{localizedText(language, "Use time-range buttons", "Pumili ng saklaw")}</button>
                     </div>

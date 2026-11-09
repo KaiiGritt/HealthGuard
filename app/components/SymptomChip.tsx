@@ -19,7 +19,7 @@ export default function SymptomChip({ label, icon, subLabel, selected, onToggle 
       className={[
         "group relative flex min-h-[68px] min-w-0 flex-col items-start gap-0.5 overflow-hidden rounded-2xl border px-3 py-2.5 text-left outline-none transition-[transform,box-shadow,border-color,background-color] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-[0_12px_24px_rgba(24,38,25,0.10)] active:translate-y-0 active:scale-[0.99] focus-visible:ring-4 focus-visible:ring-brand/20 motion-reduce:transition-none sm:min-h-[76px] sm:px-4 sm:py-3",
         selected
-          ? "border-brand/35 bg-[linear-gradient(135deg,#F0F7EF_0%,#E7F1E6_100%)] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_8px_20px_rgba(47,107,79,0.10)] hover:border-brand/50 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_14px_28px_rgba(47,107,79,0.15)]"
+          ? "border-brand bg-[linear-gradient(135deg,#E2F0E1_0%,#D5E8D4_100%)] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_8px_20px_rgba(47,107,79,0.14)] ring-1 ring-brand/20 hover:border-brand hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_14px_28px_rgba(47,107,79,0.18)]"
           : "border-[#DCE4D9] bg-[linear-gradient(145deg,#FFFFFF_0%,#FAFCF8_100%)] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_3px_10px_rgba(24,38,25,0.035)] hover:border-brand/30 hover:bg-[linear-gradient(145deg,#FFFFFF_0%,#F2F7F0_100%)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_12px_24px_rgba(47,107,79,0.10)]",
       ].join(" ")}
     >

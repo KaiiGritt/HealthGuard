@@ -9,10 +9,11 @@ import PageHeader from "../../components/PageHeader";
 import RiskCard from "../../components/RiskCard";
 import ResultText from "../../components/ResultText";
 import SymptomSummaryChip from "../../components/SymptomSummaryChip";
+import ClinicalExplanation from "../ClinicalExplanation";
 import { IconAssessment, IconCheck, IconChevronDown, IconHistory } from "../../components/ui/icons";
 import { clearPendingGuestPayload, type AnalyzeResult } from "@/lib/api";
 import { getReportedSymptomClassifications } from "@/lib/coughClassifications";
-import { translatedAssessmentReason, translatedRuleDescription, translatedRuleTitle } from "../resultTranslations";
+import { ruleContributedToRisk, translatedRuleDescription, translatedRuleTitle } from "../resultTranslations";
 
 const RULE_TITLES: Record<string, string> = {
   "duration-score": "Symptom duration",
@@ -47,13 +48,17 @@ function ruleDescription(name: string, description: string) {
   if (name === "persistent-cough") return "A cough lasting more than 30 days needs further clinical assessment.";
   if (name === "persistent-diarrhea") return "Diarrhea lasting 14 days or longer needs clinical assessment.";
   if (name === "weighted-symptom-score") {
-    const score = description.match(/final score is (\d+)/)?.[1];
+    const score = description.match(/final score (?:is|of) (\d+)/)?.[1];
     return `The recognized symptoms contributed to a combined clinical score of ${score ?? "the recorded total"}.`;
   }
-  if (name === "high-severity-score") return "The total clinical score is 6 or higher, which is in the RED range and requires urgent medical attention.";
+  if (name === "symptom-combination-score") {
+    const score = description.match(/final urgency level \((\d+)\)/)?.[1];
+    return `The recognized symptoms were considered together. Their combined score was ${score ?? "included in the assessment"}.`;
+  }
+  if (name === "high-severity-score") return "A combined score of 8 or higher is in the RED range and requires urgent medical attention.";
   if (name === "moderate-severity-score") {
     const score = description.match(/severity \((\d+)\)/)?.[1];
-    return `Your combined symptom score is ${score ?? "within the consultation range"}. Scores from 3 to 5 are marked YELLOW, which means you should contact a health worker or visit the RHU.`;
+    return `Your combined symptom score is ${score ?? "within the consultation range"}. Scores from 3 to 7 are marked YELLOW, which means you should contact a health worker or visit the RHU.`;
   }
   if (name === "mild-severity-score") {
     return "The recognized symptoms are below the consultation score. Continue monitoring and seek help if they worsen.";
@@ -107,25 +112,33 @@ export default function GuestResultPage() {
         <div className="space-y-6">
           <Card className="!p-4 sm:!p-6 lg:!p-7 overflow-hidden rounded-[24px] border border-[#dfe7dc] bg-[linear-gradient(180deg,#ffffff_0%,#f8faf5_100%)] shadow-[0_20px_55px_rgba(15,23,42,0.06)] xl:grid xl:grid-cols-2 xl:items-start xl:gap-4">
             <div className="xl:col-span-2">
-              <RiskCard level={result.risk_level} message={result.message} recommendation={result.recommendation} />
+              <RiskCard
+                level={result.risk_level}
+                message={result.message}
+                recommendation={result.recommendation}
+                triggeredRules={result.triggered_rules}
+                detectedSymptoms={result.detected_symptoms.map((symptom) => symptom.medical_term)}
+              />
             </div>
 
             <section className="relative mt-6 overflow-hidden rounded-3xl border border-[#DCE6D9] bg-[linear-gradient(145deg,#FFFFFF_0%,#F8FAF6_100%)] p-4 shadow-[0_12px_30px_rgba(31,74,54,0.05)] sm:p-5 xl:mt-0">
               <div className="absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-[#DCE6D9] to-transparent" aria-hidden="true" />
-              <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#e6eee1] pb-3">
-                <div className="flex min-w-0 items-start gap-3">
-                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[#DCE7D9] bg-white text-brand shadow-[0_3px_10px_rgba(31,74,54,0.06)]" aria-hidden="true">
+              <div className="border-b border-[#e6eee1] pb-3.5">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#DCE7D9] bg-white text-brand shadow-[0_3px_10px_rgba(31,74,54,0.06)]" aria-hidden="true">
                     <IconCheck size={16} />
                   </span>
-                  <div className="min-w-0">
+                  <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
                     <ResultText as="h3" className="font-display text-base font-semibold leading-tight text-ink sm:text-lg" english="Condition summary" filipino="Buod ng kondisyon" />
-                    <ResultText as="p" className="mt-1 text-xs leading-relaxed text-ink-muted sm:text-sm" english="Symptoms are summaries, not diagnoses. Text-match confidence is not medical certainty." filipino="Mga buod lamang ang mga sintomas, hindi diagnosis. Hindi garantiya ng katiyakang medikal ang pagtutugma ng teksto." />
+                    <span className="shrink-0 rounded-full border border-[#cfe0cf] bg-white px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-brand-dark shadow-[0_2px_8px_rgba(47,107,79,0.05)]">
+                      <ResultText english={`${result.detected_symptoms.length} noted`} filipino={`${result.detected_symptoms.length} naitala`} />
+                    </span>
                   </div>
                 </div>
-                <span className="shrink-0 rounded-full border border-[#cfe0cf] bg-white px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-brand-dark shadow-[0_2px_8px_rgba(47,107,79,0.05)]"><ResultText english={`${result.detected_symptoms.length} noted`} filipino={`${result.detected_symptoms.length} naitala`} /></span>
+                <ResultText as="p" className="mt-2.5 text-xs leading-relaxed text-ink-muted sm:text-sm" english="Symptoms are summaries, not diagnoses. The text-match percentage shows how closely your wording matched a symptom phrase; it is not clinically calibrated and does not estimate the chance of a disease." filipino="Mga buod lamang ang mga sintomas, hindi diagnosis. Ipinapakita ng porsiyento ng pagtutugma ng teksto kung gaano kalapit ang mga salitang ginamit mo sa isang parirala ng sintomas; hindi ito na-calibrate sa klinika at hindi tinatantiya ang posibilidad ng sakit." />
               </div>
               {result.detected_symptoms.length > 0 ? (
-                <ul className="mt-4 flex flex-wrap gap-2">
+                <ul className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {result.detected_symptoms.map((symptom) => {
                     const reportedTypes = getReportedSymptomClassifications(symptom.medical_term, result.input_text);
                     return <SymptomSummaryChip key={symptom.medical_term} symptom={symptom.medical_term} reportedTypes={reportedTypes} confidence={symptom.confidence} />;
@@ -142,14 +155,20 @@ export default function GuestResultPage() {
                   </span>
                   <span className="min-w-0">
                     <ResultText as="span" className="block text-sm font-semibold text-ink sm:text-base" english="Clinical explanation" filipino="Paliwanag sa pagsusuri" />
-                    <ResultText as="span" className="mt-0.5 block text-xs leading-relaxed text-ink-muted sm:text-sm" english="View assessment reasoning" filipino="Tingnan ang batayan ng pagsusuri" />
+                    <ResultText as="span" className="mt-0.5 block text-xs leading-relaxed text-ink-muted sm:text-sm" english="Why this level, warning signs, next steps, and limits" filipino="Bakit ganito ang antas, mga babala, susunod na hakbang, at limitasyon" />
                   </span>
                 </span>
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#dce7d9] bg-white text-brand transition-transform duration-200 group-open:rotate-180" aria-hidden="true">
                   <IconChevronDown size={16} />
                 </span>
               </summary>
-              <ResultText as="p" className="mt-4 border-t border-[#e4ebe1] pt-4 text-sm leading-6 text-ink-secondary sm:text-base sm:leading-7" english={result.reason} filipino={translatedAssessmentReason(result.reason, result.risk_level)} />
+              <ClinicalExplanation
+                level={result.risk_level}
+                reason={result.reason}
+                recommendation={result.recommendation}
+                triggeredRules={result.triggered_rules}
+                detectedSymptoms={result.detected_symptoms.map((symptom) => symptom.medical_term)}
+              />
               {result.input_text && (
                 <p className="mt-4 rounded-xl border border-[#e2e9de] bg-white/80 px-3.5 py-3 text-xs leading-5 text-ink-faint sm:text-sm sm:leading-relaxed">
                   <ResultText as="span" className="mb-1 block font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-ink-muted sm:text-[10px]" english="Reported information" filipino="Iniulat na impormasyon" />
@@ -166,7 +185,7 @@ export default function GuestResultPage() {
                   </span>
                   <span className="min-w-0">
                     <ResultText as="span" className="block text-sm font-semibold text-ink sm:text-base" english="Rules used" filipino="Mga ginamit na tuntunin" />
-                    <ResultText as="span" className="mt-0.5 block text-xs leading-relaxed text-ink-muted sm:text-sm" english="View applied assessment rules" filipino="Tingnan ang mga ginamit na tuntunin" />
+                    <ResultText as="span" className="mt-0.5 block text-xs leading-relaxed text-ink-muted sm:text-sm" english="See which rules influenced this result" filipino="Tingnan kung aling mga tuntunin ang nakaapekto sa resulta" />
                   </span>
                 </span>
                 <span className="flex shrink-0 items-center gap-2">
@@ -176,8 +195,12 @@ export default function GuestResultPage() {
                   </span>
                 </span>
               </summary>
+              <ResultText as="p" className="mt-4 rounded-xl border border-[#dfe8dc] bg-white/75 px-3.5 py-3 text-xs leading-5 text-ink-muted sm:text-sm sm:leading-6" english="Rules marked “Contributed to risk” affected the score or risk decision. Other applied rules provide context but do not change the displayed risk level on their own." filipino="Nakaapekto sa marka o desisyon sa panganib ang mga tuntuning may markang “Nakatulong sa antas ng panganib.” Nagbibigay ng konteksto ang ibang tuntunin ngunit hindi binabago ng mga ito lamang ang ipinakitang antas." />
               <ol className="mt-4 space-y-2.5 sm:mt-5 sm:space-y-3">
-                {result.triggered_rules.map((rule, index) => <li key={`${rule.name}-${index}`} className="group relative rounded-xl border border-[#dfe8dc] bg-white/90 px-3.5 py-3 shadow-[0_3px_10px_rgba(31,74,54,0.03)] transition-colors duration-200 hover:border-[#b9ceb9] sm:px-4 sm:py-3.5"><span className="absolute inset-y-3 left-0 w-0.5 rounded-r-full bg-brand/45 transition-colors duration-200 group-hover:bg-brand" aria-hidden="true" /><div className="flex min-w-0 items-start gap-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[#dce8d8] bg-[#f4f8f0] font-mono text-[11px] font-semibold text-brand-dark">{index + 1}</span><div className="min-w-0"><ResultText as="p" className="font-mono text-[10px] font-semibold uppercase tracking-[0.06em] text-ink-secondary sm:text-[11px] sm:tracking-[0.08em]" english={ruleTitle(rule.name)} filipino={translatedRuleTitle(rule.name, ruleTitle(rule.name))} /><ResultText as="p" className="mt-1 text-[13px] leading-5 text-ink-muted sm:mt-1.5 sm:text-sm sm:leading-6" english={ruleDescription(rule.name, rule.description)} filipino={translatedRuleDescription(rule.name, rule.description)} /></div></div></li>)}
+                {result.triggered_rules.map((rule, index) => {
+                  const contributedToRisk = ruleContributedToRisk(rule.name, result.risk_level);
+                  return <li key={`${rule.name}-${index}`} className="group relative rounded-xl border border-[#dfe8dc] bg-white/90 px-3.5 py-3 shadow-[0_3px_10px_rgba(31,74,54,0.03)] transition-colors duration-200 hover:border-[#b9ceb9] sm:px-4 sm:py-3.5"><span className="absolute inset-y-3 left-0 w-0.5 rounded-r-full bg-brand/45 transition-colors duration-200 group-hover:bg-brand" aria-hidden="true" /><div className="flex min-w-0 items-start gap-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[#dce8d8] bg-[#f4f8f0] font-mono text-[11px] font-semibold text-brand-dark">{index + 1}</span><div className="min-w-0"><ResultText as="p" className="font-mono text-[10px] font-semibold uppercase tracking-[0.06em] text-ink-secondary sm:text-[11px] sm:tracking-[0.08em]" english={ruleTitle(rule.name)} filipino={translatedRuleTitle(rule.name, ruleTitle(rule.name))} /><ResultText as="p" className="mt-1 text-[13px] leading-5 text-ink-muted sm:mt-1.5 sm:text-sm sm:leading-6" english={ruleDescription(rule.name, rule.description)} filipino={translatedRuleDescription(rule.name, rule.description)} /><ResultText as="span" className={`mt-2 inline-flex rounded-full border px-2 py-1 text-[10px] font-semibold leading-4 ${contributedToRisk ? "border-[#c9d8cb] bg-[#f0f7ef] text-brand-dark" : "border-[#e2e7e0] bg-[#f7f8f6] text-ink-muted"}`} english={contributedToRisk ? "Contributed to risk" : "Applied for context"} filipino={contributedToRisk ? "Nakatulong sa antas ng panganib" : "Inilapat bilang konteksto"} /></div></div></li>;
+                })}
               </ol>
             </details>
 

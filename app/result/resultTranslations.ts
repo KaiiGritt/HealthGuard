@@ -113,7 +113,7 @@ export function translatedRuleDescription(name: string, description: string) {
   }
   if (name === "moderate-severity-score") {
     const score = description.match(/severity \((\d+)\)/)?.[1] ?? "nasa antas ng konsultasyon";
-    return `Ang pinagsamang marka ng sintomas ay ${score}. Ang markang 3 hanggang 5 ay DILAW na antas; makipag-ugnayan sa health worker o pumunta sa RHU.`;
+    return `Ang pinagsamang marka ng sintomas ay ${score}. Ang markang 3 hanggang 7 ay DILAW na antas; makipag-ugnayan sa health worker o pumunta sa RHU.`;
   }
   if (name === "mild-severity-score") {
     const score = description.match(/severity \((\d+)\)/)?.[1] ?? "mababa";
@@ -146,4 +146,45 @@ export function translatedAssessmentReason(reason: string, riskLevel: string) {
     ? ` Iniulat na tumagal nang ${duration} araw ang mga sintomas at nagdagdag ito ng ${durationPoints} puntos.`
     : "";
   return `Natukoy sa pagsusuri ang ${translateSymptomList(symptomList)}.${durationText} Ang pinagsamang klinikal na marka ay ${score}. ${levelAdvice[riskLevel] ?? ""}`.trim();
+}
+
+const SCORE_CONTRIBUTING_RULES = new Set([
+  "age-risk-modifier",
+  "duration-score",
+  "pregnancy-fever-review",
+  "short-cough-duration-cap",
+  "symptom-combination-score",
+  "weighted-symptom-score",
+]);
+
+const RISK_DECISION_RULES: Record<string, Set<string>> = {
+  RED: new Set([
+    "difficulty-breathing-override",
+    "high-severity-score",
+    "older-adult-fever-weakness-override",
+    "prolonged-fever-emergency",
+    "repeat-assessment-escalation",
+    "symptom-count-escalation",
+    "young-infant-fever-referral",
+  ]),
+  YELLOW: new Set([
+    "blood-in-stool-health-worker-review",
+    "cannot-retain-fluids-review",
+    "dehydration-risk-review",
+    "first-cluster-like-headache-review",
+    "headache-triggered-by-activity-review",
+    "high-stool-frequency-review",
+    "moderate-severity-score",
+    "relative-onset-needs-review",
+    "repeat-assessment-escalation",
+    "symptom-count-escalation",
+    "unclear-symptoms-floor",
+  ]),
+  GREEN: new Set(["duration-not-provided", "mild-severity-score"]),
+};
+
+export function ruleContributedToRisk(name: string, riskLevel: string) {
+  if (SCORE_CONTRIBUTING_RULES.has(name)) return true;
+  if (name.startsWith("critical:")) return riskLevel === "RED";
+  return RISK_DECISION_RULES[riskLevel]?.has(name) ?? false;
 }

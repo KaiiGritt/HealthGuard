@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import Disclaimer from "../components/Disclaimer";
+import MedicalTermLabel from "../components/MedicalTermLabel";
 import PageHeader from "../components/PageHeader";
 import { useDashboardText } from "../components/dashboardLanguage";
 import { useInterfaceLanguage } from "../components/LanguageProvider";
@@ -280,31 +281,47 @@ function AssessmentCaseCard({
       <div className="px-5 py-5 sm:px-6">
         <div className="rounded-2xl border border-[#e5ebe2] bg-[linear-gradient(145deg,#fbfcfa_0%,#f6f9f4_100%)] px-4 py-4">
           <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.15em] text-[#758171]">{t("Reported symptoms", "Mga naiulat na sintomas")}</p>
-          <div className="mt-2 flex flex-wrap gap-2">
+          <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
             {item.detected_symptoms?.length ? item.detected_symptoms.map((symptom) => {
               const isUrgent = isUrgencySymptom(symptom);
               const reportedTypes = getReportedSymptomClassifications(symptom, item.note);
               const medicalTerm = getMedicalTerm(symptom);
               return (
-                <div key={symptom} className="max-w-full rounded-xl border border-[#dfe8dc] bg-white/90 px-2.5 py-2">
-                  <span className={cn(
-                    "inline-flex items-center rounded-lg border px-2.5 py-1 text-sm font-semibold",
+                <div
+                  key={symptom}
+                  className={cn(
+                    "min-w-0 rounded-2xl border px-3 py-3 shadow-[0_3px_10px_rgba(24,38,25,0.025)] transition-colors duration-200",
                     isUrgent
-                      ? "border-[#efc9c1] bg-[#fff0ec] text-[#9e392b]"
-                      : "border-[#dfe8dc] bg-white text-[#344536]",
-                  )}>
-                    {symptom}
-                  </span>
-                  {medicalTerm && <span className="mt-1 block text-[10px] leading-relaxed text-ink-faint">{t("Medical term")}: {medicalTerm}</span>}
+                      ? "border-[#efd5ce] bg-[linear-gradient(145deg,#fffdfa_0%,#fff5f1_100%)]"
+                      : "border-[#e1e8de] bg-[linear-gradient(145deg,#ffffff_0%,#f8faf6_100%)]",
+                  )}
+                >
+                  <div className="flex min-w-0 items-start gap-2.5">
+                    <span className={cn(
+                      "mt-0.5 h-2 w-2 shrink-0 rounded-full",
+                      isUrgent ? "bg-[#bd5542] ring-4 ring-[#f8e6e1]" : "bg-[#548064] ring-4 ring-[#eaf1e7]",
+                    )} aria-hidden="true" />
+                    <span className={cn(
+                      "min-w-0 break-words text-sm font-semibold leading-snug",
+                      isUrgent ? "text-[#87382d]" : "text-[#344536]",
+                    )}>
+                      {t(symptom)}
+                    </span>
+                  </div>
+                  {medicalTerm && (
+                    <div className="mt-2.5 border-t border-[#e7ece4] pt-2">
+                      <MedicalTermLabel term={medicalTerm} />
+                    </div>
+                  )}
                   {reportedTypes.length > 0 && (
-                    <ul className="mt-2 space-y-2 border-t border-[#e8ede5] pt-2">
+                    <ul className="mt-2.5 space-y-2 border-t border-[#e8ede5] pt-2.5">
                       {reportedTypes.map((type) => {
                         const typeMedicalTerm = getMedicalTerm(type.en);
                         return (
                           <li key={type.en} className="min-w-0">
                             <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-[#758171]">{type.categoryLabel}</p>
                             <p className="mt-0.5 text-xs font-semibold text-[#344536]">{type.en}</p>
-                            {typeMedicalTerm && <span className="block text-[10px] leading-relaxed text-ink-faint">{t("Medical term")}: {typeMedicalTerm}</span>}
+                            {typeMedicalTerm && <div className="mt-1.5"><MedicalTermLabel term={typeMedicalTerm} /></div>}
                           </li>
                         );
                       })}

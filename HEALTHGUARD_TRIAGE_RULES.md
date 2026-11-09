@@ -109,7 +109,9 @@ The `four-symptom-override` and `difficulty-breathing-override` entries are expl
 |---|---|---|
 | GREEN | Your symptoms appear mild. Continue monitoring your condition. | Rest, stay hydrated, and self-monitor. Seek help if symptoms worsen. |
 | YELLOW | You may need a consultation. | Contact your Barangay Health Worker or visit the Rural Health Unit (RHU). |
-| RED | Seek immediate medical attention. | Go to the nearest hospital or call emergency services now. Do not delay. |
+| RED | Seek prompt medical assessment. | Arrange assessment today; call 911 or go to an emergency department immediately for severe warning symptoms. |
+
+On the result page, a RED card identifies the warning sign or score that triggered the urgent level and lists the recognized symptoms counted. Fever, cough, and vomiting together do not automatically produce a RED result: their seeded weights total 6 before duration or context adjustments, below the score threshold of 8. The card advises prompt same-day assessment; it directs users to call 911 or go to an emergency department immediately for severe warning symptoms such as difficulty breathing, severe chest pain, fainting or confusion, seizure, heavy bleeding, or inability to keep fluids down.
 
 ## Source Files
 
