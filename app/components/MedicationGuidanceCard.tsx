@@ -53,6 +53,162 @@ function MedicationProfileDisclosure({
   );
 }
 
+const PRODUCTIVE_COUGH_SAFETY_QUESTIONS = [
+  { key: "age", label: "Is the patient under 2 years old?" },
+  { key: "allergy", label: "Does the patient have a medicine or ingredient allergy?" },
+  { key: "asthma", label: "Does the patient have asthma or another long-term lung condition?" },
+  { key: "pregnancy", label: "Is the patient pregnant or breastfeeding?" },
+  { key: "ulcer", label: "Does the patient have a stomach ulcer or a history of stomach/intestinal bleeding?" },
+  { key: "liverKidney", label: "Does the patient have liver or kidney disease?" },
+  { key: "otherMedicines", label: "Is the patient taking any other prescription, over-the-counter, or herbal medicines?" },
+] as const;
+
+const GENERAL_MEDICATION_SAFETY_QUESTIONS = [
+  { key: "ageWeight", label: "Is the patient under 18, or is their age or weight uncertain?" },
+  { key: "allergy", label: "Does the patient have a medicine or ingredient allergy?" },
+  { key: "pregnancy", label: "Is the patient pregnant or breastfeeding?" },
+  { key: "asthma", label: "Does the patient have asthma or another long-term lung condition?" },
+  { key: "liver", label: "Does the patient have liver disease?" },
+  { key: "kidney", label: "Does the patient have kidney disease?" },
+  { key: "heartBloodPressure", label: "Does the patient have heart disease or high blood pressure?" },
+  { key: "ulcerBleeding", label: "Does the patient have a history of stomach ulcers or bleeding?" },
+  { key: "otherMedicines", label: "Is the patient taking other prescription, over-the-counter, or herbal medicines?" },
+  { key: "alreadyTaken", label: "Has the patient already taken medicine for this symptom, including a combination product?" },
+] as const;
+
+type SafetyQuestion = { readonly key: string; readonly label: string };
+type SafetyAnswer = "yes" | "no" | "unsure";
+
+function MedicationSafetyCheck({
+  questions,
+  checkId,
+  onCompletionChange,
+  showProductStatusNote = false,
+}: {
+  questions: readonly SafetyQuestion[];
+  checkId: string;
+  onCompletionChange: (complete: boolean) => void;
+  showProductStatusNote?: boolean;
+}) {
+  const [answers, setAnswers] = useState<Record<string, SafetyAnswer>>({});
+  const complete = questions.every(({ key }) => answers[key] !== undefined);
+  const flaggedAnswers = questions.filter(
+    ({ key }) => answers[key] === "yes" || answers[key] === "unsure",
+  );
+
+  return (
+    <section className="overflow-hidden rounded-2xl border border-[#DCE5D8] bg-white shadow-[0_6px_18px_rgba(31,74,54,0.04)]">
+      <div className="border-b border-[#E6ECE3] bg-[linear-gradient(145deg,#FBFCFA_0%,#F3F7F1_100%)] px-4 py-4 sm:px-5">
+        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-brand-dark">Before taking any medicine</p>
+        <p className="mt-1 text-sm leading-relaxed text-ink-secondary">
+          Answer these safety prompts before opening the medicine information. This check is only on this page; answers are not saved or sent.
+        </p>
+        <p className="mt-2 text-xs leading-relaxed text-ink-muted">
+          A “yes” or “not sure” does not automatically rule out every option. This is not a suitability test; review the exact product and patient situation with a pharmacist or healthcare professional.
+        </p>
+        {showProductStatusNote && (
+          <div className="mt-3 rounded-xl border border-[#DCE5D8] bg-white/80 p-3">
+            <p className="text-xs leading-relaxed text-ink-secondary">
+              A medicine&apos;s generic name or therapeutic class does not establish whether an exact Philippine product is prescription-only or non-prescription. Check its current registration and label.
+            </p>
+            <a
+              href="https://verification.fda.gov.ph/"
+              target="_blank"
+              rel="noreferrer"
+              className="mt-1.5 inline-flex text-xs font-semibold text-brand-dark underline decoration-brand/40 underline-offset-4 hover:decoration-brand"
+            >
+              Search the Philippine FDA verification portal
+            </a>
+          </div>
+        )}
+      </div>
+
+      <div className="divide-y divide-[#EDF1EA] px-4 sm:px-5">
+        {questions.map(({ key, label }) => (
+          <fieldset key={key} className="grid gap-2 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-4">
+            <legend className="text-sm font-medium leading-relaxed text-ink">{label}</legend>
+            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={label}>
+              {([
+                ["no", "No"],
+                ["yes", "Yes"],
+                ["unsure", "Not sure"],
+              ] as const).map(([value, optionLabel]) => (
+                <label key={value} className="cursor-pointer">
+                  <input
+                    className="peer sr-only"
+                    type="radio"
+                    name={`${checkId}-safety-${key}`}
+                    value={value}
+                    checked={answers[key] === value}
+                    onChange={() => {
+                      const next = { ...answers, [key]: value };
+                      setAnswers(next);
+                      onCompletionChange(questions.every(({ key: questionKey }) => next[questionKey] !== undefined));
+                    }}
+                  />
+                  <span className="inline-flex min-h-9 items-center rounded-full border border-[#DCE5D8] bg-white px-3 text-xs font-semibold text-ink-secondary transition-colors peer-checked:border-brand peer-checked:bg-[#EEF5EA] peer-checked:text-brand-dark peer-focus-visible:outline-none peer-focus-visible:ring-4 peer-focus-visible:ring-brand/15">
+                    {optionLabel}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        ))}
+      </div>
+
+      {complete && flaggedAnswers.length > 0 && (
+        <div className="m-4 rounded-xl border border-[#E8D19A] bg-[#FFF9E9] p-3.5 sm:m-5 sm:p-4" role="status">
+          <p className="text-sm font-semibold text-[#795516]">Review these factors with a professional before considering any option</p>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-relaxed text-[#66583D]">
+            {flaggedAnswers.map(({ key, label }) => (
+              <li key={key}>{label} — {answers[key] === "unsure" ? "not sure" : "yes"}</li>
+            ))}
+          </ul>
+          <p className="mt-2 text-xs leading-relaxed text-[#66583D]">
+            This guide cannot check individual contraindications or interactions and does not decide which medicine is suitable.
+          </p>
+        </div>
+      )}
+      {complete && flaggedAnswers.length === 0 && (
+        <p className="m-4 rounded-xl border border-[#DCE5D8] bg-[#F7FAF5] p-3.5 text-sm leading-relaxed text-ink-secondary sm:m-5 sm:p-4" role="status">
+          No listed factors were selected. This does not confirm that any medicine is safe or appropriate for this patient.
+        </p>
+      )}
+      {!complete && (
+        <p className="px-4 pb-4 text-xs leading-relaxed text-ink-muted sm:px-5">
+          Answer all {questions.length} questions to reveal the general reference information. You can change answers at any time.
+        </p>
+      )}
+    </section>
+  );
+}
+
+function MedicationSafetyReviewGate({
+  enabled,
+  checkId,
+  children,
+}: {
+  enabled: boolean;
+  checkId: string;
+  children: ReactNode;
+}) {
+  const [complete, setComplete] = useState(false);
+
+  return (
+    <>
+      {enabled && (
+        <MedicationSafetyCheck
+          questions={GENERAL_MEDICATION_SAFETY_QUESTIONS}
+          checkId={checkId}
+          onCompletionChange={setComplete}
+          showProductStatusNote
+        />
+      )}
+      {(!enabled || complete) && children}
+    </>
+  );
+}
+
 function MedicationIdentityDetails({
   kind,
   classification,
@@ -98,7 +254,7 @@ function ParacetamolMedicineDetails({ medicine }: { medicine: MedicationCatalogE
         <h4 className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-secondary sm:text-xs">Medicine details</h4>
         <span className="inline-flex items-center gap-1.5 rounded-full border border-[#CFE0CF] bg-white/85 px-2.5 py-1 font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-brand-dark shadow-[0_2px_8px_rgba(47,107,79,0.05)] sm:text-[10px]">
           <span className="h-1.5 w-1.5 rounded-full bg-brand" aria-hidden="true" />
-          OTC medicine
+          Product status not verified
         </span>
       </div>
       <dl className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -168,79 +324,191 @@ function ParacetamolProfile({ medicine }: { medicine: MedicationCatalogEntry }) 
 }
 
 function ProductiveCoughProfile({ medicines }: { medicines: MedicationCatalogEntry[] }) {
+  const [safetyCheckComplete, setSafetyCheckComplete] = useState(false);
   const sharedGuidance = medicines[0];
   if (!sharedGuidance) return null;
 
   return (
     <MedicationProfileDisclosure title="Productive-cough medicine information">
-        <div className="rounded-xl border border-[#D8E5D5] bg-[linear-gradient(145deg,#FFFFFF_0%,#F5F9F1_100%)] p-3 sm:p-4">
-          <p className="text-sm font-semibold text-brand-dark">Informational options, not a combination regimen</p>
-          <p className="mt-1 text-xs leading-relaxed text-ink-secondary sm:text-sm">
-            These medicines are alternatives to discuss with a pharmacist or healthcare professional. Do not start or combine them based on this list alone.
-          </p>
-        </div>
+      <div className="rounded-xl border border-[#D8E5D5] bg-[linear-gradient(145deg,#FFFFFF_0%,#F5F9F1_100%)] p-4 sm:p-5">
+        <p className="text-base font-semibold text-brand-dark">Information only — alternatives, not a combination treatment</p>
+        <p className="mt-1.5 text-sm leading-relaxed text-ink-secondary">
+          The system does not select, prescribe, or confirm that any medicine is suitable. Do not start or combine these options based on this list alone.
+        </p>
+      </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-xl border border-[#D3E2D0] bg-[#F3F8F0] p-3 sm:p-4">
-            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-brand-dark">Expectorant</p>
-            <p className="mt-1 text-xs leading-relaxed text-ink-secondary sm:text-sm">Helps loosen mucus so it can be coughed out more easily.</p>
+      <MedicationSafetyCheck
+        questions={PRODUCTIVE_COUGH_SAFETY_QUESTIONS}
+        checkId="productive-cough"
+        onCompletionChange={setSafetyCheckComplete}
+      />
+
+      {safetyCheckComplete && (
+      <>
+      <div className="rounded-xl border border-[#E5D4A8] bg-[#FFFBF0] p-4 sm:p-5">
+        <p className="text-sm font-semibold text-[#785619]">Guideline context for acute cough</p>
+        <p className="mt-1.5 text-sm leading-relaxed text-[#5F5746]">
+          NICE advises against mucolytics such as acetylcysteine or carbocisteine for acute cough associated with an upper respiratory infection or acute bronchitis. It notes limited evidence of benefit for guaifenesin in people aged 12 and over. This UK guidance is not a Philippine product label and may not apply to every cause of cough.
+        </p>
+        <a
+          href="https://www.nice.org.uk/guidance/ng120/chapter/recommendations"
+          target="_blank"
+          rel="noreferrer"
+          className="mt-2 inline-flex text-sm font-semibold text-brand-dark underline decoration-brand/40 underline-offset-4 hover:decoration-brand"
+        >
+          Read NICE acute cough recommendations
+        </a>
+      </div>
+
+      <div className="rounded-xl border border-[#DCE5D8] bg-[#FBFCF9] p-4 sm:p-5">
+        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-secondary">Therapeutic class, not regulatory status</p>
+        <p className="mt-1.5 text-sm leading-relaxed text-ink-secondary">
+          “Expectorant” and “mucolytic” describe medicine classes. They do not tell you whether a specific brand, strength, or formulation is prescription-only or over-the-counter in the Philippines. Verify the exact registered product and follow its current package information.
+        </p>
+        <a
+          href="https://verification.fda.gov.ph/"
+          target="_blank"
+          rel="noreferrer"
+          className="mt-2 inline-flex text-sm font-semibold text-brand-dark underline decoration-brand/40 underline-offset-4 hover:decoration-brand"
+        >
+          Search the Philippine FDA verification portal
+        </a>
+      </div>
+
+      {medicines.length > 0 && (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-xl border border-[#D3E2D0] bg-[#F3F8F0] p-4 sm:p-5">
+              <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-brand-dark">Expectorant</p>
+              <p className="mt-1.5 text-sm leading-relaxed text-ink-secondary">Helps loosen mucus so it can be coughed out more easily.</p>
+            </div>
+            <div className="rounded-xl border border-[#DCE5D8] bg-[#FBFCF9] p-4 sm:p-5">
+              <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-secondary">Mucolytic</p>
+              <p className="mt-1.5 text-sm leading-relaxed text-ink-secondary">Helps make thick mucus thinner and less sticky.</p>
+            </div>
           </div>
-          <div className="rounded-xl border border-[#DCE5D8] bg-[#FBFCF9] p-3 sm:p-4">
-            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-secondary">Mucolytic</p>
-            <p className="mt-1 text-xs leading-relaxed text-ink-secondary sm:text-sm">Helps make thick mucus thinner and less sticky.</p>
+
+          <section>
+            <h4 className="mb-2 font-mono text-xs font-semibold uppercase tracking-[0.1em] text-ink-secondary">Medicine information</h4>
+            <div className="space-y-2.5">
+              {medicines.map((medicine) => {
+                const hasAmbroxolBromhexineWarning = ["Ambroxol", "Bromhexine"].includes(medicine.generic_name);
+                const isAcetylcysteine = medicine.generic_name === "Acetylcysteine (NAC)";
+                return (
+                  <details key={medicine.generic_name} className="group/medicine overflow-hidden rounded-xl border border-[#DDE7DB] bg-white shadow-[0_3px_10px_rgba(24,38,25,0.025)]">
+                    <summary className="cursor-pointer list-none p-4 outline-none transition-colors hover:bg-[#FBFCF9] focus-visible:ring-4 focus-visible:ring-brand/15 sm:p-5">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="font-display text-base font-semibold text-ink sm:text-lg">{medicine.generic_name}</span>
+                        <span className="rounded-full border border-[#D3E2D0] bg-[#F3F8F0] px-2.5 py-1 text-xs font-semibold text-brand-dark">{medicine.classification}</span>
+                      </div>
+                      <p className="mt-1.5 text-sm leading-relaxed text-ink-secondary">{medicine.common_use}</p>
+                      <p className="mt-2 text-xs font-medium text-brand-dark">View indications, precautions, and product information</p>
+                    </summary>
+                    <div className="space-y-3 border-t border-[#E3E7DC] bg-[#FCFDFB] p-4 sm:p-5">
+                      <SectionBlock title="Medical uses / indications" items={medicine.indications} />
+                      <SectionBlock title="Common dosage forms" items={medicine.dosage_forms} />
+                      <SectionBlock title="Adult dosage guidance (general reference only)" items={medicine.dosage_guidance} />
+                      <SectionBlock title="Possible side effects" items={medicine.side_effects} />
+
+                      <div className="rounded-xl border border-[#E4EAE1] bg-white p-3.5 sm:p-4">
+                        <h5 className="text-sm font-semibold text-ink">Formal contraindications</h5>
+                        <p className="mt-1 text-sm leading-relaxed text-ink-secondary">
+                          Contraindications have not been verified for the exact Philippine product in this generic reference catalog. Check the registered product leaflet with a pharmacist; a missing entry does not mean there are no contraindications.
+                        </p>
+                      </div>
+
+                      {medicine.medicine_specific_precautions.length > 0 ? (
+                        <SectionBlock title={`Medicine-specific precautions — ${medicine.generic_name}`} items={medicine.medicine_specific_precautions} />
+                      ) : (
+                        <div className="rounded-xl border border-[#E4EAE1] bg-white p-3.5 sm:p-4">
+                          <h5 className="text-sm font-semibold text-ink">Medicine-specific precautions</h5>
+                          <p className="mt-1 text-sm leading-relaxed text-ink-secondary">
+                            No product-specific precautions are recorded in this generic catalog entry. Check the exact product information before use.
+                          </p>
+                        </div>
+                      )}
+
+                      {hasAmbroxolBromhexineWarning && (
+                        <div className="rounded-xl border border-[#E8D19A] bg-[#FFF9E9] p-3.5 sm:p-4">
+                          <h5 className="text-sm font-semibold text-[#795516]">Serious allergic or skin reactions</h5>
+                          <p className="mt-1 text-sm leading-relaxed text-[#66583D]">
+                            The European Medicines Agency identified a small risk of serious allergic reactions and severe skin reactions with ambroxol- and bromhexine-containing medicines. Follow the exact local product information and seek urgent care for a severe reaction.
+                          </p>
+                          <a
+                            href="https://www.ema.europa.eu/en/medicines/human/referrals/ambroxol-bromhexine-containing-medicines"
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-2 inline-flex text-sm font-semibold text-[#795516] underline underline-offset-4"
+                          >
+                            Read EMA safety review
+                          </a>
+                        </div>
+                      )}
+
+                      {isAcetylcysteine && (
+                        <div className="rounded-xl border border-[#DCE5D8] bg-white p-3.5 sm:p-4">
+                          <p className="text-sm leading-relaxed text-ink-secondary">
+                            This product document is for one UK 200 mg powder formulation only; it is not confirmation of Philippine registration, status, or instructions for other strengths and formulations.
+                          </p>
+                          <a
+                            href="https://www.medicines.org.uk/emc/product/13029/smpc"
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-2 inline-flex text-sm font-semibold text-brand-dark underline decoration-brand/40 underline-offset-4"
+                          >
+                            View UK acetylcysteine 200 mg product information
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  </details>
+                );
+              })}
+            </div>
+          </section>
+
+          <details className="overflow-hidden rounded-xl border border-[#DCE5D8] bg-white">
+            <summary className="cursor-pointer px-4 py-3.5 text-sm font-semibold text-brand-dark outline-none focus-visible:ring-4 focus-visible:ring-brand/15 sm:px-5">
+              General precautions — applicability varies by product
+            </summary>
+            <div className="space-y-3 border-t border-[#E3E7DC] bg-[#FCFDFB] p-4 sm:p-5">
+              <p className="text-sm leading-relaxed text-ink-secondary">
+                These are group-level reminders, not warnings that apply equally to every medicine. Review each medicine’s specific information and exact product leaflet.
+              </p>
+              <SectionBlock title="General precautions" items={sharedGuidance.precautions} />
+            </div>
+          </details>
+
+          <div className="rounded-xl border border-[#E4C77C] bg-[#FFFDF2] p-4 sm:p-5">
+            <h4 className="text-sm font-semibold text-[#795516]">Potential serious reactions — check the exact product</h4>
+            <p className="mt-1 text-sm leading-relaxed text-[#66583D]">
+              The following group-level catalog warnings do not apply equally to every option. Consult the current leaflet for the specific product.
+            </p>
+            <ul className="mt-3 space-y-2 text-sm leading-relaxed text-ink-secondary">
+              {sharedGuidance.serious_reactions.map((item) => (
+                <li key={item} className="flex gap-2">
+                  <span className="mt-0.5 text-[#966719]" aria-hidden="true">•</span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
           </div>
-        </div>
 
-        <section>
-          <h4 className="mb-2 font-mono text-xs font-semibold uppercase tracking-[0.1em] text-ink-secondary">Medicine options</h4>
-          <div className="space-y-2">
-            {medicines.map((medicine) => (
-              <details key={medicine.generic_name} className="group/medicine overflow-hidden rounded-xl border border-[#DDE7DB] bg-white">
-                <summary className="cursor-pointer list-none p-3 outline-none transition-colors hover:bg-[#FBFCF9] focus-visible:ring-4 focus-visible:ring-brand/15 sm:p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="font-display text-sm font-semibold text-ink sm:text-base">{medicine.generic_name}</span>
-                    <span className="rounded-full border border-[#D3E2D0] bg-[#F3F8F0] px-2.5 py-1 text-[10px] font-semibold text-brand-dark">{medicine.classification}</span>
-                  </div>
-                  <p className="mt-1 text-xs leading-relaxed text-ink-secondary sm:text-sm">{medicine.common_use}</p>
-                </summary>
-                <div className="grid gap-3 border-t border-[#E3E7DC] bg-[#FCFDFB] p-3 sm:grid-cols-2 sm:p-4">
-                  <SectionBlock title="Common dosage forms" items={medicine.dosage_forms} />
-                  <SectionBlock title="Possible side effects" items={medicine.side_effects} />
-                  <div className="sm:col-span-2">
-                    <SectionBlock title="Adult dosage guidance (general)" items={medicine.dosage_guidance} />
-                  </div>
-                </div>
-              </details>
-            ))}
+          <div className="rounded-xl border border-[#E9B7AD] bg-[#FFF6F4] p-4 sm:p-5">
+            <h4 className="text-sm font-semibold text-[#9B3528]">Suspected overdose or severe reaction</h4>
+            <ul className="mt-2 space-y-2 text-sm leading-relaxed text-ink-secondary">
+              {sharedGuidance.overdose_guidance.map((item) => (
+                <li key={item} className="flex gap-2">
+                  <span className="mt-0.5 text-[#9B3528]" aria-hidden="true">•</span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
           </div>
-        </section>
-
-        <SectionBlock title="Medical uses / indications" items={sharedGuidance.indications} />
-        <SectionBlock title="Precautions and warnings" items={sharedGuidance.precautions} />
-
-        <div className="rounded-xl border border-[#E4C77C] bg-[#FFFDF2] p-3 sm:p-4">
-          <h4 className="font-mono text-xs font-semibold uppercase tracking-[0.1em] text-[#966719]">Rare but serious reactions</h4>
-          <ul className="mt-2 space-y-2 text-[13px] leading-5 text-ink-secondary sm:text-sm sm:leading-relaxed">
-            {sharedGuidance.serious_reactions.map((item) => (
-              <li key={item} className="flex gap-2">
-                <span className="mt-0.5 text-[#966719]" aria-hidden="true">•</span>
-                <span>{item}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="rounded-xl border border-[#E9B7AD] bg-[#FFF6F4] p-3 sm:p-4">
-          <h4 className="font-mono text-xs font-semibold uppercase tracking-[0.1em] text-[#9B3528]">Overdose or serious reaction</h4>
-          <ul className="mt-2 space-y-2 text-[13px] leading-5 text-ink-secondary sm:text-sm sm:leading-relaxed">
-            {sharedGuidance.overdose_guidance.map((item) => (
-              <li key={item} className="flex gap-2">
-                <span className="mt-0.5 text-[#9B3528]" aria-hidden="true">•</span>
-                <span>{item}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+        </>
+      )}
+      </>
+      )}
     </MedicationProfileDisclosure>
   );
 }
@@ -863,6 +1131,9 @@ function MedicationCard({
   const isVomiting = isMotionSicknessSupport || (isOralRehydration && hasVomiting);
   const isDiarrhea = isDiarrheaSupport || (isOralRehydration && hasDiarrhea);
   const hasCatalogProfile = isParacetamol || isProductiveCough || isDryCough || isDiarrhea || isVomiting || isColdCare || isHeadacheCare || isAbdominalSupport || isRashCare;
+  const requiresGeneralSafetyReview = hasCatalogProfile
+    && !isProductiveCough
+    && !(isRashCare && (isSystemicRashReview || isUrgentRashReview));
   const classification = isDryCough
     ? "Antitussive / antihistamine options"
     : isProductiveCough
@@ -893,7 +1164,7 @@ function MedicationCard({
           : isAbdominalSupport
             ? "Abdominal support"
             : isParacetamol
-              ? "OTC medicine"
+              ? "Product status not verified"
               : "Symptom guidance";
   const commonUse = isDryCough
     ? "Options to discuss for dry cough; these are not a combined regimen."
@@ -1102,6 +1373,11 @@ function MedicationCard({
           )}
         </div>
       </div>
+      <MedicationSafetyReviewGate
+        key={item.drugName}
+        enabled={requiresGeneralSafetyReview}
+        checkId="general-medication"
+      >
       {item.note && isParacetamol && (
         <div className="mt-3 rounded-2xl border border-[#E3E7DC] bg-[#FBFCF9] p-3 sm:mt-4 sm:p-4 lg:p-5">
           <h4 className="font-mono text-xs font-semibold uppercase tracking-[0.1em] text-ink-secondary lg:text-sm">
@@ -1165,6 +1441,13 @@ function MedicationCard({
       {isHeadacheCare && headacheMedicineError && (
         <p className="mt-3 text-xs text-[#9B3528]" role="alert">{headacheMedicineError}</p>
       )}
+      {isAbdominalSupport && abdominalMedicines && <AbdominalSupportProfile medicines={abdominalMedicines} />}
+      {isAbdominalSupport && !abdominalMedicines && !abdominalMedicineError && (
+        <p className="mt-3 text-xs text-ink-muted" role="status">Loading abdominal-support medicine information…</p>
+      )}
+      {isAbdominalSupport && abdominalMedicineError && (
+        <p className="mt-3 text-xs text-[#9B3528]" role="alert">{abdominalMedicineError}</p>
+      )}
       {isRashCare && (
         <RashMedicationProfile
           item={item}
@@ -1177,6 +1460,7 @@ function MedicationCard({
         />
       )}
       {!hasCatalogProfile && <GeneralMedicationProfile item={item} isDryCough={isDryCough} />}
+      </MedicationSafetyReviewGate>
     </article>
   );
 }
@@ -1195,17 +1479,17 @@ export default function MedicationGuidanceCard({
 
   return (
     <div className="mt-3 space-y-3">
+      <div className="rounded-2xl border border-[#E4C77C] bg-[linear-gradient(145deg,#FFFDF5_0%,#FFF8E8_100%)] px-4 py-4 shadow-[0_4px_14px_rgba(120,85,22,0.06)] sm:px-5">
+        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-[#795516] sm:text-xs">Important medication safety note</p>
+        <p className="mt-1.5 text-sm leading-relaxed text-ink-secondary">
+          Check with a pharmacist, doctor, or qualified health worker before taking any medicine. This guide is not a diagnosis, prescription, or confirmation that a medicine is suitable.
+        </p>
+      </div>
       <MedicationCard
         item={computedGuidance}
         detectedSymptoms={detectedSymptoms}
         inputText={inputText}
       />
-      <div className="rounded-2xl border border-[#E4C77C] bg-white/55 px-3 py-3 sm:px-4 sm:py-3.5 lg:px-5">
-        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-[#966719] lg:text-xs">Important note</p>
-        <p className="mt-1 text-xs leading-5 text-ink-muted sm:mt-1.5 sm:leading-relaxed lg:text-sm">
-          Check with a pharmacist, doctor, or qualified health worker before taking any medicine. This guide is not a substitute for a proper diagnosis.
-        </p>
-      </div>
     </div>
   );
 }

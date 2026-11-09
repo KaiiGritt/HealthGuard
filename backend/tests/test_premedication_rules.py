@@ -510,9 +510,9 @@ def test_validated_subtype_medication_options() -> None:
         "Bromhexine — mucolytic",
         "Acetylcysteine (NAC) — mucolytic",
         "Erdosteine — mucolytic",
-        "Lagundi (Vitex negundo) — herbal cough preparation",
     ):
         assert option in phlegm.note
+    assert "Lagundi" not in phlegm.note
     assert dry_cough is not None and dry_cough.medication_name == "Dry cough options"
     assert non_productive_cough is not None and non_productive_cough.medication_name == "Dry cough options"
     assert ambiguous_cough is not None

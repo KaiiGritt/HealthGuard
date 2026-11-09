@@ -612,7 +612,7 @@ def _build_medication_for_match(
                 "This system does not select a medicine or dose. Confirm suitability with a pharmacist, especially for children, pregnancy, or other health conditions.",
                 "Seek medical care for breathing difficulty, worsening symptoms, or a cough lasting more than 14 days.",
             ),
-            "note": "Options to discuss (not a combined regimen):\nGuaifenesin — expectorant\nCarbocisteine — mucolytic\nAmbroxol — mucolytic / expectorant\nBromhexine — mucolytic\nAcetylcysteine (NAC) — mucolytic\nErdosteine — mucolytic\nLagundi (Vitex negundo) — herbal cough preparation",
+            "note": "Options to discuss (not a combined regimen):\nGuaifenesin — expectorant\nCarbocisteine — mucolytic\nAmbroxol — mucolytic / expectorant\nBromhexine — mucolytic\nAcetylcysteine (NAC) — mucolytic\nErdosteine — mucolytic",
         },
         "Cough subtype not specified": {
             "dosage": "No medicine or dose is selected automatically.",
