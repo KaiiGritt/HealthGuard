@@ -1,8 +1,7 @@
-"""Optional biomedical entity extraction via scispaCy.
+"""Biomedical entity extraction via the configured scispaCy model.
 
-scispaCy has no wheels for Python 3.14, so this adapter is dormant by default. On a
-Python 3.11/3.12 venv with spaCy + scispaCy installed, `is_available()` returns True
-and `extract_entities()` returns biomedical entity spans recognized by the model. The
+Use Python 3.11 or 3.12 with spaCy, scispaCy, and the `en_core_sci_sm` model installed.
+`extract_entities()` returns biomedical entity spans recognized by the model. The
 recognized spans are only useful to triage when they match an existing symptom lexicon
 entry; scispaCy does not itself assign urgency or recommendations.
 """

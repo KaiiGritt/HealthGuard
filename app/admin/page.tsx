@@ -56,6 +56,7 @@ type AdminPageState = {
     reviewed_at: string | null;
   }>;
   biomedical_lexicon_active: boolean;
+  specialist_lexicon_active: boolean;
   triage_rules: Array<{
     name: string;
     severity: string;
@@ -155,6 +156,7 @@ export default function AdminPage() {
       users: moduleData.users,
       lexicon_entries: moduleData.lexicon_entries,
       biomedical_lexicon_active: moduleData.biomedical_lexicon_active,
+      specialist_lexicon_active: moduleData.specialist_lexicon_active,
       triage_rules: moduleData.triage_rules,
       system_settings: moduleData.system_settings,
       privacy_controls: moduleData.privacy_controls,
@@ -177,6 +179,7 @@ export default function AdminPage() {
             users: moduleData.users,
             lexicon_entries: moduleData.lexicon_entries,
             biomedical_lexicon_active: moduleData.biomedical_lexicon_active,
+            specialist_lexicon_active: moduleData.specialist_lexicon_active,
             triage_rules: moduleData.triage_rules,
             system_settings: moduleData.system_settings,
             privacy_controls: moduleData.privacy_controls,

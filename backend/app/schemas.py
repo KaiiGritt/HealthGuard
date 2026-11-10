@@ -369,6 +369,7 @@ class AdminModulesOut(BaseModel):
     users: list[AdminUserItem]
     lexicon_entries: list[AdminLexiconItem]
     biomedical_lexicon_active: bool
+    specialist_lexicon_active: bool
     triage_rules: list[AdminRuleItem]
     system_settings: list[AdminSettingItem]
     privacy_controls: list[AdminPrivacyItem]

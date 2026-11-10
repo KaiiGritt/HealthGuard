@@ -253,6 +253,7 @@ export interface AdminModulesData {
   users: AdminModuleUser[];
   lexicon_entries: AdminModuleLexiconEntry[];
   biomedical_lexicon_active: boolean;
+  specialist_lexicon_active: boolean;
   triage_rules: AdminRuleItem[];
   system_settings: AdminSettingItem[];
   privacy_controls: AdminPrivacyItem[];

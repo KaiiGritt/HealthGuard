@@ -12,7 +12,7 @@ from ..case_summary import build_case_summary
 from ..database import get_db
 from ..deps import get_current_user, get_current_user_optional, require_role
 from ..models import Assessment, AssessmentCaseActivity, AssessmentSymptom, MedicationCatalog, Symptom, SymptomLexicon, User
-from ..nlp import scispacy_adapter
+from ..nlp import scispacy_adapter, specialist_adapter
 from ..nlp.engine import analyze
 from ..nlp.extractor import (
     extract_patient_age,
@@ -619,6 +619,7 @@ def admin_modules(
             for row in lexicon_rows
         ],
         biomedical_lexicon_active=scispacy_adapter.is_available(),
+        specialist_lexicon_active=specialist_adapter.is_available(),
         triage_rules=[
             AdminRuleItem(
                 name="Respiratory distress",
@@ -640,6 +641,18 @@ def admin_modules(
             ),
         ],
         system_settings=[
+            AdminSettingItem(
+                key="scispacy",
+                label="scispaCy entity matcher",
+                value="English biomedical entity extraction",
+                status="Operational" if scispacy_adapter.is_available() else "Not configured",
+            ),
+            AdminSettingItem(
+                key="specialist_lexicon",
+                label="SPECIALIST Lexicon",
+                value="Native lexical variants matched to existing symptoms",
+                status="Operational" if specialist_adapter.is_available() else "Not configured",
+            ),
             AdminSettingItem(key="auto_routing", label="Auto-routing", value="Enabled", status="Operational"),
             AdminSettingItem(key="audit_logging", label="Audit logging", value="Enabled", status="Compliant"),
             AdminSettingItem(key="retention", label="Data retention", value="90 days", status="Policy active"),

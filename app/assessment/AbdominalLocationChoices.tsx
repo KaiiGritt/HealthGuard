@@ -75,7 +75,7 @@ export default function AbdominalLocationChoices({
       <div
         role="group"
         aria-label={localizedText(language, "Nine abdominal areas", "Siyam na bahagi ng tiyan")}
-        className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-2.5"
+        className="grid grid-cols-2 gap-2 sm:gap-2.5 xl:grid-cols-3"
       >
         {ABDOMINAL_LOCATION_OPTIONS.map(renderChoice)}
       </div>

@@ -1,6 +1,5 @@
 # HealthGuard AI — FastAPI backend dependencies
-# Unpinned lower bounds so pip selects wheels compatible with the installed Python
-# (including Python 3.14, where older pinned versions had no prebuilt wheels).
+# scispaCy is part of the assessment pipeline; use Python 3.11 or 3.12.
 
 fastapi>=0.115
 uvicorn[standard]>=0.34
@@ -14,5 +13,4 @@ nltk>=3.9
 PyJWT>=2.9
 argon2-cffi>=23.1
 
-# Optional biomedical entity extraction dependencies are listed in
-# requirements-scispacy.txt. Install them only in a Python 3.11/3.12 environment.
+-r requirements-scispacy.txt

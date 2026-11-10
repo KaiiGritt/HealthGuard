@@ -461,11 +461,15 @@ export default function AssessmentPage() {
 
                               <div className="mt-3">
                                 <p className="text-sm font-semibold text-ink">{localizedText(language, "Where exactly?", "Saan eksakto?")}</p>
-                                <AbdominalPainDiagram />
-                                <AbdominalLocationChoices
-                                  selectedValues={selectedTypes[symptom] ?? []}
-                                  onToggle={(value) => toggleType(symptom, value)}
-                                />
+                                <div className="mt-3 grid gap-4 xl:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)] xl:items-start">
+                                  <AbdominalPainDiagram />
+                                  <div className="rounded-2xl border border-[#DCE5D8] bg-white/70 p-3 sm:p-4">
+                                    <AbdominalLocationChoices
+                                      selectedValues={selectedTypes[symptom] ?? []}
+                                      onToggle={(value) => toggleType(symptom, value)}
+                                    />
+                                  </div>
+                                </div>
                               </div>
 
                               <div className="mt-5">

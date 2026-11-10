@@ -1,8 +1,9 @@
 # HealthGuard AI — Backend (FastAPI)
 
 Three-tier backend: **Next.js → FastAPI → PostgreSQL/MySQL**. Rule-based bilingual NLP triage
-(NLTK + custom two-layer lexicon). The `scispaCy` biomedical layer is optional and dormant
-by default (no wheels for Python 3.14).
+uses NLTK, scispaCy, and the custom English–Tagalog/Bikol symptom lexicon. An additional
+SPECIALIST layer reads the native NLM `LEXICON` file configured locally.
+Use Python 3.11 or 3.12 for the required scispaCy model.
 
 ## One-time setup
 
@@ -72,7 +73,7 @@ Keep the app password private. Restart the backend after changing `.env`.
 
 ### 3. Python environment
 ```bash
-py -m venv .venv
+py -3.12 -m venv .venv
 .\.venv\Scripts\activate          # PowerShell / cmd
 pip install -r requirements.txt
 ```
@@ -115,18 +116,60 @@ python run_engine_smoketest.py
 Runs the full NLP + rule pipeline against representative English/Tagalog inputs and asserts
 the expected Green/Yellow/Red outcomes.
 
-## Activating the optional scispaCy entity matcher
-scispaCy needs Python 3.11/3.12. Install the optional dependencies and model into the
-Python environment used to run the backend:
+## NLP integrations: scispaCy and SPECIALIST Lexicon
+
+The assessment pipeline uses scispaCy entity extraction, the NLTK/custom bilingual
+symptom lexicon, and the rule engine. Use Python 3.11 or 3.12. scispaCy and its model
+are included through `requirements.txt`:
 
 ```powershell
-py -3.12 -m pip install -r requirements-scispacy.txt
+py -3.12 -m pip install -r requirements.txt
 ```
 
-When the model is loadable, recognized biomedical entity phrases are matched against
-existing symptom lexicon entries after English lemmatization. Only matched lexicon entries
-are passed to the existing triage rules; unmatched entities are ignored. scispaCy does
-not supply severity, diagnoses, or recommendations. Without the model, the existing
-lexicon and triage flow continues unchanged. The small model is English-focused and does
-not perform synonym/concept linking; only inflected phrases whose lemma matches an
-existing lexicon entry can add a match. Restart the backend after installation.
+`SCISPACY_REQUIRED` defaults to `true`, so startup fails clearly if the model is
+unavailable. Set it to `false` only for an intentional fallback environment. scispaCy
+is English-focused; it does not supply severity, diagnoses, or recommendations. Its
+entities can only match existing symptom lexicon entries.
+
+The SPECIALIST adapter reads the native `LEXICON` file and uses base forms and spelling
+variants only when the base form exactly matches an existing canonical symptom term.
+It does not infer that a general synonym is a symptom or generate inflections from
+`variants` flags; those require the associated lexical tools. Obtain the SPECIALIST
+Lexicon from the
+[NLM Lexicon project](https://lhncbc.nlm.nih.gov/LSG/Projects/lexicon/current/web/index.html)
+and follow its [terms and conditions](https://lhncbc.nlm.nih.gov/LSG/Projects/lexicon/current/web/termsAndConditions.html).
+NLM makes the tools available at no charge; attribution and redistribution conditions
+still apply. Extract only the main `LEX/LEXICON` file from the downloaded archive,
+keep it outside version control, and set `SPECIALIST_LEXICON_PATH` in `backend/.env`
+or the deployment environment:
+
+```env
+SPECIALIST_LEXICON_PATH=C:/healthguard-local/LEXICON
+```
+
+### Enable SPECIALIST on the deployed backend
+
+The path in your local `backend/.env` points to your computer and is not available to
+Render or another hosting provider. To enable SPECIALIST in production, make the extracted
+`LEXICON` file available to the backend service itself, then set
+`SPECIALIST_LEXICON_PATH` in that service's environment to the file's deployed path. For
+example, if the file is stored on a Render persistent disk mounted at `/var/data`, set:
+
+```env
+SPECIALIST_LEXICON_PATH=/var/data/LEXICON
+```
+
+Upload or provision the file on persistent storage so it remains available across
+deployments; do not rely on a temporary filesystem or the path on your development
+computer. Keep the source file out of Git and check the NLM terms before redistributing
+it as part of a deployment. Redeploy/restart the backend after setting the variable.
+When the path is unset, SPECIALIST matching stays inactive and the other assessment
+layers continue to run. Confirm activation in the backend startup log and admin System
+settings.
+
+The adapter checks phrase boundaries and existing canonical terms, and applies the
+existing negation handling. It never uses SPECIALIST entries to create new triage rules
+or severity weights. A missing path leaves this layer inactive; a configured missing
+or invalid file raises an explicit error. `/health` and admin System settings show
+whether the integrations are active. Record the SPECIALIST release and attribution
+used; keep the source data out of version control.

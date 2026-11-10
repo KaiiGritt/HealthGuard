@@ -27,7 +27,7 @@ from .database import (
     migrate_user_role_schema,
     migrate_medication_catalog_schema,
 )
-from .nlp import scispacy_adapter
+from .nlp import scispacy_adapter, specialist_adapter
 from .routers import assessment, auth
 from .seed import seed_admin, seed_lexicon, seed_lexicon_rules, seed_medication_catalog, seed_mho, seed_risk_and_guide_levels, seed_symptoms
 
@@ -49,6 +49,13 @@ def _ensure_nltk() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    scispacy_active = scispacy_adapter.is_available()
+    if settings.scispacy_required and not scispacy_active:
+        raise RuntimeError(
+            "SCISPACY_REQUIRED is enabled, but the scispaCy model is unavailable. "
+            "Install backend/requirements-scispacy.txt in a supported Python environment."
+        )
+    specialist_active = specialist_adapter.is_available()
     _ensure_nltk()
     Base.metadata.create_all(bind=engine)
     migrate_medication_catalog_schema()
@@ -73,7 +80,8 @@ async def lifespan(app: FastAPI):
     print(f"[startup] Lexicon seeded (+{inserted} new entries). "
           f"Symptoms seeded (+{symptoms_inserted} new entries). "
           f"Medication catalog seeded (+{medication_entries_inserted} new entries). "
-          f"scispaCy layer: {'ACTIVE' if scispacy_adapter.is_available() else 'dormant'}.")
+          f"scispaCy layer: {'ACTIVE' if scispacy_active else 'not available'}. "
+          f"SPECIALIST Lexicon: {'ACTIVE' if specialist_active else 'not configured'}.")
     if admin_created:
         print(f"[startup] Bootstrap admin created: {settings.admin_email} "
               f"(password from ADMIN_PASSWORD env — CHANGE IT).")
@@ -99,4 +107,8 @@ app.include_router(assessment.router)
 
 @app.get("/health", tags=["meta"])
 def health() -> dict:
-    return {"status": "ok", "scispacy": scispacy_adapter.is_available()}
+    return {
+        "status": "ok",
+        "scispacy": scispacy_adapter.is_available(),
+        "specialist_lexicon": specialist_adapter.is_available(),
+    }

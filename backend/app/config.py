@@ -15,6 +15,17 @@ class Settings(BaseSettings):
     database_url: str = DEFAULT_DATABASE_URL
     # Comma-separated list of allowed CORS origins (the Next.js frontend).
     cors_origins: str = "http://localhost:3000"
+    specialist_lexicon_path: Path | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "SPECIALIST_LEXICON_PATH",
+            "specialist_lexicon_path",
+        ),
+    )
+    scispacy_required: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("SCISPACY_REQUIRED", "scispacy_required"),
+    )
 
     # --- Auth ---
     # CHANGE in production via JWT_SECRET env var. Default is dev-only.

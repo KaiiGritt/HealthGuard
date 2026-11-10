@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.database import Base
 from app.models import Assessment, AssessmentCaseActivity, PreMedication, User
+from app.nlp import specialist_adapter
 from app.routers import assessment
 from app.routers.assessment import _build_barangay_stats, _build_weekly_trend, add_assessment_case_activity, history
 from app.schemas import AssessmentCaseActivityIn
@@ -37,12 +38,16 @@ def test_admin_modules_reports_biomedical_model_availability(
     db_session.commit()
 
     monkeypatch.setattr(assessment.scispacy_adapter, "is_available", lambda: False)
+    monkeypatch.setattr(specialist_adapter, "is_available", lambda: False)
     dormant = assessment.admin_modules(db_session, admin)
     assert dormant.biomedical_lexicon_active is False
+    assert dormant.specialist_lexicon_active is False
 
     monkeypatch.setattr(assessment.scispacy_adapter, "is_available", lambda: True)
+    monkeypatch.setattr(specialist_adapter, "is_available", lambda: True)
     active = assessment.admin_modules(db_session, admin)
     assert active.biomedical_lexicon_active is True
+    assert active.specialist_lexicon_active is True
 
 
 def test_case_activity_is_persisted_and_returned(db_session: Session) -> None:

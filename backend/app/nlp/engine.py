@@ -1,7 +1,8 @@
 """Orchestrates the NLP + rule pipeline.
 
-Flow:  raw input  ->  tokenize (NLTK)  ->  lexicon match (Layer 2)
-                  ->  [optional] scispaCy normalize (Layer 1)  ->  rule classification.
+Flow:  raw input  ->  tokenize and custom bilingual lexicon match
+                  ->  reviewed SPECIALIST variant mapping
+                  ->  scispaCy entity normalization  ->  rule classification.
 
 `analyze()` is DB-agnostic: it takes the lexicon entries as plain data, so it can be
 unit-tested standalone (see run_engine_smoketest.py) or fed rows from MySQL.
@@ -10,10 +11,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from . import scispacy_adapter
+from . import scispacy_adapter, specialist_adapter
 from .extractor import extract_symptoms, is_negated_prefix
 from .lexicon import LexiconEntry, Match, match_selected, match_text
 from .rules import Classification, classify, emergency_terms_from_text
+from .tokenizer import normalize
 
 
 @dataclass
@@ -79,6 +81,15 @@ def analyze(
         add(extracted_matches)
     if selected_symptoms:
         add(match_selected(selected_symptoms, entries))
+
+    if input_text:
+        normalized_input_text = normalize(input_text)
+        specialist_matches = []
+        for candidate in specialist_adapter.find_matches(input_text, entries):
+            if is_negated_prefix(normalized_input_text[:candidate.start_char]):
+                continue
+            specialist_matches.append(candidate.match)
+        add(specialist_matches)
 
     # Biomedical entities can only resolve through existing symptom lexicon entries.
     # The model never supplies severity or triage recommendations.
