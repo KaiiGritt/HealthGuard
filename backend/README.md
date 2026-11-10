@@ -131,6 +131,13 @@ unavailable. Set it to `false` only for an intentional fallback environment. sci
 is English-focused; it does not supply severity, diagnoses, or recommendations. Its
 entities can only match existing symptom lexicon entries.
 
+Render currently defaults new services to Python 3.14, which is not supported by
+these pinned SciPy/scispaCy dependencies. The repository's `.python-version` pins the
+backend deployment to Python 3.12. If the Render service has a `PYTHON_VERSION`
+environment variable set, change it to a supported full version such as `3.12.10`;
+that setting takes precedence over `.python-version`. Trigger a new deploy after
+updating the version.
+
 The SPECIALIST adapter reads the native `LEXICON` file and uses base forms and spelling
 variants only when the base form exactly matches an existing canonical symptom term.
 It does not infer that a general synonym is a symptom or generate inflections from
