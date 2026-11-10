@@ -28,10 +28,17 @@ import {
 import Disclaimer from "../components/Disclaimer";
 import PageHeader from "../components/PageHeader";
 import SymptomChip from "../components/SymptomChip";
+import AbdominalPainDiagram from "./AbdominalPainDiagram";
+import AbdominalLocationChoices from "./AbdominalLocationChoices";
+import {
+  ABDOMINAL_LOCATION_OPTIONS,
+  ABDOMINAL_NOT_SURE_OPTION,
+} from "./abdominalLocations";
 import { IconChevronDown } from "../components/ui/icons";
 import { localizedText, useInterfaceLanguage } from "../components/LanguageProvider";
 import { AssessmentTargetProvider } from "./AssessmentTargetContext";
 import FreeTextSymptomToggle from "./FreeTextSymptomToggle";
+import PainScale, { PAIN_SCALE_SYMPTOMS } from "./PainScale";
 import PersonAssessmentPage from "./child/page";
 import { SYMPTOM_CATEGORIES, SYMPTOMS } from "./symptoms";
 
@@ -55,17 +62,6 @@ const MAX_EXACT_DURATION_DAYS = 365;
 const MIN_PROCESSING_TIME_MS = 7000;
 const PROCESSING_STEP_INTERVAL_MS = 2200;
 
-const ABDOMINAL_LOCATION_OPTIONS = [
-  { en: "Upper right", tl: "Itaas na kanan" },
-  { en: "Upper left", tl: "Itaas na kaliwa" },
-  { en: "Upper middle", tl: "Gitnang itaas" },
-  { en: "Lower right", tl: "Ibabang kanan" },
-  { en: "Lower left", tl: "Ibabang kaliwa" },
-  { en: "Lower/general", tl: "Ibaba / pangkalahatan" },
-  { en: "Around the navel", tl: "Palibot ng pusod" },
-  { en: "Not sure", tl: "Hindi sigurado" },
-] as const;
-
 const ABDOMINAL_QUALITY_OPTIONS = [
   ...ABDOMINAL_PAIN_CLASSIFICATIONS,
 ];
@@ -82,7 +78,7 @@ const TYPE_CHIPS: Record<string, { en: string; tl: string; description?: string 
     { en: "Dizziness", tl: "Pagkahilo" },
   ],
   "muscle ache / body soreness": BODY_PAIN_CLASSIFICATIONS,
-  "abdominal pain": [...ABDOMINAL_LOCATION_OPTIONS, ...ABDOMINAL_QUALITY_OPTIONS],
+  "abdominal pain": [...ABDOMINAL_LOCATION_OPTIONS, ABDOMINAL_NOT_SURE_OPTION, ...ABDOMINAL_QUALITY_OPTIONS],
   vomiting: [
     ...VOMITING_CLASSIFICATIONS,
     { en: "Nausea", tl: "Pagduduwal" },
@@ -114,6 +110,7 @@ export default function AssessmentPage() {
   const [showTextInput, setShowTextInput] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [selectedTypes, setSelectedTypes] = useState<Record<string, string[]>>({});
+  const [painLevels, setPainLevels] = useState<Record<string, number>>({});
   const [durationKey, setDurationKey] = useState<string | null>(null);
   const [exactDurationMode, setExactDurationMode] = useState(false);
   const [exactDurationDays, setExactDurationDays] = useState("");
@@ -165,6 +162,12 @@ export default function AssessmentPage() {
         delete next[value];
         return next;
       });
+      setPainLevels((prev) => {
+        const next = { ...prev };
+        delete next[value];
+        if (value === "difficulty breathing") delete next["chest pain"];
+        return next;
+      });
     }
   };
 
@@ -176,6 +179,13 @@ export default function AssessmentPage() {
         : [...current, type];
       return { ...prev, [symptom]: nextTypes };
     });
+    if (symptom === "difficulty breathing" && type === "Chest pain" && selectedTypes[symptom]?.includes(type)) {
+      setPainLevels((prev) => {
+        const next = { ...prev };
+        delete next["chest pain"];
+        return next;
+      });
+    }
   };
 
   const hasExplicitNoSymptoms = (value: string) => {
@@ -186,6 +196,15 @@ export default function AssessmentPage() {
   const canSubmit = text.trim().length > 0 || selected.length > 0;
   const showUrgentNudge = selected.some((s) => URGENT_NUDGE_SYMPTOMS.has(s));
   const selectedSymptomsWithTypes = selected.filter((symptom) => (TYPE_CHIPS[symptom] ?? []).length > 0);
+  const painScaleItems = selected
+    .filter((symptom) => PAIN_SCALE_SYMPTOMS.some((painSymptom) => painSymptom === symptom))
+    .map((symptom) => {
+      const info = SYMPTOMS.find((item) => item.value === symptom);
+      return { key: symptom, label: info ? localizedText(language, info.en, info.tl) : symptom };
+    });
+  if (selectedTypes["difficulty breathing"]?.includes("Chest pain")) {
+    painScaleItems.push({ key: "chest pain", label: localizedText(language, "Chest pain", "Sakit sa dibdib") });
+  }
   const selectedDuration = DURATION_OPTIONS.find((d) => d.key === durationKey) ?? null;
   const exactDaysValue = Number(exactDurationDays);
   const exactDurationValid =
@@ -249,6 +268,9 @@ export default function AssessmentPage() {
         symptomText ? symptomText : "",
         Object.values(selectedTypes).flat().length > 0
           ? `Selected symptom types: ${Object.values(selectedTypes).flat().join(", ")}.`
+          : "",
+        painScaleItems.some((item) => painLevels[item.key] !== undefined)
+          ? `Pain levels: ${painScaleItems.filter((item) => painLevels[item.key] !== undefined).map((item) => `${item.key} ${painLevels[item.key]}/10`).join(", ")}.`
           : "",
         selectedTypes.cough?.length
           ? `Cough type: ${selectedTypes.cough.join(", ")}.`
@@ -439,25 +461,11 @@ export default function AssessmentPage() {
 
                               <div className="mt-3">
                                 <p className="text-sm font-semibold text-ink">{localizedText(language, "Where exactly?", "Saan eksakto?")}</p>
-                                <div className="mt-2.5 grid grid-cols-1 gap-2 min-[400px]:grid-cols-2 sm:gap-2.5 lg:grid-cols-4">
-                                  {ABDOMINAL_LOCATION_OPTIONS.map((type) => {
-                                    const isSelected = selectedTypes[symptom]?.includes(type.en) ?? false;
-                                    return (
-                                      <button
-                                        key={type.en}
-                                        type="button"
-                                        aria-pressed={isSelected}
-                                        onClick={() => toggleType(symptom, type.en)}
-                                        className={`group flex min-h-[76px] w-full flex-col justify-center rounded-xl border px-3 py-2.5 text-left transition duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15 ${isSelected ? "border-[#1F4A36] bg-[linear-gradient(145deg,#2F6B4F_0%,#1F4A36_100%)] text-white shadow-[0_8px_18px_rgba(31,74,54,0.2)]" : "border-[#DCE5D8] bg-white/90 text-ink-secondary shadow-[0_3px_10px_rgba(24,38,25,0.035)] hover:-translate-y-0.5 hover:border-brand/45 hover:bg-white hover:shadow-[0_8px_16px_rgba(31,74,54,0.09)]"}`}
-                                      >
-                                        <span className="flex w-full items-center justify-between gap-2 font-semibold">
-                                          <span>{localizedText(language, type.en, type.tl)}</span>
-                                          <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-[10px] leading-none transition ${isSelected ? "border-white/55 bg-white/15 text-white" : "border-[#CBD8CA] text-transparent group-hover:border-brand/50"}`} aria-hidden="true">✓</span>
-                                        </span>
-                                      </button>
-                                    );
-                                  })}
-                                </div>
+                                <AbdominalPainDiagram />
+                                <AbdominalLocationChoices
+                                  selectedValues={selectedTypes[symptom] ?? []}
+                                  onToggle={(value) => toggleType(symptom, value)}
+                                />
                               </div>
 
                               <div className="mt-5">
@@ -540,6 +548,12 @@ export default function AssessmentPage() {
                     </div>
                   </section>
                 )}
+
+                <PainScale
+                  items={painScaleItems}
+                  values={painLevels}
+                  onSelect={(key, value) => setPainLevels((prev) => ({ ...prev, [key]: value }))}
+                />
 
                 {showUrgentNudge && (
                   <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900 lg:text-base">

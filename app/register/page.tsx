@@ -177,7 +177,7 @@ export default function RegisterPage() {
       <AuthLayout
         step="Step 2 of 2"
         title="Verify your email"
-        subtitle="Enter the 6-digit code we sent to complete your registration."
+        subtitle="Enter the 6-digit code from your email to complete your registration."
         footer={
           <>
             Already verified?{" "}
@@ -187,8 +187,34 @@ export default function RegisterPage() {
           </>
         }
       >
-        <div className="mb-6 rounded-md border border-border bg-surface px-4 py-3 text-sm text-ink-secondary">
-          Code sent to <span className="font-medium text-ink">{form.email}</span>
+        <div
+          className="mb-6 rounded-2xl border border-[#C9DCC8] bg-[linear-gradient(145deg,#F5FAF3_0%,#EBF4E9_100%)] p-4 shadow-[0_6px_18px_rgba(31,74,54,0.06)] sm:p-5"
+          role="status"
+          aria-live="polite"
+        >
+          <p className="text-base font-semibold text-ink">Check your email</p>
+          <p className="mt-1 text-sm leading-relaxed text-ink-secondary">
+            We sent a 6-digit verification code to{" "}
+            <span className="break-all font-semibold text-ink">{form.email.trim()}</span>.
+          </p>
+          <ol className="mt-3 space-y-2 text-sm leading-relaxed text-ink-secondary">
+            <li className="flex gap-2">
+              <span className="font-semibold text-brand" aria-hidden="true">1.</span>
+              <span>
+                Look for an email from <strong className="text-ink">HealthGuard</strong> with the subject{" "}
+                <strong className="text-ink">“HealthGuard — Verify your account.”</strong>
+              </span>
+            </li>
+            <li className="flex gap-2">
+              <span className="font-semibold text-brand" aria-hidden="true">2.</span>
+              <span>
+                If it is not in your inbox, check your <strong className="text-ink">Spam/Junk</strong>, Promotions, or Other folders.
+              </span>
+            </li>
+          </ol>
+          <p className="mt-3 border-t border-[#D8E6D5] pt-3 text-xs leading-relaxed text-ink-muted">
+            Enter the code below. It expires in 10 minutes.
+          </p>
         </div>
 
         <form onSubmit={handleVerify} className={authFormStackClass}>

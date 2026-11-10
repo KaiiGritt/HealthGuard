@@ -11,6 +11,7 @@ from app.routers.assessment import (
     list_cold_medications,
     list_diarrhea_medications,
     list_headache_medications,
+    list_productive_cough_medications,
     list_rash_medications,
     list_vomiting_medications,
 )
@@ -141,6 +142,13 @@ def test_paracetamol_catalog_is_seeded_idempotently() -> None:
         assert any("exact amount of clean water" in item for item in ors.dosage_guidance)
         assert [item.generic_name for item in list_diarrhea_medications(db)] == [
             item["generic_name"] for item in DIARRHEA_MEDICATIONS
+        ]
+        assert [item.generic_name for item in list_productive_cough_medications(db)] == [
+            "Guaifenesin",
+            "Carbocisteine",
+            "Ambroxol",
+            "Bromhexine",
+            "Acetylcysteine (NAC)",
         ]
         assert [item.generic_name for item in list_vomiting_medications(db)] == [
             "Oral Rehydration Salts (ORS)",
@@ -509,9 +517,10 @@ def test_validated_subtype_medication_options() -> None:
         "Ambroxol — mucolytic / expectorant",
         "Bromhexine — mucolytic",
         "Acetylcysteine (NAC) — mucolytic",
-        "Erdosteine — mucolytic",
     ):
         assert option in phlegm.note
+    assert "Erdosteine is not included" in phlegm.note
+    assert any("Some products may be prescription-only" in item for item in phlegm.precautions)
     assert "Lagundi" not in phlegm.note
     assert dry_cough is not None and dry_cough.medication_name == "Dry cough options"
     assert non_productive_cough is not None and non_productive_cough.medication_name == "Dry cough options"

@@ -610,9 +610,10 @@ def _build_medication_for_match(
             "precautions": (
                 "For cough with phlegm. Do not combine with a cough suppressant unless a clinician or pharmacist advises it.",
                 "This system does not select a medicine or dose. Confirm suitability with a pharmacist, especially for children, pregnancy, or other health conditions.",
+                "Some products may be prescription-only. Use a medicine only if the exact Philippine product is non-prescription or it has been prescribed for this patient; this guide cannot provide a prescription.",
                 "Seek medical care for breathing difficulty, worsening symptoms, or a cough lasting more than 14 days.",
             ),
-            "note": "Options to discuss (not a combined regimen):\nGuaifenesin — expectorant\nCarbocisteine — mucolytic\nAmbroxol — mucolytic / expectorant\nBromhexine — mucolytic\nAcetylcysteine (NAC) — mucolytic\nErdosteine — mucolytic",
+            "note": "Options to discuss with a pharmacist or health worker (not a combined regimen):\nGuaifenesin — expectorant\nCarbocisteine — mucolytic\nAmbroxol — mucolytic / expectorant\nBromhexine — mucolytic\nAcetylcysteine (NAC) — mucolytic\nErdosteine is not included in this self-care list because its prescription status has not been confirmed for the exact Philippine product.",
         },
         "Cough subtype not specified": {
             "dosage": "No medicine or dose is selected automatically.",

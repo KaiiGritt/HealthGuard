@@ -335,6 +335,9 @@ function ProductiveCoughProfile({ medicines }: { medicines: MedicationCatalogEnt
         <p className="mt-1.5 text-sm leading-relaxed text-ink-secondary">
           The system does not select, prescribe, or confirm that any medicine is suitable. Do not start or combine these options based on this list alone.
         </p>
+        <p className="mt-2 text-sm font-medium leading-relaxed text-[#795516]">
+          Some products may require a prescription. Use only a product confirmed as non-prescription for its exact Philippine registration, or one prescribed for this patient.
+        </p>
       </div>
 
       <MedicationSafetyCheck

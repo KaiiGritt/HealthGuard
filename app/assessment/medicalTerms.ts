@@ -58,6 +58,8 @@ const MEDICAL_TERMS: Record<string, string> = {
   "localized myalgia": "Localized myalgia",
   "migrainous headache": "Migraine",
   "migraine": "Migraine",
+  "middle left": "Left lateral abdominal region",
+  "middle right": "Right lateral abdominal region",
   "mucus-containing diarrhea": "Mucoid diarrhea",
   "mushy diarrhea": "Mushy stool",
   "muscle soreness": "Myalgia",

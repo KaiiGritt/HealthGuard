@@ -27,10 +27,17 @@ import {
 } from "@/app/components/ui/primitives";
 import PageHeader from "@/app/components/PageHeader";
 import SymptomChip from "@/app/components/SymptomChip";
+import AbdominalPainDiagram from "../AbdominalPainDiagram";
+import AbdominalLocationChoices from "../AbdominalLocationChoices";
+import {
+  ABDOMINAL_LOCATION_OPTIONS,
+  ABDOMINAL_NOT_SURE_OPTION,
+} from "../abdominalLocations";
 import { IconChevronDown, IconProfile } from "@/app/components/ui/icons";
 import { localizedText, useInterfaceLanguage } from "@/app/components/LanguageProvider";
 import { useAssessmentMode } from "../AssessmentTargetContext";
 import FreeTextSymptomToggle from "../FreeTextSymptomToggle";
+import PainScale, { PAIN_SCALE_SYMPTOMS } from "../PainScale";
 import { SYMPTOM_CATEGORIES, SYMPTOMS } from "../symptoms";
 
 const DANGER_SIGNS = [
@@ -38,17 +45,6 @@ const DANGER_SIGNS = [
   { value: "vomits everything", en: "Vomits everything / cannot keep anything down", tl: "Isinusuka ang lahat / hindi mapanatili ang kinain o ininom" },
   { value: "altered consciousness", en: "Very sleepy or difficult to wake", tl: "Sobrang antok o mahirap gisingin" },
   { value: "neurologic emergency", en: "Convulsions", tl: "Kombulsyon" },
-] as const;
-
-const ABDOMINAL_LOCATION_OPTIONS = [
-  { en: "Upper right", tl: "Itaas na kanan" },
-  { en: "Upper left", tl: "Itaas na kaliwa" },
-  { en: "Upper middle", tl: "Gitnang itaas" },
-  { en: "Lower right", tl: "Ibabang kanan" },
-  { en: "Lower left", tl: "Ibabang kaliwa" },
-  { en: "Lower/general", tl: "Ibaba / pangkalahatan" },
-  { en: "Around the navel", tl: "Palibot ng pusod" },
-  { en: "Not sure", tl: "Hindi sigurado" },
 ] as const;
 
 const ABDOMINAL_QUALITY_OPTIONS = [
@@ -67,7 +63,7 @@ const TYPE_CHIPS: Record<string, { en: string; tl: string; description?: string 
     { en: "Dizziness", tl: "Pagkahilo" },
   ],
   "muscle ache / body soreness": BODY_PAIN_CLASSIFICATIONS,
-  "abdominal pain": [...ABDOMINAL_LOCATION_OPTIONS, ...ABDOMINAL_QUALITY_OPTIONS],
+  "abdominal pain": [...ABDOMINAL_LOCATION_OPTIONS, ABDOMINAL_NOT_SURE_OPTION, ...ABDOMINAL_QUALITY_OPTIONS],
   vomiting: [
     ...VOMITING_CLASSIFICATIONS,
     { en: "Nausea", tl: "Pagduduwal" },
@@ -119,6 +115,7 @@ export default function PersonAssessmentPage() {
   const [showOtherSymptoms, setShowOtherSymptoms] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [selectedTypes, setSelectedTypes] = useState<Record<string, string[]>>({});
+  const [painLevels, setPainLevels] = useState<Record<string, number>>({});
   const [otherSymptoms, setOtherSymptoms] = useState("");
   const [durationKey, setDurationKey] = useState<string | null>(null);
   const [exactDurationMode, setExactDurationMode] = useState(false);
@@ -127,10 +124,25 @@ export default function PersonAssessmentPage() {
   const [toast, setToast] = useState<string | null>(null);
 
   const toggleSymptom = (value: string) => {
-    setSelected((current) => current.includes(value) ? current.filter((item) => item !== value) : [...current, value]);
+    const isSelected = selected.includes(value);
+    setSelected((current) => isSelected ? current.filter((item) => item !== value) : [...current, value]);
+    if (isSelected) {
+      setSelectedTypes((current) => {
+        const next = { ...current };
+        delete next[value];
+        return next;
+      });
+      setPainLevels((current) => {
+        const next = { ...current };
+        delete next[value];
+        if (value === "difficulty breathing") delete next["chest pain"];
+        return next;
+      });
+    }
   };
 
   const toggleType = (symptom: string, type: string) => {
+    const isSelected = selectedTypes[symptom]?.includes(type) ?? false;
     setSelectedTypes((current) => {
       const values = current[symptom] ?? [];
       return {
@@ -138,6 +150,13 @@ export default function PersonAssessmentPage() {
         [symptom]: values.includes(type) ? values.filter((item) => item !== type) : [...values, type],
       };
     });
+    if (symptom === "difficulty breathing" && type === "Chest pain" && isSelected) {
+      setPainLevels((current) => {
+        const next = { ...current };
+        delete next["chest pain"];
+        return next;
+      });
+    }
   };
 
   const parsedAge = Number(patientAge);
@@ -162,12 +181,25 @@ export default function PersonAssessmentPage() {
   const selectedSymptomCount = selected.filter((value) => SYMPTOMS.some((symptom) => symptom.value === value)).length;
   const hasBreathingDifficulty = selected.includes("difficulty breathing");
   const selectedDangerSigns = DANGER_SIGNS.filter((sign) => selected.includes(sign.value));
+  const painScaleItems = selected
+    .filter((symptom) => PAIN_SCALE_SYMPTOMS.some((painSymptom) => painSymptom === symptom))
+    .map((symptom) => {
+      const info = SYMPTOMS.find((item) => item.value === symptom);
+      return { key: symptom, label: info ? localizedText(language, info.en, info.tl) : symptom };
+    });
+  if (selectedTypes["difficulty breathing"]?.includes("Chest pain")) {
+    painScaleItems.push({ key: "chest pain", label: localizedText(language, "Chest pain", "Sakit sa dibdib") });
+  }
 
   async function handleSubmit() {
     if (!canSubmit) return;
     setSubmitting(true);
     try {
       const typeText = Object.values(selectedTypes).flat().join(", ");
+      const painText = painScaleItems
+        .filter((item) => painLevels[item.key] !== undefined)
+        .map((item) => `${item.key} ${painLevels[item.key]}/10`)
+        .join(", ");
       if (exactDurationMode && !exactDurationValid) {
         setSubmitting(false);
         setToast(exactDaysValue > MAX_EXACT_DURATION_DAYS
@@ -182,6 +214,7 @@ export default function PersonAssessmentPage() {
             : `Assessment for a person aged ${parsedAge} ${ageUnitLabel}.`,
           otherSymptoms.trim() ? `Additional symptoms: ${otherSymptoms.trim()}` : "",
           typeText ? `Additional symptom details: ${typeText}.` : "",
+          painText ? `Pain levels: ${painText}.` : "",
           exactDurationMode
             ? `Symptoms started ${exactDaysValue} ${exactDaysValue === 1 ? "day" : "days"} ago.`
             : selectedDuration?.phrase
@@ -499,16 +532,11 @@ export default function PersonAssessmentPage() {
 
                           <div className="mt-3">
                             <p className="text-sm font-semibold text-ink">{localizedText(language, "Where exactly?", "Saan eksakto?")}</p>
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {ABDOMINAL_LOCATION_OPTIONS.map((type) => {
-                                const active = selectedTypes[symptom]?.includes(type.en) ?? false;
-                                return (
-                                  <button key={type.en} type="button" aria-pressed={active} onClick={() => toggleType(symptom, type.en)} className={`rounded-xl border px-3 py-2 text-left text-sm transition ${active ? "border-brand bg-brand text-brand-foreground shadow-sm" : "border-[#DCE5D8] bg-white/85 text-ink-secondary hover:border-brand/50"}`}>
-                                    <span className="block font-semibold">{localizedText(language, type.en, type.tl)}</span>
-                                  </button>
-                                );
-                              })}
-                            </div>
+                            <AbdominalPainDiagram />
+                            <AbdominalLocationChoices
+                              selectedValues={selectedTypes[symptom] ?? []}
+                              onToggle={(value) => toggleType(symptom, value)}
+                            />
                           </div>
 
                           <div className="mt-4">
@@ -559,6 +587,12 @@ export default function PersonAssessmentPage() {
                 </div>
               </section>
             )}
+
+            <PainScale
+              items={painScaleItems}
+              values={painLevels}
+              onSelect={(key, value) => setPainLevels((current) => ({ ...current, [key]: value }))}
+            />
 
             <fieldset className="relative mt-10 min-w-0 overflow-hidden rounded-3xl border border-[#DCE6D9] bg-[linear-gradient(145deg,rgba(255,255,255,0.94)_0%,rgba(247,250,245,0.9)_100%)] p-4 shadow-[0_16px_38px_rgba(31,74,54,0.07)] sm:p-6">
               <span className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent" aria-hidden="true" />

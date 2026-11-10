@@ -946,7 +946,6 @@ def list_productive_cough_medications(
         "Ambroxol",
         "Bromhexine",
         "Acetylcysteine (NAC)",
-        "Erdosteine",
     ]
     records = db.execute(
         select(MedicationCatalog).where(MedicationCatalog.generic_name.in_(names))
