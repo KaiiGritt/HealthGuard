@@ -52,15 +52,11 @@ const ABDOMINAL_QUALITY_OPTIONS = [
 ];
 
 const TYPE_CHIPS: Record<string, { en: string; tl: string; description?: string }[]> = {
-  fever: [
-    ...FEVER_CLASSIFICATIONS,
-    { en: "Dizziness", tl: "Pagkahilo" },
-  ],
+  fever: FEVER_CLASSIFICATIONS,
   cough: COUGH_CLASSIFICATIONS,
   headache: [
     ...HEADACHE_CLASSIFICATIONS,
     { en: "Thunderclap headache", tl: "Biglaang matinding sakit ng ulo" },
-    { en: "Dizziness", tl: "Pagkahilo" },
   ],
   "muscle ache / body soreness": BODY_PAIN_CLASSIFICATIONS,
   "abdominal pain": [...ABDOMINAL_LOCATION_OPTIONS, ABDOMINAL_NOT_SURE_OPTION, ...ABDOMINAL_QUALITY_OPTIONS],
@@ -69,7 +65,6 @@ const TYPE_CHIPS: Record<string, { en: string; tl: string; description?: string 
     { en: "Nausea", tl: "Pagduduwal" },
     { en: "Retching", tl: "Pag-uurong-suka" },
     { en: "Vomiting", tl: "Pagsusuka" },
-    { en: "Dizziness", tl: "Pagkahilo" },
   ],
   diarrhea: [
     ...DIARRHEA_CLASSIFICATIONS,
@@ -545,7 +540,7 @@ export default function PersonAssessmentPage() {
 
                           <div className="mt-4">
                             <p className="text-sm font-semibold text-ink">{localizedText(language, "What does it feel like?", "Ano ang klase ng sakit?")}</p>
-                            <div className="mt-2 flex flex-wrap gap-2">
+                            <div className="mt-2 grid grid-cols-1 gap-2 min-[360px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
                               {ABDOMINAL_QUALITY_OPTIONS.map((type) => {
                                 const active = selectedTypes[symptom]?.includes(type.en) ?? false;
                                 return (
@@ -564,7 +559,7 @@ export default function PersonAssessmentPage() {
                     return (
                       <div key={symptom}>
                         <p className="text-sm font-semibold text-ink">{label && localizedText(language, label.en, label.tl)}</p>
-                        <div className="mt-2 flex flex-wrap gap-2">
+                        <div className="mt-2 grid grid-cols-1 gap-2 min-[360px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
                           {options.map((type) => {
                             const active = selectedTypes[symptom]?.includes(type.en) ?? false;
                             const description = type.description ?? [
@@ -578,9 +573,12 @@ export default function PersonAssessmentPage() {
                               ...RASH_CLASSIFICATIONS,
                             ].find((classification) => classification.en === type.en)?.description;
                             return (
-                              <button key={type.en} type="button" aria-pressed={active} onClick={() => toggleType(symptom, type.en)} className={`rounded-xl border px-3 py-2 text-left text-sm transition ${active ? "border-brand bg-brand text-brand-foreground shadow-sm" : "border-[#DCE5D8] bg-white/85 text-ink-secondary hover:border-brand/50"}`}>
-                                <span className="block font-semibold">{localizedText(language, type.en, type.tl)}</span>
-                                {description && <span className={`mt-1 block max-w-56 text-xs leading-relaxed ${active ? "text-brand-foreground/80" : "text-ink-secondary"}`}>{description}</span>}
+                              <button key={type.en} type="button" aria-pressed={active} onClick={() => toggleType(symptom, type.en)} className={`group flex min-h-[76px] w-full flex-col justify-center rounded-xl border px-3 py-2.5 text-left text-sm transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15 ${active ? "border-[#1F4A36] bg-[linear-gradient(145deg,#2F6B4F_0%,#1F4A36_100%)] text-white shadow-[0_8px_18px_rgba(31,74,54,0.2)]" : "border-[#DCE5D8] bg-white/90 text-ink-secondary shadow-[0_3px_10px_rgba(24,38,25,0.035)] hover:-translate-y-0.5 hover:border-brand/45 hover:bg-white hover:shadow-[0_8px_16px_rgba(31,74,54,0.09)]"}`}>
+                                <span className="flex w-full items-center justify-between gap-2 font-semibold">
+                                  <span>{localizedText(language, type.en, type.tl)}</span>
+                                  <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-[10px] leading-none transition ${active ? "border-white/55 bg-white/15 text-white" : "border-[#CBD8CA] text-transparent group-hover:border-brand/50"}`} aria-hidden="true">✓</span>
+                                </span>
+                                {description && <span className={`mt-1 block text-xs leading-relaxed ${active ? "text-white/80" : "text-ink-secondary"}`}>{description}</span>}
                               </button>
                             );
                           })}

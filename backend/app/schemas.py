@@ -93,6 +93,23 @@ class TriggeredRule(BaseModel):
     description: str
 
 
+class Icd10SymptomCodeOut(BaseModel):
+    symptom: str
+    code: str
+    description: str
+    coding_system: str
+    source: str
+    source_url: str
+    review_status: str
+    reviewer: str | None = None
+    reviewed_at: str | None = None
+
+
+class UncodedSymptomOut(BaseModel):
+    symptom: str
+    reason: str
+
+
 class PreMedicationOut(BaseModel):
     """Medication guidance generated for non-emergency assessments."""
 
@@ -133,6 +150,8 @@ class AnalyzeResult(BaseModel):
     phone_number: str | None = None
     risk_level: str
     detected_symptoms: list[DetectedSymptom]
+    icd10_codes: list[Icd10SymptomCodeOut] = Field(default_factory=list)
+    icd10_uncoded: list[UncodedSymptomOut] = Field(default_factory=list)
     triggered_rules: list[TriggeredRule]
     reason: str
     recommendation: str
@@ -163,6 +182,8 @@ class AssessmentOut(BaseModel):
     input_text: str
     method: str
     detected_symptoms: list
+    icd10_codes: list[Icd10SymptomCodeOut] = Field(default_factory=list)
+    icd10_uncoded: list[UncodedSymptomOut] = Field(default_factory=list)
     symptom_confidence: dict[str, float] = Field(default_factory=dict)
     risk_level: str
     reason: str
@@ -201,6 +222,8 @@ class DashboardAssessmentItem(BaseModel):
     barangay: str | None = None
     age: int | None = None
     detected_symptoms: list[str] = Field(default_factory=list)
+    icd10_codes: list[Icd10SymptomCodeOut] = Field(default_factory=list)
+    icd10_uncoded: list[UncodedSymptomOut] = Field(default_factory=list)
     risk_level: str
     note: str
     created_at: datetime
@@ -269,6 +292,8 @@ class BarangayStatItem(BaseModel):
 class SymptomStatItem(BaseModel):
     symptom: str
     count: int
+    icd10_code: Icd10SymptomCodeOut | None = None
+    icd10_uncoded: UncodedSymptomOut | None = None
 
 
 class MethodBreakdownItem(BaseModel):

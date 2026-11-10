@@ -87,6 +87,18 @@ uvicorn app.main:app --reload --port 8000
 - API docs: http://localhost:8000/docs
 - On startup the app creates tables, downloads NLTK `punkt`, and seeds the lexicon (idempotent).
 
+Assessment records include WHO ICD-10 (2019) code candidates for supported reported
+symptoms where a direct symptom reference is available. All current mappings are marked
+`pending_review`; reviewer and review date remain empty until a qualified clinician or
+coding specialist completes review. Ambiguous terms remain uncoded with an explanation.
+Each mapping includes a WHO source URL and standard/version. These candidates describe
+reported symptoms or findings, are not diagnoses, and must not be used as approved
+clinical codes before review. No local-authority endorsement is implied.
+
+The mapping registry is maintained in `app/icd10.py`. Changes to codes, descriptions,
+sources, and review metadata must be made through reviewed source-control changes so the
+repository change history records who changed the mapping and when.
+
 ### Local demo accounts
 
 To create disposable accounts for checking the admin, MHO, and resident views, run this

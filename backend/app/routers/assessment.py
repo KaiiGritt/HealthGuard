@@ -11,6 +11,11 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from ..case_summary import build_case_summary
 from ..database import get_db
 from ..deps import get_current_user, get_current_user_optional, require_role
+from ..icd10 import (
+    code_for_reported_symptom,
+    codes_for_reported_symptoms,
+    uncoded_reported_symptoms,
+)
 from ..models import Assessment, AssessmentCaseActivity, AssessmentSymptom, MedicationCatalog, Symptom, SymptomLexicon, User
 from ..nlp import scispacy_adapter, specialist_adapter
 from ..nlp.engine import analyze
@@ -241,7 +246,15 @@ def _build_top_symptoms(db: Session) -> list[SymptomStatItem]:
                 term = str(item.get("medical_term") or item.get("term") or "").strip()
                 if term:
                     counter[term] += 1
-    return [SymptomStatItem(symptom=name, count=count) for name, count in counter.most_common(8)]
+    return [
+        SymptomStatItem(
+            symptom=name,
+            count=count,
+            icd10_code=code_for_reported_symptom(name),
+            icd10_uncoded=(uncoded_reported_symptoms([name]) or [None])[0],
+        )
+        for name, count in counter.most_common(8)
+    ]
 
 
 def _build_method_breakdown(db: Session) -> list[MethodBreakdownItem]:
@@ -453,6 +466,8 @@ def dashboard_summary(
                 barangay=row[7],
                 age=row[11],
                 detected_symptoms=symptoms,
+                icd10_codes=codes_for_reported_symptoms(symptoms),
+                icd10_uncoded=uncoded_reported_symptoms(symptoms),
                 risk_level=row[3],
                 note=note,
                 created_at=row[4],
@@ -1184,6 +1199,8 @@ def analyze_symptoms(
             id=0,
             risk_level=result.classification.risk_level,
             detected_symptoms=detected,
+            icd10_codes=codes_for_reported_symptoms([match.medical_term for match in result.matches]),
+            icd10_uncoded=uncoded_reported_symptoms([match.medical_term for match in result.matches]),
             triggered_rules=[
                 TriggeredRule(name=rule.name, description=rule.description)
                 for rule in result.classification.triggered_rules
@@ -1215,6 +1232,8 @@ def analyze_symptoms(
         input_text=payload.input_text,
         method=payload.method,
         detected_symptoms=[m.medical_term for m in result.matches],
+        icd10_codes=codes_for_reported_symptoms([match.medical_term for match in result.matches]),
+        icd10_uncoded=uncoded_reported_symptoms([match.medical_term for match in result.matches]),
         symptom_confidence=symptom_confidence,
         risk_level=result.classification.risk_level,
         reason=result.classification.reason,
@@ -1252,6 +1271,8 @@ def analyze_symptoms(
         id=record.id,
         risk_level=result.classification.risk_level,
         detected_symptoms=detected,
+        icd10_codes=record.icd10_codes or [],
+        icd10_uncoded=record.icd10_uncoded or [],
         triggered_rules=[
             TriggeredRule(name=r.name, description=r.description)
             for r in result.classification.triggered_rules
@@ -1314,6 +1335,8 @@ def history(
                 input_text=record.input_text,
                 method=record.method,
                 detected_symptoms=record.detected_symptoms,
+                icd10_codes=record.icd10_codes or codes_for_reported_symptoms(record.detected_symptoms),
+                icd10_uncoded=record.icd10_uncoded or uncoded_reported_symptoms(record.detected_symptoms),
                 symptom_confidence=record.symptom_confidence or {},
                 risk_level=record.risk_level,
                 reason=record.reason,
@@ -1381,6 +1404,8 @@ def mark_assessment_handled(
         resident_name=resident_name,
         barangay=row[7],
         detected_symptoms=symptoms,
+        icd10_codes=codes_for_reported_symptoms(symptoms),
+        icd10_uncoded=uncoded_reported_symptoms(symptoms),
         risk_level=row[3],
         note=note,
         created_at=row[4],
@@ -1462,6 +1487,8 @@ def add_assessment_case_activity(
         resident_name=resident_name,
         barangay=row[7],
         detected_symptoms=symptoms,
+        icd10_codes=codes_for_reported_symptoms(symptoms),
+        icd10_uncoded=uncoded_reported_symptoms(symptoms),
         risk_level=row[3],
         note=note,
         created_at=row[4],
@@ -1516,6 +1543,8 @@ def get_assessment(
         input_text=record.input_text,
         method=record.method,
         detected_symptoms=record.detected_symptoms,
+        icd10_codes=record.icd10_codes or codes_for_reported_symptoms(record.detected_symptoms),
+        icd10_uncoded=record.icd10_uncoded or uncoded_reported_symptoms(record.detected_symptoms),
         symptom_confidence=record.symptom_confidence or {},
         risk_level=record.risk_level,
         reason=record.reason,

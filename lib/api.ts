@@ -17,10 +17,29 @@ export interface TriggeredRule {
   description: string;
 }
 
+export interface Icd10SymptomCode {
+  symptom: string;
+  code: string;
+  description: string;
+  coding_system: string;
+  source?: string;
+  source_url?: string;
+  review_status?: "pending_review" | "approved" | "rejected";
+  reviewer?: string | null;
+  reviewed_at?: string | null;
+}
+
+export interface Icd10UncodedSymptom {
+  symptom: string;
+  reason: string;
+}
+
 export interface AnalyzeResult {
   id: number;
   risk_level: RiskLevel;
   detected_symptoms: DetectedSymptom[];
+  icd10_codes?: Icd10SymptomCode[];
+  icd10_uncoded?: Icd10UncodedSymptom[];
   triggered_rules: TriggeredRule[];
   reason: string;
   recommendation: string;
@@ -75,6 +94,8 @@ export interface AssessmentOut {
   input_text: string;
   method: string;
   detected_symptoms: string[];
+  icd10_codes?: Icd10SymptomCode[];
+  icd10_uncoded?: Icd10UncodedSymptom[];
   symptom_confidence?: Record<string, number>;
   risk_level: RiskLevel;
   reason: string;
@@ -96,6 +117,8 @@ export interface DashboardAssessmentItem {
   barangay: string | null;
   age?: number | null;
   detected_symptoms: string[];
+  icd10_codes?: Icd10SymptomCode[];
+  icd10_uncoded?: Icd10UncodedSymptom[];
   risk_level: string;
   note: string;
   created_at: string;
@@ -157,6 +180,8 @@ export interface BarangayStatItem {
 export interface SymptomStatItem {
   symptom: string;
   count: number;
+  icd10_code?: Icd10SymptomCode | null;
+  icd10_uncoded?: Icd10UncodedSymptom | null;
 }
 
 export interface MethodBreakdownItem {

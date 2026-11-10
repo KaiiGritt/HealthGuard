@@ -67,15 +67,11 @@ const ABDOMINAL_QUALITY_OPTIONS = [
 ];
 
 const TYPE_CHIPS: Record<string, { en: string; tl: string; description?: string }[]> = {
-  fever: [
-    ...FEVER_CLASSIFICATIONS,
-    { en: "Dizziness", tl: "Pagkahilo" },
-  ],
+  fever: FEVER_CLASSIFICATIONS,
   cough: COUGH_CLASSIFICATIONS,
   headache: [
     ...HEADACHE_CLASSIFICATIONS,
     { en: "Thunderclap headache", tl: "Biglaang matinding sakit ng ulo" },
-    { en: "Dizziness", tl: "Pagkahilo" },
   ],
   "muscle ache / body soreness": BODY_PAIN_CLASSIFICATIONS,
   "abdominal pain": [...ABDOMINAL_LOCATION_OPTIONS, ABDOMINAL_NOT_SURE_OPTION, ...ABDOMINAL_QUALITY_OPTIONS],
@@ -84,7 +80,6 @@ const TYPE_CHIPS: Record<string, { en: string; tl: string; description?: string 
     { en: "Nausea", tl: "Pagduduwal" },
     { en: "Retching", tl: "Pag-uurong-suka" },
     { en: "Vomiting", tl: "Pagsusuka" },
-    { en: "Dizziness", tl: "Pagkahilo" },
   ],
   diarrhea: [
     ...DIARRHEA_CLASSIFICATIONS,
@@ -474,7 +469,7 @@ export default function AssessmentPage() {
 
                               <div className="mt-5">
                                 <p className="text-sm font-semibold text-ink">{localizedText(language, "What does it feel like?", "Ano ang klase ng sakit?")}</p>
-                                <div className="mt-2.5 grid grid-cols-1 gap-2 min-[400px]:grid-cols-2 sm:gap-2.5 lg:grid-cols-4">
+                                <div className="mt-2.5 grid grid-cols-1 gap-2 min-[360px]:grid-cols-2 sm:grid-cols-3 sm:gap-2.5 lg:grid-cols-4">
                                   {ABDOMINAL_QUALITY_OPTIONS.map((type) => {
                                     const isSelected = selectedTypes[symptom]?.includes(type.en) ?? false;
                                     return (
@@ -502,7 +497,7 @@ export default function AssessmentPage() {
                         return (
                           <div key={symptom} className="border-t border-[#E4EBE1] pt-4 first:border-t-0 first:pt-0">
                             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-ink-muted">{symptomInfo && localizedText(language, symptomInfo.en, symptomInfo.tl)}</p>
-                            <div className={symptom === "difficulty breathing" ? "mt-2 flex flex-wrap gap-2" : "mt-2.5 grid grid-cols-1 gap-2 min-[400px]:grid-cols-2 sm:gap-2.5 lg:grid-cols-4"}>
+                            <div className={symptom === "difficulty breathing" ? "mt-2 flex flex-wrap gap-2" : "mt-2.5 grid grid-cols-1 gap-2 min-[360px]:grid-cols-2 sm:grid-cols-3 sm:gap-2.5 lg:grid-cols-4"}>
                               {typeOptions.map((type) => {
                                 const isSelected = selectedTypes[symptom]?.includes(type.en) ?? false;
                                 const description = type.description ?? [

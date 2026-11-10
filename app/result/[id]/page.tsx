@@ -158,6 +158,28 @@ export default async function ResultPage({
               ) : (
                 <ResultText as="p" className="mt-3 text-sm leading-relaxed text-ink-muted" english="No recognized symptoms were found in the information provided." filipino="Walang nakilalang sintomas sa impormasyong ibinigay." />
               )}
+              {(record.icd10_codes?.length ?? 0) > 0 && (
+                <div className="mt-4 rounded-xl border border-[#DDE7DB] bg-white/75 p-3">
+                  <ResultText as="p" className="text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-muted" english="ICD-10 references for reported symptoms — not diagnoses" filipino="Mga sangguniang ICD-10 para sa naiulat na sintomas — hindi mga diagnosis" />
+                  <ul className="mt-2 space-y-1.5 text-xs leading-relaxed text-ink-secondary">
+                    {(record.icd10_codes ?? []).map((item) => (
+                      <li key={`${item.symptom}-${item.code}`}>
+                        <span className="font-mono font-semibold text-brand-dark">{item.code}</span> · {item.symptom}: {item.description}
+                        {item.source_url && <> · <a className="font-semibold text-brand-dark underline underline-offset-2" href={item.source_url} target="_blank" rel="noreferrer">Source: {item.source ?? item.coding_system}</a></>}
+                        {item.reviewer && <> · Reviewed by {item.reviewer}{item.reviewed_at ? ` (${item.reviewed_at})` : ""}</>}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {(record.icd10_uncoded?.length ?? 0) > 0 && (
+                <div className="mt-3 rounded-xl border border-[#E8D19A] bg-[#FFF9E9] p-3">
+                  <ResultText as="p" className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#795516]" english="Symptoms left uncoded" filipino="Mga sintomas na walang code" />
+                  <ul className="mt-2 space-y-1.5 text-xs leading-relaxed text-ink-secondary">
+                    {(record.icd10_uncoded ?? []).map((item) => <li key={item.symptom}><span className="font-semibold">{item.symptom}:</span> {item.reason}</li>)}
+                  </ul>
+                </div>
+              )}
             </section>
 
             <details className="group mt-4 min-w-0 rounded-2xl border border-[#dfe8dc] bg-[linear-gradient(145deg,#FFFFFF_0%,#F8FAF6_100%)] p-3 shadow-[0_8px_22px_rgba(31,74,54,0.04)] transition-[border-color,box-shadow] duration-200 open:border-[#cbdac8] open:shadow-[0_14px_30px_rgba(31,74,54,0.07)] sm:p-4 xl:mt-0">

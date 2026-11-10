@@ -246,6 +246,8 @@ class Assessment(Base):
     method: Mapped[str] = mapped_column(String(16), default="text")
     # Legacy compatibility: this remains for current API usage while the diagram-aligned relation is added.
     detected_symptoms: Mapped[list] = mapped_column(JSON, default=list)
+    icd10_codes: Mapped[list] = mapped_column(JSON, default=list)
+    icd10_uncoded: Mapped[list] = mapped_column(JSON, default=list)
     symptom_extraction: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     symptom_confidence: Mapped[dict] = mapped_column(JSON, default=dict)
     # 'GREEN' | 'YELLOW' | 'RED'.

@@ -230,6 +230,50 @@ def migrate_assessment_confidence_schema() -> None:
             conn.execute(text("ALTER TABLE assessments ADD COLUMN symptom_confidence JSON"))
 
 
+def migrate_assessment_icd10_schema() -> None:
+    """Persist WHO ICD-10 references for reported symptoms on existing assessments."""
+    from sqlalchemy import inspect, select, text
+
+    from .icd10 import codes_for_reported_symptoms, uncoded_reported_symptoms
+    from .models import Assessment
+
+    if "assessments" not in inspect(engine).get_table_names():
+        return
+
+    columns = {column["name"] for column in inspect(engine).get_columns("assessments")}
+    with engine.begin() as connection:
+        if "icd10_codes" not in columns:
+            connection.execute(text("ALTER TABLE assessments ADD COLUMN icd10_codes JSON"))
+        if "icd10_uncoded" not in columns:
+            connection.execute(text("ALTER TABLE assessments ADD COLUMN icd10_uncoded JSON"))
+
+    with SessionLocal() as db:
+        records = db.execute(
+            select(Assessment).where(
+                Assessment.icd10_codes.is_(None)
+                | Assessment.icd10_uncoded.is_(None)
+            )
+        ).scalars()
+        for record in records:
+            symptoms = record.detected_symptoms if isinstance(record.detected_symptoms, list) else []
+            terms = [
+                str(item.get("medical_term") or item.get("term") or "")
+                if isinstance(item, dict)
+                else str(item)
+                for item in symptoms
+            ]
+            if record.icd10_codes is None or any(
+                not isinstance(item, dict)
+                or not item.get("source")
+                or not item.get("review_status")
+                for item in (record.icd10_codes or [])
+            ):
+                record.icd10_codes = codes_for_reported_symptoms(terms)
+            if record.icd10_uncoded is None:
+                record.icd10_uncoded = uncoded_reported_symptoms(terms)
+        db.commit()
+
+
 def migrate_lexicon_rule_base_schema() -> None:
     """Add rule_base_id to legacy lexicon_rules tables created before the diagram refactor."""
     from sqlalchemy import inspect, text

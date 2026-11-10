@@ -63,19 +63,6 @@ const PRODUCTIVE_COUGH_SAFETY_QUESTIONS = [
   { key: "otherMedicines", label: "Is the patient taking any other prescription, over-the-counter, or herbal medicines?" },
 ] as const;
 
-const GENERAL_MEDICATION_SAFETY_QUESTIONS = [
-  { key: "ageWeight", label: "Is the patient under 18, or is their age or weight uncertain?" },
-  { key: "allergy", label: "Does the patient have a medicine or ingredient allergy?" },
-  { key: "pregnancy", label: "Is the patient pregnant or breastfeeding?" },
-  { key: "asthma", label: "Does the patient have asthma or another long-term lung condition?" },
-  { key: "liver", label: "Does the patient have liver disease?" },
-  { key: "kidney", label: "Does the patient have kidney disease?" },
-  { key: "heartBloodPressure", label: "Does the patient have heart disease or high blood pressure?" },
-  { key: "ulcerBleeding", label: "Does the patient have a history of stomach ulcers or bleeding?" },
-  { key: "otherMedicines", label: "Is the patient taking other prescription, over-the-counter, or herbal medicines?" },
-  { key: "alreadyTaken", label: "Has the patient already taken medicine for this symptom, including a combination product?" },
-] as const;
-
 type SafetyQuestion = { readonly key: string; readonly label: string };
 type SafetyAnswer = "yes" | "no" | "unsure";
 
@@ -83,12 +70,10 @@ function MedicationSafetyCheck({
   questions,
   checkId,
   onCompletionChange,
-  showProductStatusNote = false,
 }: {
   questions: readonly SafetyQuestion[];
   checkId: string;
   onCompletionChange: (complete: boolean) => void;
-  showProductStatusNote?: boolean;
 }) {
   const [answers, setAnswers] = useState<Record<string, SafetyAnswer>>({});
   const complete = questions.every(({ key }) => answers[key] !== undefined);
@@ -106,21 +91,6 @@ function MedicationSafetyCheck({
         <p className="mt-2 text-xs leading-relaxed text-ink-muted">
           A “yes” or “not sure” does not automatically rule out every option. This is not a suitability test; review the exact product and patient situation with a pharmacist or healthcare professional.
         </p>
-        {showProductStatusNote && (
-          <div className="mt-3 rounded-xl border border-[#DCE5D8] bg-white/80 p-3">
-            <p className="text-xs leading-relaxed text-ink-secondary">
-              A medicine&apos;s generic name or therapeutic class does not establish whether an exact Philippine product is prescription-only or non-prescription. Check its current registration and label.
-            </p>
-            <a
-              href="https://verification.fda.gov.ph/"
-              target="_blank"
-              rel="noreferrer"
-              className="mt-1.5 inline-flex text-xs font-semibold text-brand-dark underline decoration-brand/40 underline-offset-4 hover:decoration-brand"
-            >
-              Search the Philippine FDA verification portal
-            </a>
-          </div>
-        )}
       </div>
 
       <div className="divide-y divide-[#EDF1EA] px-4 sm:px-5">
@@ -183,37 +153,13 @@ function MedicationSafetyCheck({
   );
 }
 
-function MedicationSafetyReviewGate({
-  enabled,
-  checkId,
-  children,
-}: {
-  enabled: boolean;
-  checkId: string;
-  children: ReactNode;
-}) {
-  const [complete, setComplete] = useState(false);
-
-  return (
-    <>
-      {enabled && (
-        <MedicationSafetyCheck
-          questions={GENERAL_MEDICATION_SAFETY_QUESTIONS}
-          checkId={checkId}
-          onCompletionChange={setComplete}
-          showProductStatusNote
-        />
-      )}
-      {(!enabled || complete) && children}
-    </>
-  );
-}
-
 function MedicationIdentityDetails({
+  name,
   kind,
   classification,
   commonUse,
 }: {
+  name: string;
   kind: string;
   classification: string;
   commonUse: string;
@@ -230,16 +176,20 @@ function MedicationIdentityDetails({
       </div>
       <dl className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
         <div className="min-w-0 rounded-xl border border-[#E1E9DD] bg-white/85 px-3 py-2.5">
+          <dt className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-ink-muted">Medicine / guidance</dt>
+          <dd className="mt-0.5 break-words text-sm font-semibold text-ink">{name}</dd>
+        </div>
+        <div className="min-w-0 rounded-xl border border-[#E1E9DD] bg-white/85 px-3 py-2.5">
           <dt className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-ink-muted">Guidance type</dt>
           <dd className="mt-0.5 break-words text-sm font-semibold text-ink">{kind}</dd>
+        </div>
+        <div className="min-w-0 rounded-xl border border-[#E1E9DD] bg-white/85 px-3 py-2.5">
+          <dt className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-ink-muted">Common use</dt>
+          <dd className="mt-0.5 break-words text-sm leading-relaxed text-ink-secondary">{commonUse}</dd>
         </div>
         <div className="min-w-0 rounded-xl border border-[#CFE0CF] bg-[#F3F8F0] px-3 py-2.5">
           <dt className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-brand-dark">Classification</dt>
           <dd className="mt-0.5 break-words text-sm font-semibold text-brand-dark">{classification}</dd>
-        </div>
-        <div className="min-w-0 rounded-xl border border-[#E1E9DD] bg-white/85 px-3 py-2.5 sm:col-span-2">
-          <dt className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-ink-muted">Common use</dt>
-          <dd className="mt-0.5 break-words text-sm leading-relaxed text-ink-secondary">{commonUse}</dd>
         </div>
       </dl>
     </div>
@@ -1134,9 +1084,6 @@ function MedicationCard({
   const isVomiting = isMotionSicknessSupport || (isOralRehydration && hasVomiting);
   const isDiarrhea = isDiarrheaSupport || (isOralRehydration && hasDiarrhea);
   const hasCatalogProfile = isParacetamol || isProductiveCough || isDryCough || isDiarrhea || isVomiting || isColdCare || isHeadacheCare || isAbdominalSupport || isRashCare;
-  const requiresGeneralSafetyReview = hasCatalogProfile
-    && !isProductiveCough
-    && !(isRashCare && (isSystemicRashReview || isUrgentRashReview));
   const classification = isDryCough
     ? "Antitussive / antihistamine options"
     : isProductiveCough
@@ -1354,8 +1301,9 @@ function MedicationCard({
             {isRashCare && <span className="rounded-full border border-[#CFE0CF] bg-white/75 px-2 py-0.5 font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-brand-dark">Rash care</span>}
           </div>
           {isParacetamol && medicine && <ParacetamolMedicineDetails medicine={medicine} />}
-          {(isProductiveCough || isDryCough || isDiarrhea || isColdCare || isHeadacheCare || isRashCare) && (
+          {!isParacetamol && hasCatalogProfile && (
             <MedicationIdentityDetails
+              name={item.drugName}
               kind={guidanceKind}
               classification={classification}
               commonUse={commonUse}
@@ -1363,6 +1311,7 @@ function MedicationCard({
           )}
           {!hasCatalogProfile && (
             <MedicationIdentityDetails
+              name={item.drugName}
               kind={guidanceKind}
               classification={classification}
               commonUse={commonUse}
@@ -1376,11 +1325,6 @@ function MedicationCard({
           )}
         </div>
       </div>
-      <MedicationSafetyReviewGate
-        key={item.drugName}
-        enabled={requiresGeneralSafetyReview}
-        checkId="general-medication"
-      >
       {item.note && isParacetamol && (
         <div className="mt-3 rounded-2xl border border-[#E3E7DC] bg-[#FBFCF9] p-3 sm:mt-4 sm:p-4 lg:p-5">
           <h4 className="font-mono text-xs font-semibold uppercase tracking-[0.1em] text-ink-secondary lg:text-sm">
@@ -1463,7 +1407,6 @@ function MedicationCard({
         />
       )}
       {!hasCatalogProfile && <GeneralMedicationProfile item={item} isDryCough={isDryCough} />}
-      </MedicationSafetyReviewGate>
     </article>
   );
 }

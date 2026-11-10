@@ -1067,7 +1067,16 @@ function DashboardPageContent() {
           },
           {
             heading: t("Reported symptoms"),
-            rows: [[t("Summary"), communityReport.top_symptoms_narrative]],
+            rows: [
+              [t("Summary"), communityReport.top_symptoms_narrative],
+              ...communityReport.top_symptoms.map((item) => [
+                `${item.symptom} (${item.count})`,
+                item.icd10_code
+                  ? `${item.icd10_code.code} — ${item.icd10_code.description} (${item.icd10_code.coding_system}; source: ${item.icd10_code.source ?? item.icd10_code.coding_system}; ${item.icd10_code.source_url ?? ""})`
+                  : item.icd10_uncoded?.reason ?? t("No unambiguous ICD-10 mapping"),
+              ] as [string, string]),
+              [t("Coding note"), t("ICD-10 references label reported symptoms only; they are not diagnoses.")],
+            ],
           },
           {
             heading: t("Recommended actions"),

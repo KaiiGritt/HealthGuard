@@ -1,4 +1,4 @@
-import type { DashboardSummary } from "@/lib/api";
+import type { DashboardSummary, Icd10SymptomCode, Icd10UncodedSymptom } from "@/lib/api";
 
 export interface CommunityHealthReport {
   report_period: string;
@@ -12,6 +12,12 @@ export interface CommunityHealthReport {
   barangay_breakdown: Array<{ barangay: string; narrative: string }>;
   trend_narrative: string;
   top_symptoms_narrative: string;
+  top_symptoms: Array<{
+    symptom: string;
+    count: number;
+    icd10_code: Icd10SymptomCode | null;
+    icd10_uncoded: Icd10UncodedSymptom | null;
+  }>;
   recommended_actions: string[];
 }
 
@@ -69,7 +75,7 @@ export function generateCommunityHealthReport(
     : `There is not enough weekly trend data to compare periods.${sampleCaution ? ` ${sampleCaution}` : ""}`;
   const topSymptoms = summary.top_symptoms.slice(0, 3);
   const topSymptomsNarrative = topSymptoms.length > 0
-    ? `The most frequently recorded symptoms in the dashboard are ${topSymptoms.map((item) => `${item.symptom} (${item.count})`).join(", ")}. These counts describe recorded reports and do not establish a cause or outbreak.`
+    ? `The most frequently recorded symptoms in the dashboard are ${topSymptoms.map((item) => `${item.symptom} (${item.count}${item.icd10_code ? `, ICD-10 ${item.icd10_code.code}` : ""})`).join(", ")}. These are references for reported symptoms, not diagnoses; counts do not establish a cause or outbreak.`
     : "No symptom frequency data is available in the dashboard for this report.";
   const barangayBreakdown = notableBarangays.map((item) => {
     const details = [`${item.total} recorded assessment${item.total === 1 ? "" : "s"} in the dashboard summary`];
@@ -146,6 +152,12 @@ export function generateCommunityHealthReport(
     barangay_breakdown: barangayBreakdown,
     trend_narrative: trendNarrative,
     top_symptoms_narrative: topSymptomsNarrative,
+    top_symptoms: topSymptoms.map((item) => ({
+      symptom: item.symptom,
+      count: item.count,
+      icd10_code: item.icd10_code ?? null,
+      icd10_uncoded: item.icd10_uncoded ?? null,
+    })),
     recommended_actions: actions,
   };
 
@@ -199,8 +211,14 @@ export function generateCommunityHealthReport(
       ? `Nagtala ang dashboard ng ${currentTrend.count} pagsusuri para sa ${currentTrend.label.toLowerCase()} at ${previousTrend.count} para sa ${previousTrend.label.toLowerCase()} (${currentTrend.count - previousTrend.count >= 0 ? "+" : ""}${currentTrend.count - previousTrend.count}). Maaaring hindi pa kumpleto ang kasalukuyang linggo.${filipinoCaution ? ` ${filipinoCaution}` : ""}`
       : `Hindi sapat ang datos ng lingguhang trend upang maihambing ang mga panahon.${filipinoCaution ? ` ${filipinoCaution}` : ""}`,
     top_symptoms_narrative: topSymptoms.length > 0
-      ? `Ang mga sintomas na pinakamadalas naitala sa dashboard ay ${topSymptoms.map((item) => `${item.symptom} (${item.count})`).join(", ")}. Ipinapakita ng mga bilang ang mga naiulat na sintomas at hindi nito pinatutunayan ang sanhi o pagkalat ng sakit.`
+      ? `Ang mga sintomas na pinakamadalas naitala sa dashboard ay ${topSymptoms.map((item) => `${item.symptom} (${item.count}${item.icd10_code ? `, ICD-10 ${item.icd10_code.code}` : ""})`).join(", ")}. Mga sanggunian ito para sa naiulat na sintomas, hindi mga diagnosis; hindi pinatutunayan ng bilang ang sanhi o pagkalat ng sakit.`
       : "Walang datos ng dalas ng sintomas sa dashboard para sa ulat na ito.",
+    top_symptoms: topSymptoms.map((item) => ({
+      symptom: item.symptom,
+      count: item.count,
+      icd10_code: item.icd10_code ?? null,
+      icd10_uncoded: item.icd10_uncoded ?? null,
+    })),
     recommended_actions: [
       ...(priorityBarangay
         ? [`Unahin ang pagsusuri sa ${priorityBarangay.barangay}: nakatala sa dashboard ang ${priorityBarangay.urgent} aktibong agarang kaso roon.`]
