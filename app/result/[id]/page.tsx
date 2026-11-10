@@ -67,6 +67,31 @@ function ruleDescription(name: string, description: string) {
   return description;
 }
 
+function normalizeColdIcd10Details(
+  symptomNames: string[],
+  codes: { symptom: string; code: string; description: string; coding_system: string; source?: string; source_url?: string; reviewer?: string | null; reviewed_at?: string | null }[] = [],
+  uncoded: { symptom: string; reason: string }[] = [],
+) {
+  const hasColdSymptom = symptomNames.some((symptom) => /colds?\s*\/\s*rhinitis|nasopharyngitis|common cold/i.test(symptom));
+  const normalizedCodes = [...codes];
+  const hasColdCode = normalizedCodes.some((item) => item.code === "J00" || /nasopharyngitis|common cold/i.test(`${item.symptom} ${item.description}`));
+
+  if (hasColdSymptom && !hasColdCode) {
+    normalizedCodes.push({
+      symptom: "colds / rhinitis",
+      code: "J00",
+      description: "Acute nasopharyngitis [common cold]",
+      coding_system: "ICD-10",
+      source: "WHO ICD-10",
+      source_url: "https://icd.who.int/browse/2024-01/mms/en#/J00",
+    });
+  }
+
+  const normalizedUncoded = uncoded.filter((item) => !/colds?\s*\/\s*rhinitis|nasopharyngitis|common cold/i.test(item.symptom));
+
+  return { codes: normalizedCodes, uncoded: normalizedUncoded };
+}
+
 function formatRecordedAt(value: string) {
   const normalized = /(?:Z|[+-]\d{2}:?\d{2})$/.test(value) ? value : `${value}Z`;
   return new Date(normalized).toLocaleString(undefined, {
@@ -158,28 +183,39 @@ export default async function ResultPage({
               ) : (
                 <ResultText as="p" className="mt-3 text-sm leading-relaxed text-ink-muted" english="No recognized symptoms were found in the information provided." filipino="Walang nakilalang sintomas sa impormasyong ibinigay." />
               )}
-              {(record.icd10_codes?.length ?? 0) > 0 && (
-                <div className="mt-4 rounded-xl border border-[#DDE7DB] bg-white/75 p-3">
-                  <ResultText as="p" className="text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-muted" english="ICD-10 references for reported symptoms — not diagnoses" filipino="Mga sangguniang ICD-10 para sa naiulat na sintomas — hindi mga diagnosis" />
-                  <ul className="mt-2 space-y-1.5 text-xs leading-relaxed text-ink-secondary">
-                    {(record.icd10_codes ?? []).map((item) => (
-                      <li key={`${item.symptom}-${item.code}`}>
-                        <span className="font-mono font-semibold text-brand-dark">{item.code}</span> · {item.symptom}: {item.description}
-                        {item.source_url && <> · <a className="font-semibold text-brand-dark underline underline-offset-2" href={item.source_url} target="_blank" rel="noreferrer">Source: {item.source ?? item.coding_system}</a></>}
-                        {item.reviewer && <> · Reviewed by {item.reviewer}{item.reviewed_at ? ` (${item.reviewed_at})` : ""}</>}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {(record.icd10_uncoded?.length ?? 0) > 0 && (
-                <div className="mt-3 rounded-xl border border-[#E8D19A] bg-[#FFF9E9] p-3">
-                  <ResultText as="p" className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#795516]" english="Symptoms left uncoded" filipino="Mga sintomas na walang code" />
-                  <ul className="mt-2 space-y-1.5 text-xs leading-relaxed text-ink-secondary">
-                    {(record.icd10_uncoded ?? []).map((item) => <li key={item.symptom}><span className="font-semibold">{item.symptom}:</span> {item.reason}</li>)}
-                  </ul>
-                </div>
-              )}
+              {(() => {
+                const normalizedIcd10 = normalizeColdIcd10Details(
+                  record.detected_symptoms,
+                  record.icd10_codes ?? [],
+                  record.icd10_uncoded ?? [],
+                );
+                return (normalizedIcd10.codes.length > 0 || normalizedIcd10.uncoded.length > 0) ? (
+                  <>
+                    {normalizedIcd10.codes.length > 0 && (
+                      <div className="mt-4 rounded-xl border border-[#DDE7DB] bg-white/75 p-3">
+                        <ResultText as="p" className="text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-muted" english="ICD-10 references for reported symptoms — not diagnoses" filipino="Mga sangguniang ICD-10 para sa naiulat na sintomas — hindi mga diagnosis" />
+                        <ul className="mt-2 space-y-1.5 text-xs leading-relaxed text-ink-secondary">
+                          {normalizedIcd10.codes.map((item) => (
+                            <li key={`${item.symptom}-${item.code}`}>
+                              <span className="font-mono font-semibold text-brand-dark">{item.code}</span> · {item.symptom}: {item.description}
+                              {item.source_url && <> · <a className="font-semibold text-brand-dark underline underline-offset-2" href={item.source_url} target="_blank" rel="noreferrer">Source: {item.source ?? item.coding_system}</a></>}
+                              {item.reviewer && <> · Reviewed by {item.reviewer}{item.reviewed_at ? ` (${item.reviewed_at})` : ""}</>}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {normalizedIcd10.uncoded.length > 0 && (
+                      <div className="mt-3 rounded-xl border border-[#E8D19A] bg-[#FFF9E9] p-3">
+                        <ResultText as="p" className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#795516]" english="Symptoms left uncoded" filipino="Mga sintomas na walang code" />
+                        <ul className="mt-2 space-y-1.5 text-xs leading-relaxed text-ink-secondary">
+                          {normalizedIcd10.uncoded.map((item) => <li key={item.symptom}><span className="font-semibold">{item.symptom}:</span> {item.reason}</li>)}
+                        </ul>
+                      </div>
+                    )}
+                  </>
+                ) : null;
+              })()}
             </section>
 
             <details className="group mt-4 min-w-0 rounded-2xl border border-[#dfe8dc] bg-[linear-gradient(145deg,#FFFFFF_0%,#F8FAF6_100%)] p-3 shadow-[0_8px_22px_rgba(31,74,54,0.04)] transition-[border-color,box-shadow] duration-200 open:border-[#cbdac8] open:shadow-[0_14px_30px_rgba(31,74,54,0.07)] sm:p-4 xl:mt-0">
@@ -248,29 +284,36 @@ export default async function ResultPage({
               </ol>
             </details>
 
-            {record.risk_level !== "RED" && (
-              <details className="mt-4 rounded-[18px] border border-[#E4C77C] bg-[linear-gradient(135deg,#FFFDF2_0%,#FFF8DC_58%,#FFF4C8_100%)] p-3 sm:p-5 xl:col-span-2 xl:mt-0">
-                <summary className="cursor-pointer list-none">
-                  <ResultText as="span" className="font-mono text-xs font-semibold uppercase tracking-[0.12em] text-[#966719]" english="Pre-medication guidance" filipino="Gabay bago uminom ng gamot" />
-                  <ResultText as="span" className="mt-1 block text-xs leading-5 text-ink-secondary sm:text-sm" english="View safety information" filipino="Tingnan ang impormasyong pangkaligtasan" />
+            {record.risk_level !== "RED" && record.pre_medication && (
+              <details className="group mt-4 overflow-hidden rounded-[22px] border border-[#E4C77C] bg-[linear-gradient(135deg,#FFFDF2_0%,#FFF8DC_58%,#FFF4C8_100%)] p-3 shadow-[0_12px_28px_rgba(137,106,36,0.08)] transition-all duration-200 open:border-[#d9b96a] open:shadow-[0_18px_34px_rgba(137,106,36,0.12)] sm:p-5 xl:col-span-2 xl:mt-0">
+                <summary className="flex cursor-pointer list-none items-start justify-between gap-3 rounded-xl outline-none focus-visible:ring-4 focus-visible:ring-[#d9b96a]/20">
+                  <span className="min-w-0">
+                    <ResultText as="span" className="font-mono text-xs font-semibold uppercase tracking-[0.12em] text-[#966719] sm:text-[11px]" english="Pre-medication guidance" filipino="Gabay bago uminom ng gamot" />
+                    <ResultText as="span" className="mt-1 block text-xs leading-5 text-ink-secondary sm:text-sm" english="View safety information" filipino="Tingnan ang impormasyong pangkaligtasan" />
+                  </span>
+                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#d9b96a] bg-white/70 text-[#966719] transition-transform duration-200 group-open:rotate-180" aria-hidden="true">
+                    <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4" aria-hidden="true"><path d="M5 7.5 10 12.5 15 7.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                  </span>
                 </summary>
-                <MedicationGuidanceCard
-                  riskLevel={record.risk_level}
-                  inputText={record.input_text}
-                  detectedSymptoms={record.detected_symptoms}
-                  guidance={
-                    record.pre_medication
-                      ? {
-                          drugName: record.pre_medication.medication_name,
-                          dosage: record.pre_medication.dosage,
-                          contraindications: record.pre_medication.contraindications,
-                          sideEffects: record.pre_medication.side_effects,
-                          precautions: record.pre_medication.precautions,
-                          note: record.pre_medication.note,
-                        }
-                      : undefined
-                  }
-                />
+                <div className="mt-4">
+                  <MedicationGuidanceCard
+                    riskLevel={record.risk_level}
+                    inputText={record.input_text}
+                    detectedSymptoms={record.detected_symptoms}
+                    guidance={
+                      record.pre_medication
+                        ? {
+                            drugName: record.pre_medication.medication_name,
+                            dosage: record.pre_medication.dosage,
+                            contraindications: record.pre_medication.contraindications,
+                            sideEffects: record.pre_medication.side_effects,
+                            precautions: record.pre_medication.precautions,
+                            note: record.pre_medication.note,
+                          }
+                        : undefined
+                    }
+                  />
+                </div>
               </details>
             )}
 

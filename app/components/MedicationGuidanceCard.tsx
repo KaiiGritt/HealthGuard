@@ -39,119 +39,55 @@ function MedicationProfileDisclosure({
   children: ReactNode;
 }) {
   return (
-    <details className="mt-3 overflow-hidden rounded-2xl border border-[#DDE7DB] bg-white shadow-[0_6px_18px_rgba(31,74,54,0.045)] sm:mt-4">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-3 text-sm font-semibold text-brand-dark outline-none transition-colors hover:bg-[#FBFCF9] focus-visible:ring-4 focus-visible:ring-brand/15 sm:px-4">
+    <details className="mt-2 overflow-hidden rounded-2xl border border-[#DDE7DB] bg-white shadow-[0_6px_18px_rgba(31,74,54,0.045)] sm:mt-3">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 text-sm font-semibold text-brand-dark outline-none transition-colors hover:bg-[#FBFCF9] focus-visible:ring-4 focus-visible:ring-brand/15 sm:px-4">
         <span>{title}</span>
         <span className="shrink-0 rounded-full border border-[#D3E2D0] bg-[#F3F8F0] px-2.5 py-1 font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-brand-dark">
           View details
         </span>
       </summary>
-      <div className="space-y-3 border-t border-[#E3E7DC] bg-[#FCFDFB] p-3 sm:space-y-4 sm:p-4 lg:p-5">
+      <div className="space-y-2.5 border-t border-[#E3E7DC] bg-[#FCFDFB] p-2.5 sm:space-y-3 sm:p-3 lg:p-4">
         {children}
       </div>
     </details>
   );
 }
 
-const PRODUCTIVE_COUGH_SAFETY_QUESTIONS = [
-  { key: "age", label: "Is the patient under 2 years old?" },
-  { key: "allergy", label: "Does the patient have a medicine or ingredient allergy?" },
-  { key: "asthma", label: "Does the patient have asthma or another long-term lung condition?" },
-  { key: "pregnancy", label: "Is the patient pregnant or breastfeeding?" },
-  { key: "ulcer", label: "Does the patient have a stomach ulcer or a history of stomach/intestinal bleeding?" },
-  { key: "liverKidney", label: "Does the patient have liver or kidney disease?" },
-  { key: "otherMedicines", label: "Is the patient taking any other prescription, over-the-counter, or herbal medicines?" },
-] as const;
+const medicineDetailsClassName =
+  "group/medicine overflow-hidden rounded-2xl border border-[#DDE7DB] bg-[linear-gradient(180deg,#FFFFFF_0%,#F9FBF7_100%)] shadow-[0_10px_22px_rgba(31,74,54,0.04)] ring-1 ring-[#EEF3EA] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_14px_28px_rgba(31,74,54,0.07)]";
+const medicineSummaryClassName =
+  "cursor-pointer list-none p-3.5 outline-none transition-all duration-200 hover:bg-[#F6FAF3] hover:text-brand-dark focus-visible:ring-4 focus-visible:ring-brand/15 sm:p-4";
 
-type SafetyQuestion = { readonly key: string; readonly label: string };
-type SafetyAnswer = "yes" | "no" | "unsure";
-
-function MedicationSafetyCheck({
-  questions,
-  checkId,
-  onCompletionChange,
-}: {
-  questions: readonly SafetyQuestion[];
-  checkId: string;
-  onCompletionChange: (complete: boolean) => void;
-}) {
-  const [answers, setAnswers] = useState<Record<string, SafetyAnswer>>({});
-  const complete = questions.every(({ key }) => answers[key] !== undefined);
-  const flaggedAnswers = questions.filter(
-    ({ key }) => answers[key] === "yes" || answers[key] === "unsure",
-  );
-
+function MedicineDetailsCue() {
   return (
-    <section className="overflow-hidden rounded-2xl border border-[#DCE5D8] bg-white shadow-[0_6px_18px_rgba(31,74,54,0.04)]">
-      <div className="border-b border-[#E6ECE3] bg-[linear-gradient(145deg,#FBFCFA_0%,#F3F7F1_100%)] px-4 py-4 sm:px-5">
-        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-brand-dark">Before taking any medicine</p>
-        <p className="mt-1 text-sm leading-relaxed text-ink-secondary">
-          Answer these safety prompts before opening the medicine information. This check is only on this page; answers are not saved or sent.
-        </p>
-        <p className="mt-2 text-xs leading-relaxed text-ink-muted">
-          A “yes” or “not sure” does not automatically rule out every option. This is not a suitability test; review the exact product and patient situation with a pharmacist or healthcare professional.
-        </p>
-      </div>
-
-      <div className="divide-y divide-[#EDF1EA] px-4 sm:px-5">
-        {questions.map(({ key, label }) => (
-          <fieldset key={key} className="grid gap-2 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-4">
-            <legend className="text-sm font-medium leading-relaxed text-ink">{label}</legend>
-            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={label}>
-              {([
-                ["no", "No"],
-                ["yes", "Yes"],
-                ["unsure", "Not sure"],
-              ] as const).map(([value, optionLabel]) => (
-                <label key={value} className="cursor-pointer">
-                  <input
-                    className="peer sr-only"
-                    type="radio"
-                    name={`${checkId}-safety-${key}`}
-                    value={value}
-                    checked={answers[key] === value}
-                    onChange={() => {
-                      const next = { ...answers, [key]: value };
-                      setAnswers(next);
-                      onCompletionChange(questions.every(({ key: questionKey }) => next[questionKey] !== undefined));
-                    }}
-                  />
-                  <span className="inline-flex min-h-9 items-center rounded-full border border-[#DCE5D8] bg-white px-3 text-xs font-semibold text-ink-secondary transition-colors peer-checked:border-brand peer-checked:bg-[#EEF5EA] peer-checked:text-brand-dark peer-focus-visible:outline-none peer-focus-visible:ring-4 peer-focus-visible:ring-brand/15">
-                    {optionLabel}
-                  </span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
-        ))}
-      </div>
-
-      {complete && flaggedAnswers.length > 0 && (
-        <div className="m-4 rounded-xl border border-[#E8D19A] bg-[#FFF9E9] p-3.5 sm:m-5 sm:p-4" role="status">
-          <p className="text-sm font-semibold text-[#795516]">Review these factors with a professional before considering any option</p>
-          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-relaxed text-[#66583D]">
-            {flaggedAnswers.map(({ key, label }) => (
-              <li key={key}>{label} — {answers[key] === "unsure" ? "not sure" : "yes"}</li>
-            ))}
-          </ul>
-          <p className="mt-2 text-xs leading-relaxed text-[#66583D]">
-            This guide cannot check individual contraindications or interactions and does not decide which medicine is suitable.
-          </p>
-        </div>
-      )}
-      {complete && flaggedAnswers.length === 0 && (
-        <p className="m-4 rounded-xl border border-[#DCE5D8] bg-[#F7FAF5] p-3.5 text-sm leading-relaxed text-ink-secondary sm:m-5 sm:p-4" role="status">
-          No listed factors were selected. This does not confirm that any medicine is safe or appropriate for this patient.
-        </p>
-      )}
-      {!complete && (
-        <p className="px-4 pb-4 text-xs leading-relaxed text-ink-muted sm:px-5">
-          Answer all {questions.length} questions to reveal the general reference information. You can change answers at any time.
-        </p>
-      )}
-    </section>
+    <span className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-[#D3E2D0] bg-[#F3F8F0] px-2.5 py-1 font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-brand-dark">
+      View details
+      <svg viewBox="0 0 20 20" fill="none" className="h-3.5 w-3.5 transition-transform duration-200 group-open/medicine:rotate-180" aria-hidden="true">
+        <path d="m5 7.5 5 5 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </span>
   );
 }
+
+const salineNasalSpray: MedicationCatalogEntry = {
+  generic_name: "Saline nasal spray",
+  alternative_name: "0.9% sodium chloride nasal solution",
+  common_brands: [],
+  classification: "Nasal saline solution",
+  common_use: "Moisturizes nasal passages and helps loosen thick secretions without rebound congestion.",
+  indications: ["Nasal congestion", "Nasal dryness", "Thick nasal secretions"],
+  dosage_forms: ["Sterile nasal saline spray"],
+  dosage_guidance: [
+    "Use 1–2 sprays in each nostril as needed, following the product instructions.",
+    "May be used several times daily as directed by the product label.",
+    "Clean the nozzle after use and do not share the bottle.",
+  ],
+  side_effects: ["Temporary nasal irritation", "Mild stinging", "Occasional sneezing"],
+  medicine_specific_precautions: ["Use a properly manufactured sterile saline product."],
+  serious_reactions: [],
+  precautions: ["Keep the nozzle clean.", "Stop use if significant irritation occurs."],
+  overdose_guidance: [],
+};
 
 function MedicationIdentityDetails({
   name,
@@ -165,31 +101,31 @@ function MedicationIdentityDetails({
   commonUse: string;
 }) {
   return (
-    <div className="relative mt-3 overflow-hidden rounded-2xl border border-[#D8E5D5] bg-[linear-gradient(145deg,#FFFFFF_0%,#F5F9F1_100%)] p-3 shadow-[0_8px_22px_rgba(31,74,54,0.06)] sm:mt-4 sm:p-4">
+    <div className="relative mt-2 overflow-hidden rounded-[14px] border border-[#D8E5D5] bg-[linear-gradient(145deg,#FFFFFF_0%,#F7FAF4_100%)] p-2 shadow-[0_5px_14px_rgba(31,74,54,0.04)] sm:mt-3 sm:p-2.5">
       <div className="absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-[#9AB99A] to-transparent" aria-hidden="true" />
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h4 className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-secondary sm:text-xs">Medicine details</h4>
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-[#CFE0CF] bg-white/85 px-2.5 py-1 font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-brand-dark shadow-[0_2px_8px_rgba(47,107,79,0.05)] sm:text-[10px]">
+      <div className="flex items-center justify-between gap-2">
+        <h4 className="font-mono text-[9px] font-semibold uppercase tracking-[0.14em] text-ink-secondary sm:text-[10px]">Medicine details</h4>
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-[#CFE0CF] bg-white/85 px-2 py-0.5 font-mono text-[8px] font-semibold uppercase tracking-[0.1em] text-brand-dark shadow-[0_2px_8px_rgba(47,107,79,0.05)] sm:text-[9px]">
           <span className="h-1.5 w-1.5 rounded-full bg-brand" aria-hidden="true" />
           {kind}
         </span>
       </div>
-      <dl className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <div className="min-w-0 rounded-xl border border-[#E1E9DD] bg-white/85 px-3 py-2.5">
-          <dt className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-ink-muted">Medicine / guidance</dt>
-          <dd className="mt-0.5 break-words text-sm font-semibold text-ink">{name}</dd>
+      <dl className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <div className="min-w-0 rounded-xl border border-[#E1E9DD] bg-white/85 px-2.5 py-2">
+          <dt className="font-mono text-[8px] font-semibold uppercase tracking-[0.1em] text-ink-muted sm:text-[9px]">Medicine / guidance</dt>
+          <dd className="mt-0.5 break-words text-sm font-semibold leading-snug text-ink">{name}</dd>
         </div>
-        <div className="min-w-0 rounded-xl border border-[#E1E9DD] bg-white/85 px-3 py-2.5">
-          <dt className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-ink-muted">Guidance type</dt>
-          <dd className="mt-0.5 break-words text-sm font-semibold text-ink">{kind}</dd>
+        <div className="min-w-0 rounded-xl border border-[#E1E9DD] bg-white/85 px-2.5 py-2">
+          <dt className="font-mono text-[8px] font-semibold uppercase tracking-[0.1em] text-ink-muted sm:text-[9px]">Guidance type</dt>
+          <dd className="mt-0.5 break-words text-sm font-semibold leading-snug text-ink">{kind}</dd>
         </div>
-        <div className="min-w-0 rounded-xl border border-[#E1E9DD] bg-white/85 px-3 py-2.5">
-          <dt className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-ink-muted">Common use</dt>
+        <div className="min-w-0 rounded-xl border border-[#E1E9DD] bg-white/85 px-2.5 py-2 sm:col-span-2">
+          <dt className="font-mono text-[8px] font-semibold uppercase tracking-[0.1em] text-ink-muted sm:text-[9px]">Common use</dt>
           <dd className="mt-0.5 break-words text-sm leading-relaxed text-ink-secondary">{commonUse}</dd>
         </div>
-        <div className="min-w-0 rounded-xl border border-[#CFE0CF] bg-[#F3F8F0] px-3 py-2.5">
-          <dt className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-brand-dark">Classification</dt>
-          <dd className="mt-0.5 break-words text-sm font-semibold text-brand-dark">{classification}</dd>
+        <div className="min-w-0 rounded-xl border border-[#CFE0CF] bg-[#F3F8F0] px-2.5 py-2 sm:col-span-2">
+          <dt className="font-mono text-[8px] font-semibold uppercase tracking-[0.1em] text-brand-dark sm:text-[9px]">Classification</dt>
+          <dd className="mt-0.5 break-words text-sm font-semibold leading-snug text-brand-dark">{classification}</dd>
         </div>
       </dl>
     </div>
@@ -198,31 +134,31 @@ function MedicationIdentityDetails({
 
 function ParacetamolMedicineDetails({ medicine }: { medicine: MedicationCatalogEntry }) {
   return (
-    <div className="relative mt-3 overflow-hidden rounded-2xl border border-[#D8E5D5] bg-[linear-gradient(145deg,#FFFFFF_0%,#F5F9F1_100%)] p-3 shadow-[0_8px_22px_rgba(31,74,54,0.06)] sm:mt-4 sm:p-4">
+    <div className="relative mt-2 overflow-hidden rounded-[14px] border border-[#D8E5D5] bg-[linear-gradient(145deg,#FFFFFF_0%,#F7FAF4_100%)] p-2 shadow-[0_5px_14px_rgba(31,74,54,0.04)] sm:mt-3 sm:p-2.5">
       <div className="absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-[#9AB99A] to-transparent" aria-hidden="true" />
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h4 className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-secondary sm:text-xs">Medicine details</h4>
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-[#CFE0CF] bg-white/85 px-2.5 py-1 font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-brand-dark shadow-[0_2px_8px_rgba(47,107,79,0.05)] sm:text-[10px]">
+      <div className="flex items-center justify-between gap-2">
+        <h4 className="font-mono text-[9px] font-semibold uppercase tracking-[0.14em] text-ink-secondary sm:text-[10px]">Medicine details</h4>
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-[#CFE0CF] bg-white/85 px-2 py-0.5 font-mono text-[8px] font-semibold uppercase tracking-[0.1em] text-brand-dark shadow-[0_2px_8px_rgba(47,107,79,0.05)] sm:text-[9px]">
           <span className="h-1.5 w-1.5 rounded-full bg-brand" aria-hidden="true" />
           Product status not verified
         </span>
       </div>
-      <dl className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <div className="min-w-0 rounded-xl border border-[#E1E9DD] bg-white/85 px-3 py-2.5">
-          <dt className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-ink-muted">Generic name</dt>
-          <dd className="mt-0.5 break-words text-sm font-semibold text-ink">{medicine.generic_name}</dd>
+      <dl className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <div className="min-w-0 rounded-xl border border-[#E1E9DD] bg-white/85 px-2.5 py-2">
+          <dt className="font-mono text-[8px] font-semibold uppercase tracking-[0.1em] text-ink-muted sm:text-[9px]">Generic name</dt>
+          <dd className="mt-0.5 break-words text-sm font-semibold leading-snug text-ink">{medicine.generic_name}</dd>
         </div>
-        <div className="min-w-0 rounded-xl border border-[#E1E9DD] bg-white/85 px-3 py-2.5">
-          <dt className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-ink-muted">Also known as</dt>
-          <dd className="mt-0.5 break-words text-sm font-semibold text-ink">{medicine.alternative_name}</dd>
+        <div className="min-w-0 rounded-xl border border-[#E1E9DD] bg-white/85 px-2.5 py-2">
+          <dt className="font-mono text-[8px] font-semibold uppercase tracking-[0.1em] text-ink-muted sm:text-[9px]">Also known as</dt>
+          <dd className="mt-0.5 break-words text-sm font-semibold leading-snug text-ink">{medicine.alternative_name}</dd>
         </div>
-        <div className="min-w-0 rounded-xl border border-[#E1E9DD] bg-white/85 px-3 py-2.5">
-          <dt className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-ink-muted">Common brands</dt>
-          <dd className="mt-0.5 break-words text-sm font-semibold text-ink">{medicine.common_brands.join(", ")}</dd>
+        <div className="min-w-0 rounded-xl border border-[#E1E9DD] bg-white/85 px-2.5 py-2 sm:col-span-2">
+          <dt className="font-mono text-[8px] font-semibold uppercase tracking-[0.1em] text-ink-muted sm:text-[9px]">Common brands</dt>
+          <dd className="mt-0.5 break-words text-sm font-semibold leading-snug text-ink">{medicine.common_brands.join(", ")}</dd>
         </div>
-        <div className="min-w-0 rounded-xl border border-[#CFE0CF] bg-[#F3F8F0] px-3 py-2.5">
-          <dt className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-brand-dark">Drug classification</dt>
-          <dd className="mt-0.5 break-words text-sm font-semibold text-brand-dark">{medicine.classification}</dd>
+        <div className="min-w-0 rounded-xl border border-[#CFE0CF] bg-[#F3F8F0] px-2.5 py-2 sm:col-span-2">
+          <dt className="font-mono text-[8px] font-semibold uppercase tracking-[0.1em] text-brand-dark sm:text-[9px]">Drug classification</dt>
+          <dd className="mt-0.5 break-words text-sm font-semibold leading-snug text-brand-dark">{medicine.classification}</dd>
         </div>
       </dl>
     </div>
@@ -274,7 +210,6 @@ function ParacetamolProfile({ medicine }: { medicine: MedicationCatalogEntry }) 
 }
 
 function ProductiveCoughProfile({ medicines }: { medicines: MedicationCatalogEntry[] }) {
-  const [safetyCheckComplete, setSafetyCheckComplete] = useState(false);
   const sharedGuidance = medicines[0];
   if (!sharedGuidance) return null;
 
@@ -290,14 +225,6 @@ function ProductiveCoughProfile({ medicines }: { medicines: MedicationCatalogEnt
         </p>
       </div>
 
-      <MedicationSafetyCheck
-        questions={PRODUCTIVE_COUGH_SAFETY_QUESTIONS}
-        checkId="productive-cough"
-        onCompletionChange={setSafetyCheckComplete}
-      />
-
-      {safetyCheckComplete && (
-      <>
       <div className="rounded-xl border border-[#E5D4A8] bg-[#FFFBF0] p-4 sm:p-5">
         <p className="text-sm font-semibold text-[#785619]">Guideline context for acute cough</p>
         <p className="mt-1.5 text-sm leading-relaxed text-[#5F5746]">
@@ -348,14 +275,14 @@ function ProductiveCoughProfile({ medicines }: { medicines: MedicationCatalogEnt
                 const hasAmbroxolBromhexineWarning = ["Ambroxol", "Bromhexine"].includes(medicine.generic_name);
                 const isAcetylcysteine = medicine.generic_name === "Acetylcysteine (NAC)";
                 return (
-                  <details key={medicine.generic_name} className="group/medicine overflow-hidden rounded-xl border border-[#DDE7DB] bg-white shadow-[0_3px_10px_rgba(24,38,25,0.025)]">
-                    <summary className="cursor-pointer list-none p-4 outline-none transition-colors hover:bg-[#FBFCF9] focus-visible:ring-4 focus-visible:ring-brand/15 sm:p-5">
+                  <details key={medicine.generic_name} className={medicineDetailsClassName}>
+                    <summary className={medicineSummaryClassName}>
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="font-display text-base font-semibold text-ink sm:text-lg">{medicine.generic_name}</span>
                         <span className="rounded-full border border-[#D3E2D0] bg-[#F3F8F0] px-2.5 py-1 text-xs font-semibold text-brand-dark">{medicine.classification}</span>
                       </div>
                       <p className="mt-1.5 text-sm leading-relaxed text-ink-secondary">{medicine.common_use}</p>
-                      <p className="mt-2 text-xs font-medium text-brand-dark">View indications, precautions, and product information</p>
+                      <MedicineDetailsCue />
                     </summary>
                     <div className="space-y-3 border-t border-[#E3E7DC] bg-[#FCFDFB] p-4 sm:p-5">
                       <SectionBlock title="Medical uses / indications" items={medicine.indications} />
@@ -460,8 +387,6 @@ function ProductiveCoughProfile({ medicines }: { medicines: MedicationCatalogEnt
           </div>
         </>
       )}
-      </>
-      )}
     </MedicationProfileDisclosure>
   );
 }
@@ -480,13 +405,14 @@ function DryCoughProfile({ medicines }: { medicines: MedicationCatalogEntry[] })
         <h4 className="mb-2 font-mono text-xs font-semibold uppercase tracking-[0.1em] text-ink-secondary">Medicine options</h4>
         <div className="space-y-2">
           {medicines.map((medicine) => (
-            <details key={medicine.generic_name} className="group/medicine overflow-hidden rounded-xl border border-[#DDE7DB] bg-white">
-              <summary className="cursor-pointer list-none p-3 outline-none transition-colors hover:bg-[#FBFCF9] focus-visible:ring-4 focus-visible:ring-brand/15 sm:p-4">
+            <details key={medicine.generic_name} className={medicineDetailsClassName}>
+              <summary className={medicineSummaryClassName}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-display text-sm font-semibold text-ink sm:text-base">{medicine.generic_name}</span>
                   <span className="rounded-full border border-[#D3E2D0] bg-[#F3F8F0] px-2.5 py-1 text-[10px] font-semibold text-brand-dark">{medicine.classification}</span>
                 </div>
                 <p className="mt-1 text-xs leading-relaxed text-ink-secondary sm:text-sm">{medicine.common_use}</p>
+                <MedicineDetailsCue />
               </summary>
               <div className="space-y-3 border-t border-[#E3E7DC] bg-[#FCFDFB] p-3 sm:p-4">
                 <dl className="grid gap-2 sm:grid-cols-2">
@@ -543,13 +469,14 @@ function DiarrheaProfile({
         </h4>
         <div className="space-y-2">
           {displayedMedicines.map((medicine) => (
-            <details key={medicine.generic_name} className="group/medicine overflow-hidden rounded-xl border border-[#DDE7DB] bg-white">
-              <summary className="cursor-pointer list-none p-3 outline-none transition-colors hover:bg-[#FBFCF9] focus-visible:ring-4 focus-visible:ring-brand/15 sm:p-4">
+            <details key={medicine.generic_name} className={medicineDetailsClassName}>
+              <summary className={medicineSummaryClassName}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-display text-sm font-semibold text-ink sm:text-base">{medicine.generic_name}</span>
                   <span className="rounded-full border border-[#D3E2D0] bg-[#F3F8F0] px-2.5 py-1 text-[10px] font-semibold text-brand-dark">{medicine.classification}</span>
                 </div>
                 <p className="mt-1 text-xs leading-relaxed text-ink-secondary sm:text-sm">{medicine.common_use}</p>
+                <MedicineDetailsCue />
               </summary>
               <div className="space-y-3 border-t border-[#E3E7DC] bg-[#FCFDFB] p-3 sm:p-4">
                 <SectionBlock title="Medical uses / indications" items={medicine.indications} />
@@ -619,13 +546,14 @@ function VomitingProfile({
         </h4>
         <div className="space-y-2">
           {displayedMedicines.map((medicine) => (
-            <details key={medicine.generic_name} className="group/medicine overflow-hidden rounded-xl border border-[#DDE7DB] bg-white">
-              <summary className="cursor-pointer list-none p-3 outline-none transition-colors hover:bg-[#FBFCF9] focus-visible:ring-4 focus-visible:ring-brand/15 sm:p-4">
+            <details key={medicine.generic_name} className={medicineDetailsClassName}>
+              <summary className={medicineSummaryClassName}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-display text-sm font-semibold text-ink sm:text-base">{medicine.generic_name}</span>
                   <span className="rounded-full border border-[#D3E2D0] bg-[#F3F8F0] px-2.5 py-1 text-[10px] font-semibold text-brand-dark">{medicine.classification}</span>
                 </div>
                 <p className="mt-1 text-xs leading-relaxed text-ink-secondary sm:text-sm">{medicine.common_use}</p>
+                <MedicineDetailsCue />
               </summary>
               <div className="space-y-3 border-t border-[#E3E7DC] bg-[#FCFDFB] p-3 sm:p-4">
                 <SectionBlock title="Medical uses / indications" items={medicine.indications} />
@@ -678,7 +606,7 @@ function ColdMedicationProfile({
 }) {
   const context = inputText.toLowerCase();
   const symptoms = new Set(detectedSymptoms.map((symptom) => symptom.trim().toLowerCase()));
-  const hasCongestion = /\b(?:stuffy nose|nasal congestion|blocked nose)\b/.test(context);
+  const hasCongestion = /\b(?:stuffy nose|nasal congestion|blocked nose|nasal dryness|dry nose|thick nasal secretions)\b/.test(context);
   const hasAllergySymptoms = /\b(?:runny nose|sneezing|watery eyes|nasal itching)\b/.test(context);
   const hasFeverPain = ["fever", "headache", "sore throat"].some((symptom) => symptoms.has(symptom))
     || /\b(?:mild fever|sore throat|headache)\b/.test(context);
@@ -698,6 +626,7 @@ function ColdMedicationProfile({
     if (medicine.generic_name === "Guaifenesin") return hasProductiveCough;
     return false;
   });
+  if (hasCongestion) displayedMedicines.push(salineNasalSpray);
 
   return (
     <MedicationProfileDisclosure title="Cold symptom medicine information">
@@ -710,28 +639,32 @@ function ColdMedicationProfile({
       {displayedMedicines.length > 0 ? (
         <section>
           <h4 className="mb-2 font-mono text-xs font-semibold uppercase tracking-[0.1em] text-ink-secondary">
-            {isPediatric ? "Symptom-matched medicine information" : "Adult reference information"}
+            Symptom-matched medication information
           </h4>
           <div className="space-y-2">
             {displayedMedicines.map((medicine) => (
-              <details key={medicine.generic_name} className="group/medicine overflow-hidden rounded-xl border border-[#DDE7DB] bg-white">
-                <summary className="cursor-pointer list-none p-3 outline-none transition-colors hover:bg-[#FBFCF9] focus-visible:ring-4 focus-visible:ring-brand/15 sm:p-4">
+              <details key={medicine.generic_name} className={medicineDetailsClassName}>
+                <summary className={medicineSummaryClassName}>
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="font-display text-sm font-semibold text-ink sm:text-base">{medicine.generic_name}</span>
                     <span className="rounded-full border border-[#D3E2D0] bg-[#F3F8F0] px-2.5 py-1 text-[10px] font-semibold text-brand-dark">{medicine.classification}</span>
                   </div>
                   <p className="mt-1 text-xs leading-relaxed text-ink-secondary sm:text-sm">{medicine.common_use}</p>
+                  <MedicineDetailsCue />
                 </summary>
                 <div className="space-y-3 border-t border-[#E3E7DC] bg-[#FCFDFB] p-3 sm:p-4">
                   <SectionBlock title="Medical uses / indications" items={medicine.indications} />
                   <SectionBlock title="Common dosage forms" items={medicine.dosage_forms} />
-                  {isPediatric ? (
+                  {isPediatric && medicine.generic_name !== salineNasalSpray.generic_name ? (
                     <SectionBlock
                       title="Dosage"
                       items={["Adult dosage information is not shown for a person under 18. Ask a healthcare professional for age- and product-specific advice."]}
                     />
                   ) : (
-                    <SectionBlock title="Adult dosage guidance (general)" items={medicine.dosage_guidance} />
+                    <SectionBlock
+                      title={medicine.generic_name === salineNasalSpray.generic_name ? "Use guidance" : "Adult dosage guidance (general)"}
+                      items={medicine.dosage_guidance}
+                    />
                   )}
                   <div className="grid gap-3 lg:grid-cols-2">
                     <SectionBlock title="Possible side effects" items={medicine.side_effects} />
@@ -753,12 +686,26 @@ function ColdMedicationProfile({
           Select a specific cold symptom, such as a stuffy nose, runny nose, fever, or a cough type, to view relevant information. No medicine is selected automatically.
         </p>
       )}
+
+      <SectionBlock
+        title="General safety precautions before medication"
+        items={[
+          "Age: Confirm the patient is 18 years old or older before using adult dosage guidance.",
+          "Medication allergies: Check for allergies to active and inactive ingredients.",
+          "Existing conditions: Review liver disease, kidney disease, hypertension, heart disease, and other relevant conditions.",
+          "Current medications: Check for duplicate ingredients and possible drug interactions.",
+          "Pregnancy and breastfeeding: Seek professional consultation before taking medication.",
+          "Dosage verification: Confirm the exact formulation and concentration before using a dose.",
+          "Symptom severity: Identify warning signs that require medical evaluation instead of self-medication.",
+        ]}
+      />
+
       <SectionBlock
         title="Important safety reminders"
         items={[
           "Do not combine cold products without checking for duplicate paracetamol, antihistamines, or decongestants.",
           "Pseudoephedrine product classification varies; confirm current Philippine registration and availability with a pharmacist.",
-          "Oral phenylephrine effectiveness for nasal congestion is uncertain.",
+          "Oral phenylephrine is not recommended as a preferred option for nasal congestion.",
           "Use nasal decongestant sprays only for the product-specific maximum duration to avoid rebound congestion.",
           "Seek medical advice for severe, persistent, or worsening symptoms.",
         ]}
@@ -793,13 +740,14 @@ function HeadacheMedicationProfile({
         </h4>
         <div className="space-y-2">
           {medicines.map((medicine) => (
-            <details key={medicine.generic_name} className="group/medicine overflow-hidden rounded-xl border border-[#DDE7DB] bg-white">
-              <summary className="cursor-pointer list-none p-3 outline-none transition-colors hover:bg-[#FBFCF9] focus-visible:ring-4 focus-visible:ring-brand/15 sm:p-4">
+            <details key={medicine.generic_name} className={medicineDetailsClassName}>
+              <summary className={medicineSummaryClassName}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-display text-sm font-semibold text-ink sm:text-base">{medicine.generic_name}</span>
                   <span className="rounded-full border border-[#D3E2D0] bg-[#F3F8F0] px-2.5 py-1 text-[10px] font-semibold text-brand-dark">{medicine.classification}</span>
                 </div>
                 <p className="mt-1 text-xs leading-relaxed text-ink-secondary sm:text-sm">{medicine.common_use}</p>
+                <MedicineDetailsCue />
               </summary>
               <div className="space-y-3 border-t border-[#E3E7DC] bg-[#FCFDFB] p-3 sm:p-4">
                 <SectionBlock title="Medical uses / indications" items={medicine.indications} />
@@ -883,13 +831,14 @@ function RashMedicationProfile({
           </p>
           <div className="space-y-2">
             {medicines.map((medicine) => (
-              <details key={medicine.generic_name} className="group/medicine overflow-hidden rounded-xl border border-[#DDE7DB] bg-white">
-                <summary className="cursor-pointer list-none p-3 outline-none transition-colors hover:bg-[#FBFCF9] focus-visible:ring-4 focus-visible:ring-brand/15 sm:p-4">
+              <details key={medicine.generic_name} className={medicineDetailsClassName}>
+                <summary className={medicineSummaryClassName}>
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="font-display text-sm font-semibold text-ink sm:text-base">{medicine.generic_name}</span>
                     <span className="rounded-full border border-[#D3E2D0] bg-[#F3F8F0] px-2.5 py-1 text-[10px] font-semibold text-brand-dark">{medicine.classification}</span>
                   </div>
                   <p className="mt-1 text-xs leading-relaxed text-ink-secondary sm:text-sm">{medicine.common_use}</p>
+                  <MedicineDetailsCue />
                 </summary>
                 <div className="space-y-3 border-t border-[#E3E7DC] bg-[#FCFDFB] p-3 sm:p-4">
                   <SectionBlock title="Medical uses / indications" items={medicine.indications} />
@@ -1023,13 +972,14 @@ function AbdominalSupportProfile({ medicines }: { medicines: MedicationCatalogEn
     <MedicationProfileDisclosure title="Abdominal-support and symptom relief information">
       <div className="space-y-2">
         {medicines.map((medicine) => (
-          <details key={medicine.generic_name} className="group/medicine overflow-hidden rounded-xl border border-[#DDE7DB] bg-white">
-            <summary className="cursor-pointer list-none p-3 outline-none transition-colors hover:bg-[#FBFCF9] focus-visible:ring-4 focus-visible:ring-brand/15 sm:p-4">
+          <details key={medicine.generic_name} className={medicineDetailsClassName}>
+            <summary className={medicineSummaryClassName}>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-display text-sm font-semibold text-ink sm:text-base">{medicine.generic_name}</span>
                 <span className="rounded-full border border-[#D3E2D0] bg-[#F3F8F0] px-2.5 py-1 text-[10px] font-semibold text-brand-dark">{medicine.classification}</span>
               </div>
               <p className="mt-1 text-xs leading-relaxed text-ink-secondary sm:text-sm">{medicine.common_use}</p>
+              <MedicineDetailsCue />
             </summary>
             <div className="space-y-3 border-t border-[#E3E7DC] bg-[#FCFDFB] p-3 sm:p-4">
               <SectionBlock title="Medical uses / indications" items={medicine.indications} />
@@ -1284,12 +1234,12 @@ function MedicationCard({
   }, [isItchyRash, isSystemicRashReview, isUrgentRashReview]);
 
   return (
-    <article className="rounded-2xl border border-[#DDE7DB] bg-white p-3 shadow-[0_12px_28px_rgba(24,38,25,0.06)] sm:p-4 lg:p-5">
-      <div className="relative flex min-w-0 items-start gap-3 overflow-hidden rounded-2xl border border-[#D3E2D0] bg-[linear-gradient(135deg,#F5F9F1_0%,#EAF3E8_100%)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] sm:gap-4 sm:p-4">
+    <article className="rounded-[20px] border border-[#DDE7DB] bg-[linear-gradient(180deg,#FFFFFF_0%,#F9FBF7_100%)] p-3 shadow-[0_12px_28px_rgba(24,38,25,0.06)] sm:p-4 lg:p-5">
+      <div className="relative flex min-w-0 items-start gap-3 overflow-hidden rounded-[18px] border border-[#D3E2D0] bg-[linear-gradient(135deg,#F5F9F1_0%,#EAF3E8_100%)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] sm:gap-4 sm:p-4">
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/70 bg-brand text-brand-foreground shadow-[0_6px_14px_rgba(31,74,54,0.18)] sm:h-12 sm:w-12"><IconPill size={19} /></span>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="font-display text-base font-semibold leading-snug text-brand-dark sm:text-lg lg:text-xl">{item.drugName}</p>
+            <p className="font-display text-base font-semibold leading-tight text-brand-dark sm:text-lg lg:text-xl">{item.drugName}</p>
             {isParacetamol && <span className="rounded-full border border-[#CFE0CF] bg-white/75 px-2 py-0.5 font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-brand-dark">Analgesic · Antipyretic</span>}
             {isProductiveCough && <span className="rounded-full border border-[#CFE0CF] bg-white/75 px-2 py-0.5 font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-brand-dark">Productive cough</span>}
             {isDryCough && <span className="rounded-full border border-[#CFE0CF] bg-white/75 px-2 py-0.5 font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-brand-dark">Dry cough</span>}
@@ -1326,11 +1276,11 @@ function MedicationCard({
         </div>
       </div>
       {item.note && isParacetamol && (
-        <div className="mt-3 rounded-2xl border border-[#E3E7DC] bg-[#FBFCF9] p-3 sm:mt-4 sm:p-4 lg:p-5">
+        <div className="mt-2 rounded-2xl border border-[#E3E7DC] bg-[#FBFCF9] p-2.5 sm:mt-3 sm:p-3 lg:p-4">
           <h4 className="font-mono text-xs font-semibold uppercase tracking-[0.1em] text-ink-secondary lg:text-sm">
             Guidance
           </h4>
-          <p className="mt-2 whitespace-pre-line text-[13px] leading-5 text-ink-secondary sm:text-sm sm:leading-relaxed lg:text-base">{item.note}</p>
+          <p className="mt-1.5 whitespace-pre-line text-[13px] leading-5 text-ink-secondary sm:text-sm sm:leading-relaxed lg:text-base">{item.note}</p>
         </div>
       )}
       {isParacetamol && medicine && <ParacetamolProfile medicine={medicine} />}
@@ -1424,10 +1374,10 @@ export default function MedicationGuidanceCard({
   }
 
   return (
-    <div className="mt-3 space-y-3">
-      <div className="rounded-2xl border border-[#E4C77C] bg-[linear-gradient(145deg,#FFFDF5_0%,#FFF8E8_100%)] px-4 py-4 shadow-[0_4px_14px_rgba(120,85,22,0.06)] sm:px-5">
+    <div className="mt-2 space-y-2.5">
+      <div className="rounded-2xl border border-[#E4C77C] bg-[linear-gradient(145deg,#FFFDF5_0%,#FFF8E8_100%)] px-3 py-3 shadow-[0_4px_14px_rgba(120,85,22,0.06)] sm:px-4 sm:py-3.5">
         <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-[#795516] sm:text-xs">Important medication safety note</p>
-        <p className="mt-1.5 text-sm leading-relaxed text-ink-secondary">
+        <p className="mt-1 text-sm leading-relaxed text-ink-secondary">
           Check with a pharmacist, doctor, or qualified health worker before taking any medicine. This guide is not a diagnosis, prescription, or confirmation that a medicine is suitable.
         </p>
       </div>

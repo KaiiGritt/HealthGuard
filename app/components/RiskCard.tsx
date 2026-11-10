@@ -125,6 +125,20 @@ export default function RiskCard({
   const scoreModifiers = triggeredRules.filter((rule) =>
     ["duration-score", "age-risk-modifier", "pregnancy-fever-review"].includes(rule.name),
   );
+  const supportReasons = [
+    {
+      en: "No emergency warning signs were identified in the reported symptoms.",
+      fil: "Walang natukoy na emergency warning sign sa mga sintomas na iniulat.",
+    },
+    {
+      en: "The reported pattern matches the lower-risk range for this screening assessment.",
+      fil: "Ang iniulat na pattern ay naaayon sa mas mababang panganib para sa pagsusuring ito.",
+    },
+    {
+      en: "The score did not reach the urgent threshold, but symptoms should still be watched closely if they worsen or persist.",
+      fil: "Hindi umabot ang marka sa urgent threshold, ngunit dapat pa rin bantayan nang mabuti ang mga sintomas kung lalala o magtatagal.",
+    },
+  ];
   return (
     <div className={`${level === "RED" ? "relative overflow-hidden rounded-3xl border border-[#B53B2A] bg-[linear-gradient(135deg,#B53B2A_0%,#8E2F24_58%,#6F211C_100%)] p-4 text-white shadow-[0_18px_42px_rgba(142,47,36,0.2)] sm:p-6" : `relative overflow-hidden rounded-3xl border ${s.border} ${s.bg} p-4 shadow-[0_14px_34px_rgba(24,38,25,0.07)] sm:p-6`}`}>
       <div className={`absolute inset-x-0 top-0 h-1 ${level === "RED" ? "bg-[#FFD2C8]" : level === "YELLOW" ? "bg-[#D98A2B]" : "bg-[#3E8E41]"}`} aria-hidden="true" />
@@ -137,7 +151,7 @@ export default function RiskCard({
           <ResultText as="h2" className={`mt-1.5 font-display text-xl font-semibold leading-snug sm:mt-2 sm:text-2xl lg:text-3xl ${level === "RED" ? "text-white" : "text-ink"}`} english={level === "RED" ? "The assessment found a warning sign or score that needs prompt attention." : messages[level]?.en ?? message} filipino={level === "RED" ? "May natukoy ang pagsusuri na babala o markang nangangailangan ng agarang atensyon." : messages[level]?.fil ?? message} />
         </div>
       </div>
-      {level === "RED" && (
+      {level === "RED" ? (
         <div className="relative mt-5 rounded-2xl border border-white/25 bg-white/10 px-4 py-4 sm:mt-6 sm:px-5 sm:py-5">
           <ResultText as="p" className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-red-100 sm:text-xs" english="Why this is urgent" filipino="Bakit agaran ito" />
           <ul className="mt-2 space-y-2 text-sm leading-relaxed text-white sm:text-base">
@@ -213,6 +227,23 @@ export default function RiskCard({
             className="mt-3 border-t border-white/20 pt-3 text-xs leading-relaxed text-red-100 sm:text-sm"
             english="Fever, cough, and vomiting together do not automatically mean an emergency. The warning sign, score, duration, and context above determine this result."
             filipino="Ang lagnat, ubo, at pagsusuka nang magkakasama ay hindi awtomatikong nangangahulugan ng emergency. Ang babala, marka, tagal, at kalagayang nakalista sa itaas ang batayan ng resultang ito."
+          />
+        </div>
+      ) : (
+        <div className="relative mt-5 rounded-2xl border border-black/5 bg-white/80 px-4 py-4 shadow-[0_5px_16px_rgba(24,38,25,0.04)] sm:mt-6 sm:px-5 sm:py-5">
+          <ResultText as="p" className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-muted sm:text-xs" english="Why this result" filipino="Bakit ganito ang resulta" />
+          <ul className="mt-2 space-y-2 text-sm leading-relaxed text-ink-secondary sm:text-base">
+            {supportReasons.map((item, index) => (
+              <li key={`${item.en}-${index}`}>
+                <ResultText english={item.en} filipino={item.fil} />
+              </li>
+            ))}
+          </ul>
+          <ResultText
+            as="p"
+            className="mt-3 border-t border-border/60 pt-3 text-xs leading-relaxed text-ink-muted sm:text-sm"
+            english="This is a screening result only. It is meant to guide monitoring and help you decide when to seek further assessment, not to rule out illness."
+            filipino="Screening result lamang ito. Ginagamit ito upang gabayan ang pagsubaybay at matulungan kang magpasya kung kailan magpapatuloy ng karagdagang pagsusuri, hindi upang itaggap na walang sakit."
           />
         </div>
       )}
