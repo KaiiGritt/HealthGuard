@@ -470,6 +470,19 @@ class RegisterRequest(BaseModel):
     language_preference: str | None = Field(default="en", max_length=16)
     notification_preferences: NotificationPreferences | None = None
 
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, value: str) -> str:
+        normalized = value.strip()
+        if not re.fullmatch(
+            r"[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*"
+            r"@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?"
+            r"(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+",
+            normalized,
+        ):
+            raise ValueError("Please enter a valid email address.")
+        return normalized
+
     @model_validator(mode="after")
     def validate_password(self) -> "RegisterRequest":
         validate_password_policy(self.password, (self.full_name, self.email))

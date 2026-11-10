@@ -81,7 +81,7 @@ export default function RegisterPage() {
       setError("Please enter your full name.");
       return;
     }
-    if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) {
+    if (!/^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+$/.test(form.email.trim())) {
       setError("Please enter a valid email address.");
       return;
     }
@@ -123,13 +123,11 @@ export default function RegisterPage() {
       setSubmitting(false);
       setError(null);
     } catch (err) {
-      const msg =
-        err instanceof Error && err.message.includes("409")
-          ? "An account with this email already exists."
-          : err instanceof Error && err.message.includes("503")
-            ? "We could not send a verification email. Please try again later or contact support."
-            : "Could not create your account. Please check your details.";
-      setError(msg);
+      setError(
+        err instanceof Error && err.message.trim()
+          ? err.message
+          : "Could not create your account. Please check your details.",
+      );
       setSubmitting(false);
     }
   }
