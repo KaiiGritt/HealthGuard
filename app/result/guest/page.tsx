@@ -13,6 +13,7 @@ import ClinicalExplanation from "../ClinicalExplanation";
 import { IconAssessment, IconCheck, IconChevronDown, IconHistory } from "../../components/ui/icons";
 import { clearPendingGuestPayload, type AnalyzeResult } from "@/lib/api";
 import { getReportedSymptomClassifications } from "@/lib/coughClassifications";
+import { isPediatricAssessmentInput } from "@/lib/assessmentPatient";
 import { ruleContributedToRisk, translatedRuleDescription, translatedRuleTitle } from "../resultTranslations";
 
 const RULE_TITLES: Record<string, string> = {
@@ -262,7 +263,7 @@ export default function GuestResultPage() {
               </ol>
             </details>
 
-            {result.risk_level !== "RED" && result.pre_medication && (
+            {result.risk_level !== "RED" && (result.pre_medication || isPediatricAssessmentInput(result.input_text)) && (
               <details className="group mt-4 overflow-hidden rounded-[22px] border border-[#E4C77C] bg-[linear-gradient(135deg,#FFFDF2_0%,#FFF8DC_58%,#FFF4C8_100%)] p-3 shadow-[0_12px_28px_rgba(137,106,36,0.08)] transition-all duration-200 open:border-[#d9b96a] open:shadow-[0_18px_34px_rgba(137,106,36,0.12)] sm:p-5 xl:col-span-2 xl:mt-0">
                 <summary className="flex cursor-pointer list-none items-start justify-between gap-3 rounded-xl outline-none focus-visible:ring-4 focus-visible:ring-[#d9b96a]/20">
                   <span className="min-w-0">
@@ -274,7 +275,7 @@ export default function GuestResultPage() {
                   </span>
                 </summary>
                 <div className="mt-4">
-                  <MedicationGuidanceCard riskLevel={result.risk_level} inputText={result.input_text} detectedSymptoms={result.detected_symptoms.map((symptom) => symptom.medical_term)} guidance={{ drugName: result.pre_medication.medication_name, dosage: result.pre_medication.dosage, contraindications: result.pre_medication.contraindications, sideEffects: result.pre_medication.side_effects, precautions: result.pre_medication.precautions, note: result.pre_medication.note }} />
+                  <MedicationGuidanceCard riskLevel={result.risk_level} inputText={result.input_text} detectedSymptoms={result.detected_symptoms.map((symptom) => symptom.medical_term)} guidance={result.pre_medication ? { drugName: result.pre_medication.medication_name, dosage: result.pre_medication.dosage, contraindications: result.pre_medication.contraindications, sideEffects: result.pre_medication.side_effects, precautions: result.pre_medication.precautions, note: result.pre_medication.note } : undefined} />
                 </div>
               </details>
             )}

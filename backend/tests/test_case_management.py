@@ -50,6 +50,36 @@ def test_admin_modules_reports_biomedical_model_availability(
     assert active.specialist_lexicon_active is True
 
 
+def test_admin_user_management_lists_every_account_including_signed_in_admin(
+    db_session: Session,
+) -> None:
+    admin = User(
+        full_name="Admin",
+        email="admin@example.test",
+        password_hash="test",
+        role="admin",
+    )
+    residents = [
+        User(
+            full_name=f"Resident {index}",
+            email=f"resident{index}@example.test",
+            password_hash="test",
+            role="resident",
+        )
+        for index in range(6)
+    ]
+    db_session.add_all([admin, *residents])
+    db_session.commit()
+
+    result = assessment.admin_modules(db_session, admin)
+
+    assert len(result.users) == 7
+    assert {item.email for item in result.users} == {
+        "admin@example.test",
+        *(f"resident{index}@example.test" for index in range(6)),
+    }
+
+
 def test_case_activity_is_persisted_and_returned(db_session: Session) -> None:
     mho = User(
         full_name="MHO Staff",
@@ -154,6 +184,37 @@ def test_history_loads_related_data_without_per_record_queries(db_session: Sessi
     assert len(response) == 3
     assert all(item.pre_medication and item.pre_medication.medication_name == "Guidance" for item in response)
     assert len(statements) == 3
+
+
+def test_history_never_returns_medication_guidance_for_red_assessments(db_session: Session) -> None:
+    resident = User(
+        full_name="Resident",
+        email="resident@example.test",
+        password_hash="test",
+        role="resident",
+    )
+    db_session.add(resident)
+    db_session.flush()
+    record = Assessment(
+        user_id=resident.id,
+        risk_level="RED",
+        detected_symptoms=["cough"],
+    )
+    db_session.add(record)
+    db_session.flush()
+    db_session.add(
+        PreMedication(
+            assessment_id=record.id,
+            medication_name="Legacy guidance",
+            dosage="As directed",
+        )
+    )
+    db_session.commit()
+
+    response = history(50, db_session, resident)
+
+    assert len(response) == 1
+    assert response[0].pre_medication is None
 
 
 def test_case_activity_rejects_non_red_assessments(db_session: Session) -> None:

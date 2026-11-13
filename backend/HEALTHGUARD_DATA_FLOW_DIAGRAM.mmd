@@ -1,0 +1,55 @@
+flowchart LR
+    Resident["Resident / guest"]
+    MHO["MHO personnel"]
+    Admin["Administrator"]
+    Email["Configured email provider"]
+
+    P1(["1.0<br/>Authenticate and manage accounts"])
+    P2(["2.0<br/>Capture and process assessment"])
+    P3(["3.0<br/>Classify and prepare guidance"])
+    P4(["4.0<br/>Save and retrieve assessment records"])
+    P5(["5.0<br/>Monitor cases and review lexicon"])
+    P6(["6.0<br/>Manage system and preview rules"])
+
+    D1[("D1 User accounts,<br/>profiles and verification data")]
+    D2[("D2 Assessment records,<br/>symptom links and case activity")]
+    D3[("D3 Canonical symptoms<br/>and bilingual lexicon")]
+    D4[("D4 Medication catalog<br/>and guidance snapshots")]
+    D5[("D5 Administrative reference data")]
+
+    Resident -->|"Credentials, registration and profile data"| P1
+    P1 <-->|"Account lookup / updates"| D1
+    P1 -->|"Verification or reset message"| Email
+    Email -->|"Delivery result"| P1
+    P1 -->|"Authentication status and session"| Resident
+
+    Resident -->|"Symptom text and selected symptoms"| P2
+    P2 <-->|"Active reviewed symptom terms"| D3
+    P2 -->|"Normalized symptoms, duration and negation signals"| P3
+    P3 -->|"Green / Yellow / Red result and explanation"| P4
+    P3 <-->|"Medication reference, when applicable"| D4
+    P4 -->|"Persist assessment for signed-in resident"| D2
+    P4 -->|"Persist assessment-specific guidance when available"| D4
+    P4 -->|"Assessment result and guidance"| Resident
+    Resident -->|"Request personal history"| P4
+    P4 <-->|"Owned assessment records"| D2
+    P4 -->|"Personal assessment history"| Resident
+
+    MHO -->|"Dashboard request and filters"| P5
+    P5 <-->|"Community assessment and case data"| D2
+    P5 <-->|"Lexicon review queue and decisions"| D3
+    P5 -->|"Aggregates, filtered cases and review status"| MHO
+
+    Admin -->|"Account / lexicon actions"| P6
+    P6 <-->|"Account and administrative data"| D1
+    P6 <-->|"Lexicon and reference updates"| D3
+    P6 <-->|"Administrative reference data"| D5
+    Admin -->|"Sample symptom text for rule preview"| P6
+    P6 <-->|"Current lexicon and assessment engine"| P2
+    P6 -->|"Preview classification and separate TglStemmer suggestions"| Admin
+    P6 -->|"Administrative summary and update status"| Admin
+
+    note1["The classifier uses explicit rules implemented in application code.<br/>Administrative LexiconRule reference rows do not drive live classification."]
+    P3 --- note1
+    note2["TglStemmer is currently used in admin rule preview only.<br/>Its suggestions do not add symptoms or alter the triage score or risk level."]
+    P6 --- note2

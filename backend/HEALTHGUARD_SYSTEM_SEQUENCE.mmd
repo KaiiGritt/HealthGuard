@@ -1,0 +1,134 @@
+sequenceDiagram
+    title HealthGuard System Sequence Diagram
+    autonumber
+    actor Resident
+    participant Web as Web Application
+    participant API as Backend API
+    participant Engine as NLP and Rule Engine
+    participant DB as Database
+    actor MHO
+    actor Admin
+
+    opt Resident signs in
+        Resident->>Web: Enter email and password
+        Web->>API: POST /auth/login
+        API->>DB: Find user and verify credentials
+        DB-->>API: User record
+        API-->>Web: User profile and httpOnly auth cookie
+        Web-->>Resident: Show signed-in application
+    end
+
+    Resident->>Web: Start assessment and submit symptoms
+    Web->>API: POST /assessment/analyze
+    opt Request has an authenticated user
+        API->>DB: Resolve user from auth cookie
+        DB-->>API: User record
+    end
+    API->>DB: Load non-rejected database lexicon entries
+    DB-->>API: Lexicon entries and canonical terms
+    API->>Engine: Analyze text and selected symptoms
+    Note over Engine: Match and normalize symptoms; apply negation handling and explicit clinical rules.
+    Engine-->>API: Matches, risk level, reasons, and rule triggers
+
+    alt Authenticated resident
+        API->>DB: Save assessment and normalized symptom links
+        Note over API,DB: Assessment and HealthAssessmentResult share the assessments table. Existing Symptom rows are reused or created.
+        DB-->>API: Saved assessment ID
+        opt Non-emergency guidance is available
+            API->>DB: Save assessment-specific pre-medication guidance
+            DB-->>API: Guidance saved
+        end
+        API-->>Web: Assessment result, recommendation, and record ID
+        Web-->>Resident: Display result and guidance
+    else Guest resident
+        API-->>Web: Unsaved result (ID 0) and guidance
+        Note over Web: Keep the pending assessment in browser session storage for an optional sign-in or registration.
+        Web-->>Resident: Display result and guidance
+    end
+
+    opt Guest signs in or registers and verifies email to save the pending assessment
+        Resident->>Web: Sign in or complete registration
+        Web->>API: POST /auth/login or registration and email verification
+        API->>DB: Authenticate or create verified user
+        DB-->>API: User record
+        API-->>Web: User profile and httpOnly auth cookie
+        Web->>API: POST /assessment/save-guest with pending input
+        API->>DB: Load non-rejected database lexicon entries
+        DB-->>API: Lexicon entries and canonical terms
+        API->>Engine: Re-run assessment for signed-in user
+        Engine-->>API: Matches and classification
+        API->>DB: Save assessment, symptom links, and available guidance
+        DB-->>API: Saved assessment ID
+        API-->>Web: Persisted assessment result
+        Web->>Web: Clear pending guest assessment
+        Web-->>Resident: Show saved assessment
+    end
+
+    opt Signed-in resident views personal history
+        Resident->>Web: Open assessment history
+        Web->>API: GET /assessment/history
+        API->>DB: Retrieve this user's assessments and guidance
+        DB-->>API: Assessment records
+        API-->>Web: Personal history
+        Web-->>Resident: Display history
+    end
+
+    opt MHO reviews community assessments
+        MHO->>Web: Open MHO dashboard
+        Web->>API: GET /assessment/dashboard/summary
+        API->>DB: Aggregate community assessments and case activity
+        DB-->>API: Dashboard summary and recent cases
+        API-->>Web: Dashboard data
+        Web-->>MHO: Display alerts, cases, and analytics
+        opt MHO records a case update
+            MHO->>Web: Mark handled or add RED-case activity
+            Web->>API: PATCH /assessment/{id}/handled or POST /assessment/{id}/case-activity
+            API->>DB: Save handled status or case activity
+            DB-->>API: Updated case
+            API-->>Web: Updated case summary
+            Web-->>MHO: Refresh case details
+        end
+        opt MHO reviews a symptom lexicon entry
+            MHO->>Web: Open lexicon review queue
+            Web->>API: GET /assessment/mho/lexicon
+            API->>DB: Retrieve symptom lexicon entries
+            DB-->>API: Lexicon review queue
+            API-->>Web: Lexicon entries
+            Web-->>MHO: Display entries for review
+            MHO->>Web: Approve or reject an entry
+            Web->>API: PATCH /assessment/admin/lexicon/{id}/review or /reject
+            API->>DB: Save review status and reviewer
+            DB-->>API: Updated lexicon entry
+            API-->>Web: Updated entry
+            Web-->>MHO: Refresh review queue
+        end
+    end
+
+    opt Admin manages users and lexicon
+        Admin->>Web: Open admin tools
+        Web->>API: GET /assessment/admin/summary and /assessment/admin/modules
+        API->>DB: Retrieve user and lexicon data
+        DB-->>API: Admin dashboard data
+        API-->>Web: Summary and management data
+        Web-->>Admin: Display users and lexicon tools
+        opt Admin updates a user or lexicon entry
+            Admin->>Web: Change user role/status or add a lexicon entry
+            Web->>API: Admin update request
+            API->>DB: Save authorized change
+            DB-->>API: Change committed
+            API-->>Web: Updated record
+            Web-->>Admin: Show confirmation
+        end
+        opt Admin previews clinical rules
+            Admin->>Web: Submit sample symptoms
+            Web->>API: POST /assessment/admin/rule-preview
+            API->>DB: Load non-rejected database lexicon entries
+            DB-->>API: Lexicon entries
+            API->>Engine: Run the current clinical rule engine
+            Engine-->>API: Preview classification (not persisted)
+            API-->>Web: Rule preview
+            Web-->>Admin: Display preview
+        end
+    end
+
+    Note over Engine,DB: LexiconRule rows are administrative/reference data; live triage uses the explicit rule engine and does not read them.

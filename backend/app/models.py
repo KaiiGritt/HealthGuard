@@ -1,8 +1,7 @@
-"""SQLAlchemy ORM models for the assessment vertical slice.
+"""SQLAlchemy ORM models for the HealthGuard assessment and administration system.
 
-Only the tables needed for the symptom -> triage -> history flow are defined here.
-`users`, `symptoms`, and `triage_rules` (from the full proposal) are added in the
-auth/admin sessions; `assessments.user_id` is already present so they bolt on cleanly.
+The schema keeps the existing assessment storage compatible while representing the
+diagram's related symptoms, medication guidance, lexicon rules, and reports.
 """
 from __future__ import annotations
 
@@ -167,6 +166,8 @@ class SymptomLexicon(Base):
     review_status: Mapped[str] = mapped_column(String(16), default="pending", nullable=False)
     reviewed_by: Mapped[str | None] = mapped_column(String(191), nullable=True)
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    requires_review: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
 
 class RiskLevel(Base):

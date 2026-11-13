@@ -52,6 +52,7 @@ _INFLECTIONS = (
     ("masakit po ulo", "headache", "tl"),
     ("masakit pa rin ang ulo", "headache", "tl"),
     ("masakit ang ulo", "headache", "tl"),
+    ("masakit ang aking ulo", "headache", "tl"),
     ("masakit ang tiyan", "abdominal pain", "tl"),
     ("masakit ang sikmura", "abdominal pain", "tl"),
     ("nagsusuka", "vomiting", "tl"),

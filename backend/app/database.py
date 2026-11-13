@@ -166,6 +166,25 @@ def migrate_lexicon_review_schema() -> None:
         conn.execute(text("UPDATE symptom_lexicon SET review_status = 'approved' WHERE reviewed = TRUE AND review_status = 'pending'"))
 
 
+def migrate_lexicon_active_schema() -> None:
+    """Add an independent activation flag for administrator-managed lexicon terms."""
+    from sqlalchemy import inspect, text
+
+    insp = inspect(engine)
+    if "symptom_lexicon" not in insp.get_table_names():
+        return
+    columns = {column["name"] for column in insp.get_columns("symptom_lexicon")}
+    with engine.begin() as connection:
+        if "is_active" not in columns:
+            connection.execute(
+                text("ALTER TABLE symptom_lexicon ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT TRUE")
+            )
+        if "requires_review" not in columns:
+            connection.execute(
+                text("ALTER TABLE symptom_lexicon ADD COLUMN requires_review BOOLEAN NOT NULL DEFAULT FALSE")
+            )
+
+
 def migrate_user_preferences_schema() -> None:
     """Add preference and soft-delete metadata to legacy user records."""
     from sqlalchemy import inspect, text
@@ -248,12 +267,7 @@ def migrate_assessment_icd10_schema() -> None:
             connection.execute(text("ALTER TABLE assessments ADD COLUMN icd10_uncoded JSON"))
 
     with SessionLocal() as db:
-        records = db.execute(
-            select(Assessment).where(
-                Assessment.icd10_codes.is_(None)
-                | Assessment.icd10_uncoded.is_(None)
-            )
-        ).scalars()
+        records = db.execute(select(Assessment)).scalars()
         for record in records:
             symptoms = record.detected_symptoms if isinstance(record.detected_symptoms, list) else []
             terms = [
@@ -265,6 +279,7 @@ def migrate_assessment_icd10_schema() -> None:
             if record.icd10_codes is None or any(
                 not isinstance(item, dict)
                 or not item.get("source")
+                or not item.get("source_url")
                 or not item.get("review_status")
                 for item in (record.icd10_codes or [])
             ):

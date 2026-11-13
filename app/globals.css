@@ -251,6 +251,50 @@
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+@keyframes hero-visual-enter {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes hero-card-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+@keyframes hero-notification-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes hero-status-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(62, 142, 65, 0.18); }
+  50% { box-shadow: 0 0 0 4px rgba(62, 142, 65, 0); }
+}
+
+.hero-visual-enter {
+  animation: hero-visual-enter 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.hero-result-card {
+  animation: hero-card-float 4s ease-in-out 900ms infinite;
+  will-change: transform;
+}
+
+.hero-result-notification {
+  animation: hero-notification-float 3.5s ease-in-out 1.1s infinite;
+  will-change: transform;
+}
+
+.hero-status-indicator {
+  animation: hero-status-pulse 2s ease-in-out infinite;
+}
+
 @keyframes assessment-route-enter {
   from {
     opacity: 0;
@@ -267,6 +311,14 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .hero-visual-enter,
+  .hero-result-card,
+  .hero-result-notification,
+  .hero-status-indicator {
+    animation: none;
+    will-change: auto;
+  }
+
   .assessment-route-enter {
     animation: none;
   }

@@ -34,6 +34,7 @@ import {
   ABDOMINAL_LOCATION_OPTIONS,
   ABDOMINAL_NOT_SURE_OPTION,
 } from "./abdominalLocations";
+import { getSymptomDetailDescription } from "./symptomDetailDescriptions";
 import { IconChevronDown } from "../components/ui/icons";
 import { localizedText, useInterfaceLanguage } from "../components/LanguageProvider";
 import { AssessmentTargetProvider } from "./AssessmentTargetContext";
@@ -484,7 +485,7 @@ export default function AssessmentPage() {
                                           <span>{localizedText(language, type.en, type.tl)}</span>
                                           <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-[10px] leading-none transition ${isSelected ? "border-white/55 bg-white/15 text-white" : "border-[#CBD8CA] text-transparent group-hover:border-brand/50"}`} aria-hidden="true">✓</span>
                                         </span>
-                                        <span className={`mt-1 block text-xs leading-relaxed ${isSelected ? "text-white/80" : "text-ink-secondary"}`}>{type.description}</span>
+                                        <span className={`mt-1 block text-xs leading-relaxed ${isSelected ? "text-white/80" : "text-ink-secondary"}`}>{getSymptomDetailDescription(language, type.en, type.description)}</span>
                                       </button>
                                     );
                                   })}
@@ -510,6 +511,7 @@ export default function AssessmentPage() {
                                   ...COLD_SYMPTOM_CLASSIFICATIONS,
                                   ...RASH_CLASSIFICATIONS,
                                 ].find((classification) => classification.en === type.en)?.description;
+                                const descriptionText = getSymptomDetailDescription(language, type.en, description);
                                 if (symptom === "difficulty breathing") {
                                   return (
                                     <button
@@ -520,7 +522,7 @@ export default function AssessmentPage() {
                                       className={`rounded-xl border px-3 py-2 text-left text-sm transition ${isSelected ? "border-brand bg-brand text-brand-foreground shadow-sm" : "border-[#DCE5D8] bg-white/85 text-ink-secondary hover:border-brand/50"}`}
                                     >
                                       <span className="block font-semibold">{localizedText(language, type.en, type.tl)}</span>
-                                      {description && <span className={`mt-1 block max-w-56 text-xs leading-relaxed ${isSelected ? "text-brand-foreground/80" : "text-ink-secondary"}`}>{description}</span>}
+                                      {descriptionText && <span className={`mt-1 block max-w-56 text-xs leading-relaxed ${isSelected ? "text-brand-foreground/80" : "text-ink-secondary"}`}>{descriptionText}</span>}
                                     </button>
                                   );
                                 }
@@ -536,7 +538,7 @@ export default function AssessmentPage() {
                                       <span>{localizedText(language, type.en, type.tl)}</span>
                                       <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-[10px] leading-none transition ${isSelected ? "border-white/55 bg-white/15 text-white" : "border-[#CBD8CA] text-transparent group-hover:border-brand/50"}`} aria-hidden="true">✓</span>
                                     </span>
-                                    {description && <span className={`mt-1 block text-xs leading-relaxed ${isSelected ? "text-white/80" : "text-ink-secondary"}`}>{description}</span>}
+                                    {descriptionText && <span className={`mt-1 block text-xs leading-relaxed ${isSelected ? "text-white/80" : "text-ink-secondary"}`}>{descriptionText}</span>}
                                   </button>
                                 );
                               })}

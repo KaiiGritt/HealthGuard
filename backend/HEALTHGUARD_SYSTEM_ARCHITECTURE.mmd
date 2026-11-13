@@ -1,0 +1,82 @@
+flowchart TB
+    subgraph Actors["System users"]
+        Resident["Resident / guest"]
+        MHO["Municipal Health Office staff"]
+        Admin["Administrator"]
+    end
+
+    subgraph Frontend["Presentation layer"]
+        Browser["Web browser"]
+        Next["Next.js application<br/>Resident assessment, results, history,<br/>MHO dashboard, admin console"]
+        Proxy["Same-origin /backend/* API proxy"]
+        Browser --> Next
+        Next --> Proxy
+    end
+
+    Resident --> Browser
+    MHO --> Browser
+    Admin --> Browser
+
+    subgraph Backend["Application layer - FastAPI"]
+        API["Authentication and assessment APIs"]
+        Auth["Authentication and role checks<br/>JWT in httpOnly cookie"]
+        Assessment["Assessment orchestration<br/>validation, persistence, response"]
+        NLP["NLP processing"]
+        Matcher["English / Tagalog / Bikol lexicon matching<br/>tokenization and normalization"]
+        Extractor["Symptom and duration extraction<br/>negation handling"]
+        Specialist["SPECIALIST variant matching<br/>(optional configuration)"]
+        ScispaCy["Biomedical entity matching<br/>(optional model configuration)"]
+        Rules["Code-based rule classifier<br/>Green / Yellow / Red"]
+        Guidance["Care and pre-medication guidance<br/>when applicable"]
+        Preview["Admin rule preview"]
+        Stemmer["TglStemmer candidate suggestions<br/>review-only; no triage effect"]
+
+        API --> Auth
+        API --> Assessment
+        Assessment --> NLP
+        NLP --> Matcher
+        NLP --> Extractor
+        NLP --> Specialist
+        NLP --> ScispaCy
+        Matcher --> Rules
+        Extractor --> Rules
+        Specialist --> Rules
+        ScispaCy --> Rules
+        Rules --> Guidance
+        API --> Preview
+        Preview --> NLP
+        Preview --> Stemmer
+    end
+
+    Proxy --> API
+
+    subgraph Data["Persistence layer"]
+        ORM["SQLAlchemy data access"]
+        DB[("Configured SQL database<br/>SQLite for local default;<br/>MySQL / PostgreSQL supported")]
+        Users[("Accounts, profiles, verification data")]
+        Assessments[("Assessments, symptom links,<br/>case activity, guidance snapshots")]
+        Lexicon[("Canonical symptoms and<br/>bilingual symptom lexicon")]
+        Catalog[("Medication catalog and<br/>administrative reference data")]
+        ORM --> DB
+        DB --- Users
+        DB --- Assessments
+        DB --- Lexicon
+        DB --- Catalog
+    end
+
+    Auth --> ORM
+    Assessment --> ORM
+    NLP --> ORM
+    Guidance --> ORM
+
+    subgraph Email["Configured email delivery"]
+        Mail["SMTP or supported email API<br/>(when configured)"]
+    end
+    Auth -->|"Verification / password-reset email"| Mail
+
+    classDef actor fill:#f4f7f2,stroke:#55725d,color:#1e3324
+    classDef app fill:#edf5ee,stroke:#447451,color:#183d2d
+    classDef data fill:#fff8e6,stroke:#ad9251,color:#39301c
+    class Resident,MHO,Admin actor
+    class Browser,Next,Proxy,API,Auth,Assessment,NLP,Matcher,Extractor,Specialist,ScispaCy,Rules,Guidance,Preview,Stemmer app
+    class ORM,DB,Users,Assessments,Lexicon,Catalog,Mail data

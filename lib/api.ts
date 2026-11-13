@@ -56,6 +56,10 @@ export interface AdminRulePreview {
   risk_level: RiskLevel;
   score: number;
   detected_symptoms: DetectedSymptom[];
+  stem_suggestions: Array<{
+    medical_term: string;
+    matched_lexicon_term: string;
+  }>;
   triggered_rules: TriggeredRule[];
   reason: string;
   recommendation: string;
@@ -215,6 +219,13 @@ export interface DashboardSummary {
   generated_at: string;
 }
 
+export interface DashboardAssessmentPage {
+  items: DashboardAssessmentItem[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
 export interface AdminActivityItem {
   title: string;
   detail: string;
@@ -252,6 +263,7 @@ export interface AdminModuleLexiconEntry {
   review_status: "pending" | "approved" | "rejected";
   reviewed_by: string | null;
   reviewed_at: string | null;
+  is_active: boolean;
 }
 
 export interface AdminRuleItem {
@@ -487,6 +499,27 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
   return data;
 }
 
+export function getDashboardRecords(params: {
+  dateFrom?: string;
+  dateTo?: string;
+  riskLevel?: string;
+  barangay?: string;
+  search?: string;
+  page: number;
+  pageSize: number;
+}): Promise<DashboardAssessmentPage> {
+  const query = new URLSearchParams({
+    page: String(params.page),
+    page_size: String(params.pageSize),
+  });
+  if (params.dateFrom) query.set("date_from", params.dateFrom);
+  if (params.dateTo) query.set("date_to", params.dateTo);
+  if (params.riskLevel && params.riskLevel !== "all") query.set("risk_level", params.riskLevel);
+  if (params.barangay && params.barangay !== "all") query.set("barangay", params.barangay);
+  if (params.search?.trim()) query.set("search", params.search.trim());
+  return request<DashboardAssessmentPage>(`/assessment/dashboard/records?${query.toString()}`);
+}
+
 export async function getAdminSummary(): Promise<AdminSummary> {
   const data = await request<AdminSummary>("/assessment/admin/summary");
   return data;
@@ -528,6 +561,29 @@ export function createLexiconEntry(payload: {
   return request<AdminModuleLexiconEntry>("/assessment/admin/lexicon", {
     method: "POST",
     body: JSON.stringify(payload),
+  });
+}
+
+export function updateLexiconEntry(
+  lexiconId: number,
+  payload: {
+    local_term: string;
+    language: string;
+    medical_term: string;
+    severity_weight: number;
+    category: string;
+  },
+): Promise<AdminModuleLexiconEntry> {
+  return request<AdminModuleLexiconEntry>(`/assessment/admin/lexicon/${lexiconId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateLexiconStatus(lexiconId: number, isActive: boolean): Promise<AdminModuleLexiconEntry> {
+  return request<AdminModuleLexiconEntry>(`/assessment/admin/lexicon/${lexiconId}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ is_active: isActive }),
   });
 }
 

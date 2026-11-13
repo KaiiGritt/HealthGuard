@@ -15,6 +15,7 @@ import ResultText from "../../components/ResultText";
 import SymptomSummaryChip from "../../components/SymptomSummaryChip";
 import ClinicalExplanation from "../ClinicalExplanation";
 import { getReportedSymptomClassifications } from "@/lib/coughClassifications";
+import { isPediatricAssessmentInput } from "@/lib/assessmentPatient";
 import { ruleContributedToRisk, translatedRuleDescription, translatedRuleTitle } from "../resultTranslations";
 
 const RULE_TITLES: Record<string, string> = {
@@ -284,7 +285,7 @@ export default async function ResultPage({
               </ol>
             </details>
 
-            {record.risk_level !== "RED" && record.pre_medication && (
+            {record.risk_level !== "RED" && (record.pre_medication || isPediatricAssessmentInput(record.input_text)) && (
               <details className="group mt-4 overflow-hidden rounded-[22px] border border-[#E4C77C] bg-[linear-gradient(135deg,#FFFDF2_0%,#FFF8DC_58%,#FFF4C8_100%)] p-3 shadow-[0_12px_28px_rgba(137,106,36,0.08)] transition-all duration-200 open:border-[#d9b96a] open:shadow-[0_18px_34px_rgba(137,106,36,0.12)] sm:p-5 xl:col-span-2 xl:mt-0">
                 <summary className="flex cursor-pointer list-none items-start justify-between gap-3 rounded-xl outline-none focus-visible:ring-4 focus-visible:ring-[#d9b96a]/20">
                   <span className="min-w-0">

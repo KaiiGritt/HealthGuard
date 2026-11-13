@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 from collections import Counter
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import and_, case, func, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
@@ -25,6 +25,7 @@ from ..nlp.extractor import (
     is_non_symptom_question,
 )
 from ..nlp.lexicon import LexiconEntry
+from ..nlp.tagalog_stemmer_adapter import suggest_tagalog_symptoms
 from ..nlp.rules import Rule, build_premedication_guide, has_supported_symptom_input
 from ..premedication_service import create_assessment_premedication, get_premedication_for_assessment
 from ..schemas import (
@@ -47,12 +48,14 @@ from ..schemas import (
     BarangayStatItem,
     CaseSummaryOut,
     DashboardAssessmentItem,
+    DashboardAssessmentPageOut,
     DashboardInsightItem,
     DashboardMetric,
     DashboardReferenceItem,
     DashboardSummaryOut,
     DetectedSymptom,
     LexiconCreateRequest,
+    LexiconUpdateRequest,
     MethodBreakdownItem,
     MedicationCatalogOut,
     PreMedicationOut,
@@ -543,6 +546,113 @@ def dashboard_summary(
     )
 
 
+@router.get("/dashboard/records", response_model=DashboardAssessmentPageOut)
+def dashboard_records(
+    date_from: date | None = None,
+    date_to: date | None = None,
+    risk_level: str | None = Query(default=None, pattern="^(GREEN|YELLOW|RED)$"),
+    barangay: str | None = None,
+    search: str | None = Query(default=None, max_length=128),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("mho")),
+) -> DashboardAssessmentPageOut:
+    if date_from and date_to and date_from > date_to:
+        raise HTTPException(status_code=422, detail="date_from must be on or before date_to.")
+
+    filters = []
+    if date_from:
+        filters.append(Assessment.created_at >= datetime.combine(date_from, datetime.min.time(), tzinfo=timezone.utc))
+    if date_to:
+        filters.append(Assessment.created_at < datetime.combine(date_to + timedelta(days=1), datetime.min.time(), tzinfo=timezone.utc))
+    if risk_level:
+        filters.append(Assessment.risk_level == risk_level)
+    if barangay:
+        filters.append(User.barangay == barangay)
+    if search:
+        query = f"%{search.strip()}%"
+        filters.append(
+            (User.full_name.ilike(query))
+            | (Assessment.input_text.ilike(query))
+            | (User.barangay.ilike(query))
+        )
+
+    total = db.scalar(
+        select(func.count(Assessment.id))
+        .join(User, Assessment.user_id == User.id, isouter=True)
+        .where(*filters)
+    ) or 0
+    rows = db.execute(
+        select(Assessment, User.full_name, User.barangay, User.phone_number, User.age)
+        .join(User, Assessment.user_id == User.id, isouter=True)
+        .where(*filters)
+        .order_by(Assessment.created_at.desc(), Assessment.id.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    ).all()
+    assessment_ids = [row[0].id for row in rows]
+    activities = (
+        db.execute(
+            select(AssessmentCaseActivity, User.full_name)
+            .join(User, AssessmentCaseActivity.user_id == User.id)
+            .where(AssessmentCaseActivity.assessment_id.in_(assessment_ids))
+            .order_by(AssessmentCaseActivity.id.desc())
+        ).all()
+        if assessment_ids
+        else []
+    )
+    activity_by_assessment: dict[int, list[tuple[AssessmentCaseActivity, str]]] = {}
+    for activity, actor_name in activities:
+        activity_by_assessment.setdefault(activity.assessment_id, []).append((activity, actor_name))
+
+    items = []
+    for record, full_name, resident_barangay, phone_number, age in rows:
+        symptoms = [str(item).strip() for item in (record.detected_symptoms or []) if str(item).strip()]
+        case_activities = activity_by_assessment.get(record.id, [])
+        latest_status = next(
+            (activity.status for activity, _ in case_activities if activity.kind == "status"),
+            "New",
+        )
+        items.append(
+            DashboardAssessmentItem(
+                id=record.id,
+                resident_name=full_name or ("Anonymous submission" if record.user_id is None else f"Resident #{record.user_id}"),
+                barangay=resident_barangay,
+                age=age,
+                detected_symptoms=symptoms,
+                icd10_codes=record.icd10_codes or codes_for_reported_symptoms(symptoms),
+                icd10_uncoded=record.icd10_uncoded or uncoded_reported_symptoms(symptoms),
+                risk_level=record.risk_level,
+                note=(record.input_text or "No details provided").strip() or "No details provided",
+                created_at=record.created_at,
+                phone_number=phone_number,
+                handled=record.handled_at is not None,
+                handled_at=record.handled_at,
+                case_status=latest_status,
+                case_activities=[
+                    AssessmentCaseActivityOut.model_validate(activity, from_attributes=True).model_copy(
+                        update={"actor_name": actor_name}
+                    )
+                    for activity, actor_name in case_activities
+                ],
+                reason=record.reason or "",
+                recommendation=record.recommendation or "",
+                triggered_rules=record.triggered_rules or [],
+                case_summary=CaseSummaryOut(
+                    **build_case_summary(
+                        chief_complaint=record.input_text,
+                        detected_symptoms=symptoms,
+                        symptom_extraction=record.symptom_extraction,
+                        triage_level=record.risk_level,
+                    )
+                ),
+            )
+        )
+
+    return DashboardAssessmentPageOut(items=items, total=total, page=page, page_size=page_size)
+
+
 @router.get("/admin/summary", response_model=AdminSummaryOut)
 def admin_summary(
     db: Session = Depends(get_db),
@@ -598,9 +708,7 @@ def admin_modules(
     db: Session = Depends(get_db),
     user: User = Depends(require_role("admin")),
 ) -> AdminModulesOut:
-    recent_users = (
-        db.execute(select(User).order_by(User.created_at.desc()).limit(6)).scalars().all()
-    )
+    users = db.execute(select(User).order_by(User.created_at.desc())).scalars().all()
     lexicon_rows = (
         db.execute(select(SymptomLexicon).order_by(SymptomLexicon.category, SymptomLexicon.medical_term)).scalars().all()
     )
@@ -616,7 +724,7 @@ def admin_modules(
                 barangay=u.barangay,
                 created_at=u.created_at,
             )
-            for u in recent_users
+            for u in users
         ],
         lexicon_entries=[
             AdminLexiconItem(
@@ -630,6 +738,7 @@ def admin_modules(
                 review_status=row.review_status,
                 reviewed_by=row.reviewed_by,
                 reviewed_at=row.reviewed_at,
+                is_active=row.is_active,
             )
             for row in lexicon_rows
         ],
@@ -733,6 +842,7 @@ def create_lexicon_entry(
         medical_term=payload.medical_term.strip(),
         severity_weight=payload.severity_weight,
         category=payload.category.strip() or "general",
+        requires_review=True,
     )
     db.add(entry)
     db.commit()
@@ -748,7 +858,64 @@ def create_lexicon_entry(
         review_status=entry.review_status,
         reviewed_by=entry.reviewed_by,
         reviewed_at=entry.reviewed_at,
+        is_active=entry.is_active,
     )
+
+
+@router.patch("/admin/lexicon/{lexicon_id}", response_model=AdminLexiconItem)
+def update_lexicon_entry(
+    lexicon_id: int,
+    payload: LexiconUpdateRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("admin")),
+) -> SymptomLexicon:
+    entry = db.get(SymptomLexicon, lexicon_id)
+    if entry is None:
+        raise HTTPException(status_code=404, detail="Lexicon entry not found.")
+    if payload.medical_term.strip().casefold() == "sore throat":
+        raise HTTPException(
+            status_code=422,
+            detail="Sore throat is supported only as a cold symptom classification, not as a standalone symptom.",
+        )
+    duplicate = db.execute(
+        select(SymptomLexicon).where(
+            SymptomLexicon.local_term == payload.local_term.strip(),
+            SymptomLexicon.language == payload.language.strip(),
+            SymptomLexicon.id != lexicon_id,
+        )
+    ).scalar_one_or_none()
+    if duplicate is not None:
+        raise HTTPException(status_code=409, detail="A lexicon entry with this term and language already exists.")
+
+    entry.local_term = payload.local_term.strip()
+    entry.language = payload.language.strip()
+    entry.medical_term = payload.medical_term.strip()
+    entry.severity_weight = payload.severity_weight
+    entry.category = payload.category.strip()
+    entry.reviewed = False
+    entry.review_status = "pending"
+    entry.reviewed_by = None
+    entry.reviewed_at = None
+    entry.requires_review = True
+    db.commit()
+    db.refresh(entry)
+    return entry
+
+
+@router.patch("/admin/lexicon/{lexicon_id}/status", response_model=AdminLexiconItem)
+def update_lexicon_status(
+    lexicon_id: int,
+    payload: UserStatusUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("admin")),
+) -> SymptomLexicon:
+    entry = db.get(SymptomLexicon, lexicon_id)
+    if entry is None:
+        raise HTTPException(status_code=404, detail="Lexicon entry not found.")
+    entry.is_active = payload.is_active
+    db.commit()
+    db.refresh(entry)
+    return entry
 
 
 @router.patch("/admin/lexicon/{lexicon_id}/review", response_model=AdminLexiconItem)
@@ -762,6 +929,7 @@ def review_lexicon_entry(
         raise HTTPException(status_code=404, detail="Lexicon entry not found.")
     entry.reviewed = True
     entry.review_status = "approved"
+    entry.requires_review = False
     entry.reviewed_by = user.email
     entry.reviewed_at = _utc_now()
     db.commit()
@@ -780,6 +948,7 @@ def reject_lexicon_entry(
         raise HTTPException(status_code=404, detail="Lexicon entry not found.")
     entry.reviewed = True
     entry.review_status = "rejected"
+    entry.requires_review = True
     entry.reviewed_by = user.email
     entry.reviewed_at = _utc_now()
     db.commit()
@@ -794,7 +963,7 @@ def mho_lexicon(
 ) -> list[SymptomLexicon]:
     return list(
         db.execute(
-            select(SymptomLexicon).order_by(
+            select(SymptomLexicon).where(SymptomLexicon.is_active.is_(True)).order_by(
                 SymptomLexicon.reviewed,
                 SymptomLexicon.category,
                 SymptomLexicon.medical_term,
@@ -806,10 +975,19 @@ def mho_lexicon(
 def _load_entries(db: Session) -> list[LexiconEntry]:
     rows = db.execute(
         select(SymptomLexicon).where(
+            SymptomLexicon.is_active.is_(True),
             SymptomLexicon.review_status != "rejected",
             func.lower(func.trim(SymptomLexicon.medical_term)) != "sore throat",
         )
     ).scalars().all()
+    seed_values = {
+        (str(item["local_term"]), str(item["language"])): (
+            str(item["medical_term"]),
+            int(item["severity_weight"]),
+            str(item["category"]),
+        )
+        for item in LEXICON_SEED
+    }
     return [
         LexiconEntry(
             local_term=r.local_term,
@@ -819,12 +997,15 @@ def _load_entries(db: Session) -> list[LexiconEntry]:
             category=r.category,
         )
         for r in rows
+        if getattr(r, "review_status", "pending") == "approved"
+        or not getattr(r, "requires_review", False)
     ]
 
 
 def _analyze_assessment_input(
     payload: AnalyzeRequest,
     db: Session,
+    entries: list[LexiconEntry] | None = None,
 ):
     if not payload.selected_symptoms and is_non_symptom_question(payload.input_text):
         raise HTTPException(
@@ -844,7 +1025,7 @@ def _analyze_assessment_input(
     result = analyze(
         payload.input_text,
         payload.selected_symptoms,
-        _load_entries(db),
+        entries if entries is not None else _load_entries(db),
         age=patient_age,
         age_months=payload.age_months,
         sex=payload.sex,
@@ -871,9 +1052,11 @@ def preview_admin_triage_rules(
     db: Session = Depends(get_db),
     user: User = Depends(require_role("admin")),
 ) -> AdminRulePreviewOut:
+    entries = _load_entries(db)
     result, _ = _analyze_assessment_input(
         AnalyzeRequest(input_text=payload.input_text, method="text"),
         db,
+        entries=entries,
     )
     extracted_confidence = {
         item["canonical_term"]: item["confidence"]
@@ -893,6 +1076,15 @@ def preview_admin_triage_rules(
             )
             for match in result.matches
         ],
+        stem_suggestions=(
+            suggest_tagalog_symptoms(
+                payload.input_text,
+                entries,
+                {match.medical_term for match in result.matches},
+            )
+            if result.symptom_extraction["language_detected"] in {"tl", "mixed"}
+            else []
+        ),
         triggered_rules=[
             TriggeredRule(name=rule.name, description=rule.description)
             for rule in result.classification.triggered_rules
@@ -1124,13 +1316,39 @@ def get_medication_catalog_entry(
 
 
 def _load_extraction_entries(db: Session) -> list[LexiconEntry]:
+    all_rows = db.execute(select(SymptomLexicon)).scalars().all()
+    seed_values = {
+        (str(item["local_term"]), str(item["language"])): (
+            str(item["medical_term"]),
+            int(item["severity_weight"]),
+            str(item["category"]),
+        )
+        for item in LEXICON_SEED
+    }
+    db_rows = {(row.local_term, row.language): row for row in all_rows}
+    blocked_seed_terms = {
+        key
+        for key, row in db_rows.items()
+        if key in seed_values
+        and (
+            not row.is_active
+            or row.review_status == "rejected"
+            or (row.requires_review and row.review_status != "approved")
+            or seed_values[key] != (row.medical_term, row.severity_weight, row.category)
+        )
+    }
     approved_rows = db.execute(
         select(SymptomLexicon).where(
+            SymptomLexicon.is_active.is_(True),
             SymptomLexicon.review_status == "approved",
             func.lower(func.trim(SymptomLexicon.medical_term)) != "sore throat",
         )
     ).scalars().all()
-    entries = [LexiconEntry(**entry) for entry in LEXICON_SEED]
+    entries = [
+        LexiconEntry(**entry)
+        for entry in LEXICON_SEED
+        if (str(entry["local_term"]), str(entry["language"])) not in blocked_seed_terms
+    ]
     entries.extend(
         LexiconEntry(
             local_term=row.local_term,
@@ -1328,7 +1546,11 @@ def history(
         if not terms:
             terms = [str(item).strip().lower() for item in (record.detected_symptoms or []) if str(item).strip()]
         guide = build_premedication_guide(record.risk_level, terms, record.input_text)
-        db_guide = record.pre_medications[0] if record.pre_medications else None
+        db_guide = (
+            record.pre_medications[0]
+            if str(record.risk_level).upper() != "RED" and record.pre_medications
+            else None
+        )
         response.append(
             AssessmentOut(
                 id=record.id,
@@ -1345,12 +1567,20 @@ def history(
                 created_at=record.created_at,
                 pre_medication=(
                     PreMedicationOut(
-                        medication_name=guide.medication_name if guide else (db_guide.medication_name if db_guide else ""),
-                        dosage=guide.dosage if guide else (db_guide.dosage if db_guide else ""),
+                        medication_name=(db_guide.medication_name if db_guide and db_guide.medication_name else (guide.medication_name if guide else "")),
+                        dosage=(db_guide.dosage if db_guide and db_guide.dosage else (guide.dosage if guide else "")),
                         contraindications=list(guide.contraindications) if guide else [],
                         side_effects=list(guide.side_effects) if guide else [],
-                        precautions=list(guide.precautions) if guide else [],
-                        note=guide.note if guide else (db_guide.instruction if db_guide else ""),
+                        precautions=(
+                            list(guide.precautions)
+                            if guide
+                            else ([db_guide.caution] if db_guide and db_guide.caution else [])
+                        ),
+                        note=(
+                            db_guide.instruction
+                            if db_guide and db_guide.instruction
+                            else (guide.note if guide else "")
+                        ),
                     )
                     if (db_guide is not None or guide is not None)
                     else None

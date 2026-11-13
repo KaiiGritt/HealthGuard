@@ -5,6 +5,12 @@ uses NLTK, scispaCy, and the custom English–Tagalog/Bikol symptom lexicon. An 
 SPECIALIST layer reads the native NLM `LEXICON` file configured locally.
 Use Python 3.11 or 3.12 for the required scispaCy model.
 
+The admin triage preview can also show experimental Tagalog stemming candidates
+using TglStemmer. These are review-only suggestions: they do not add detected
+symptoms or affect triage scores or risk levels. Review the original text before
+making any lexicon changes. The upstream project reports 75.19% accuracy on its
+manually assembled test set, so these candidates are not a validated clinical signal.
+
 ## One-time setup
 
 ### 1. Choose a database
@@ -86,6 +92,30 @@ uvicorn app.main:app --reload --port 8000
 
 - API docs: http://localhost:8000/docs
 - On startup the app creates tables, downloads NLTK `punkt`, and seeds the lexicon (idempotent).
+
+## Data model and triage flow
+
+The [editable system architecture](./HEALTHGUARD_SYSTEM_ARCHITECTURE.mmd) shows the
+application layers and integrations. The [context diagram](./HEALTHGUARD_CONTEXT_DIAGRAM.mmd)
+shows external actors and system-level data exchanges, and the
+[Level 1 data flow diagram](./HEALTHGUARD_DATA_FLOW_DIAGRAM.mmd) shows the main processes
+and data stores. The [editable system UML](./HEALTHGUARD_SYSTEM_UML.mmd) summarizes the
+core entities and their relationships. The [editable system sequence diagram](./HEALTHGUARD_SYSTEM_SEQUENCE.mmd)
+shows the assessment, guest-save, history, MHO, and admin flows. The ORM schema in
+`app/models.py` is the source of truth for tables created at startup.
+The UML's `HealthAssessment` and `HealthAssessmentResult` are kept together in the
+existing `assessments` table for compatibility with saved history and API responses.
+Anonymous assessments are also stored there with a null `user_id`; authenticated
+assessments reference their account. `assessment_symptoms` stores the normalized
+assessment-to-symptom links, and `pre_medications` stores any generated guidance.
+`analysis_reports` is the persisted reporting entity.
+
+`LexiconRuleBase` and `LexiconRule` are maintained as administrative/reference data.
+They do not determine live risk levels: assessment classification continues through
+the explicit, tested rule engine in `app/nlp/rules.py`. `app/nlp/engine.py` combines
+lexicon matches and extraction signals before calling that classifier. The NLP engine
+does not access the database; assessment persistence and API history are handled by
+`app/routers/assessment.py`.
 
 Assessment records include WHO ICD-10 (2019) code candidates for supported reported
 symptoms where a direct symptom reference is available. All current mappings are marked

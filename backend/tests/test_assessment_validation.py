@@ -237,6 +237,19 @@ def test_tagalog_inflections_resolve_to_canonical_symptom_roots() -> None:
     assert roots == {"lagnat", "ubo", "ulo", "tiyan", "suka", "tae", "hingal"}
 
 
+def test_tagalog_headache_with_possessive_pronoun_and_duration_is_detected() -> None:
+    entries = [LexiconEntry(**entry) for entry in LEXICON_SEED]
+
+    result = analyze(
+        "may ubo ako at masakit ang aking ulo, tatlong araw na ang nakalipas",
+        [],
+        entries,
+    )
+
+    assert {match.medical_term for match in result.matches} == {"cough", "headache"}
+    assert result.symptom_extraction["onset"]["days_since_onset"] == 3
+
+
 def test_spaced_tagalog_phrase_is_detected() -> None:
     entries = [LexiconEntry(**entry) for entry in LEXICON_SEED]
     matches = match_text("inuubo ako at nag susuka isang linggo na", entries)

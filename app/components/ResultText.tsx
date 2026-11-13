@@ -6,7 +6,7 @@ type ResultTextProps = {
   english: string;
   filipino: string;
   className?: string;
-  as?: "span" | "p" | "h1" | "h2" | "h3" | "div";
+  as?: "span" | "p" | "h1" | "h2" | "h3" | "h4" | "div";
   role?: "status" | "note";
 };
 

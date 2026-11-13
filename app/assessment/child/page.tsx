@@ -33,6 +33,7 @@ import {
   ABDOMINAL_LOCATION_OPTIONS,
   ABDOMINAL_NOT_SURE_OPTION,
 } from "../abdominalLocations";
+import { getSymptomDetailDescription } from "../symptomDetailDescriptions";
 import { IconChevronDown, IconProfile } from "@/app/components/ui/icons";
 import { localizedText, useInterfaceLanguage } from "@/app/components/LanguageProvider";
 import { useAssessmentMode } from "../AssessmentTargetContext";
@@ -546,7 +547,7 @@ export default function PersonAssessmentPage() {
                                 return (
                                   <button key={type.en} type="button" aria-pressed={active} onClick={() => toggleType(symptom, type.en)} className={`rounded-xl border px-3 py-2 text-left text-sm transition ${active ? "border-brand bg-brand text-brand-foreground shadow-sm" : "border-[#DCE5D8] bg-white/85 text-ink-secondary hover:border-brand/50"}`}>
                                     <span className="block font-semibold">{localizedText(language, type.en, type.tl)}</span>
-                                    <span className={`mt-1 block max-w-56 text-xs leading-relaxed ${active ? "text-brand-foreground/80" : "text-ink-secondary"}`}>{type.description}</span>
+                                    <span className={`mt-1 block max-w-56 text-xs leading-relaxed ${active ? "text-brand-foreground/80" : "text-ink-secondary"}`}>{getSymptomDetailDescription(language, type.en, type.description)}</span>
                                   </button>
                                 );
                               })}
@@ -572,13 +573,14 @@ export default function PersonAssessmentPage() {
                               ...COLD_SYMPTOM_CLASSIFICATIONS,
                               ...RASH_CLASSIFICATIONS,
                             ].find((classification) => classification.en === type.en)?.description;
+                            const descriptionText = getSymptomDetailDescription(language, type.en, description);
                             return (
                               <button key={type.en} type="button" aria-pressed={active} onClick={() => toggleType(symptom, type.en)} className={`group flex min-h-[76px] w-full flex-col justify-center rounded-xl border px-3 py-2.5 text-left text-sm transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15 ${active ? "border-[#1F4A36] bg-[linear-gradient(145deg,#2F6B4F_0%,#1F4A36_100%)] text-white shadow-[0_8px_18px_rgba(31,74,54,0.2)]" : "border-[#DCE5D8] bg-white/90 text-ink-secondary shadow-[0_3px_10px_rgba(24,38,25,0.035)] hover:-translate-y-0.5 hover:border-brand/45 hover:bg-white hover:shadow-[0_8px_16px_rgba(31,74,54,0.09)]"}`}>
                                 <span className="flex w-full items-center justify-between gap-2 font-semibold">
                                   <span>{localizedText(language, type.en, type.tl)}</span>
                                   <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-[10px] leading-none transition ${active ? "border-white/55 bg-white/15 text-white" : "border-[#CBD8CA] text-transparent group-hover:border-brand/50"}`} aria-hidden="true">✓</span>
                                 </span>
-                                {description && <span className={`mt-1 block text-xs leading-relaxed ${active ? "text-white/80" : "text-ink-secondary"}`}>{description}</span>}
+                                {descriptionText && <span className={`mt-1 block text-xs leading-relaxed ${active ? "text-white/80" : "text-ink-secondary"}`}>{descriptionText}</span>}
                               </button>
                             );
                           })}

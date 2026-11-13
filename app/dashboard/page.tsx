@@ -8,7 +8,7 @@ import Disclaimer from "../components/Disclaimer";
 import MedicalTermLabel from "../components/MedicalTermLabel";
 import PageHeader from "../components/PageHeader";
 import { useDashboardText } from "../components/dashboardLanguage";
-import { useInterfaceLanguage } from "../components/LanguageProvider";
+import { isInterfaceLanguage, useInterfaceLanguage } from "../components/LanguageProvider";
 import {
   AccessGate,
   cn,
@@ -23,7 +23,7 @@ import {
   Toast,
   TriageBadge,
 } from "@/app/components/ui/primitives";
-import { addAssessmentCaseActivity, formatAssessmentRecordNumber, getDashboardSummary, getMe, getMhoLexicon, markLexiconReviewed, rejectLexiconEntry, type AdminModuleLexiconEntry, type DashboardAssessmentItem, type User } from "@/lib/api";
+import { addAssessmentCaseActivity, formatAssessmentRecordNumber, getDashboardRecords, getDashboardSummary, getMe, getMhoLexicon, markLexiconReviewed, rejectLexiconEntry, type AdminModuleLexiconEntry, type DashboardAssessmentItem, type DashboardAssessmentPage, type User } from "@/lib/api";
 import { generateCommunityHealthReport } from "@/lib/communityHealthReport";
 import { getReportedSymptomClassifications } from "@/lib/coughClassifications";
 import { getMedicalTerm } from "../assessment/medicalTerms";
@@ -753,11 +753,8 @@ function BarangayRanking({ data }: { data: DashboardState["barangay_stats"] }) {
   const pageSize = 5;
   const [page, setPage] = useState(1);
   const pageCount = Math.max(1, Math.ceil(sorted.length / pageSize));
-  const visibleRows = sorted.slice((page - 1) * pageSize, page * pageSize);
-
-  useEffect(() => {
-    setPage((currentPage) => Math.min(currentPage, pageCount));
-  }, [pageCount]);
+  const effectivePage = Math.min(page, pageCount);
+  const visibleRows = sorted.slice((effectivePage - 1) * pageSize, effectivePage * pageSize);
 
   const getSeverity = (urgent: number, followUp: number, total: number) => {
     if (urgent > 0 && total > 0) {
@@ -811,7 +808,7 @@ function BarangayRanking({ data }: { data: DashboardState["barangay_stats"] }) {
         const followUp = Math.min(item.follow_up, Math.max(item.total - urgent, 0));
         const other = Math.max(item.total - urgent - followUp, 0);
         const severity = getSeverity(item.urgent, item.follow_up, item.total);
-        const rank = (page - 1) * pageSize + index + 1;
+        const rank = (effectivePage - 1) * pageSize + index + 1;
 
         return (
           <div
@@ -869,12 +866,12 @@ function BarangayRanking({ data }: { data: DashboardState["barangay_stats"] }) {
           </p>
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border-soft pt-3">
             <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint">
-              {t("Showing")} {(page - 1) * pageSize + 1}-{Math.min(page * pageSize, sorted.length)} {t("of")} {sorted.length}
+              {t("Showing")} {(effectivePage - 1) * pageSize + 1}-{Math.min(effectivePage * pageSize, sorted.length)} {t("of")} {sorted.length}
             </p>
             <div className="flex items-center gap-2">
-              <button type="button" onClick={() => setPage((currentPage) => Math.max(1, currentPage - 1))} disabled={page === 1} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">{t("Previous")}</button>
-              <span className="min-w-14 text-center font-mono text-[10px] text-ink-muted">{page} / {pageCount}</span>
-              <button type="button" onClick={() => setPage((currentPage) => Math.min(pageCount, currentPage + 1))} disabled={page === pageCount} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">{t("Next")}</button>
+              <button type="button" onClick={() => setPage((currentPage) => Math.max(1, currentPage - 1))} disabled={effectivePage === 1} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">{t("Previous")}</button>
+              <span className="min-w-14 text-center font-mono text-[10px] text-ink-muted">{effectivePage} / {pageCount}</span>
+              <button type="button" onClick={() => setPage((currentPage) => Math.min(pageCount, currentPage + 1))} disabled={effectivePage === pageCount} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">{t("Next")}</button>
             </div>
           </div>
         </>
@@ -919,6 +916,10 @@ function FilterToolbar({
   barangayOptions,
   searchTerm,
   setSearchTerm,
+  dateFrom,
+  setDateFrom,
+  dateTo,
+  setDateTo,
   onUrgentOnly,
   onClear,
 }: {
@@ -929,13 +930,17 @@ function FilterToolbar({
   barangayOptions: string[];
   searchTerm: string;
   setSearchTerm: (v: string) => void;
+  dateFrom: string;
+  setDateFrom: (v: string) => void;
+  dateTo: string;
+  setDateTo: (v: string) => void;
   onUrgentOnly: () => void;
   onClear: () => void;
 }) {
   const t = useDashboardText();
   return (
     <div className="mb-4 space-y-3">
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <PremiumSelect
           value={riskFilter}
           onChange={setRiskFilter}
@@ -967,6 +972,28 @@ function FilterToolbar({
             className="min-h-11 w-full rounded-sm border border-border bg-surface px-3 pl-9 text-sm text-ink outline-none transition focus:border-brand"
           />
         </div>
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium text-ink-muted">{t("From date", "Mula sa petsa")}</span>
+          <input
+            type="date"
+            value={dateFrom}
+            max={dateTo || undefined}
+            onChange={(event) => setDateFrom(event.target.value)}
+            aria-label={t("Filter assessments from date", "Salain ang mga pagsusuri mula sa petsang ito")}
+            className="min-h-11 w-full rounded-sm border border-border bg-surface px-3 text-sm text-ink outline-none transition focus:border-brand"
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium text-ink-muted">{t("To date", "Hanggang petsang ito")}</span>
+          <input
+            type="date"
+            value={dateTo}
+            min={dateFrom || undefined}
+            onChange={(event) => setDateTo(event.target.value)}
+            aria-label={t("Filter assessments to date", "Salain ang mga pagsusuri hanggang sa petsang ito")}
+            className="min-h-11 w-full rounded-sm border border-border bg-surface px-3 text-sm text-ink outline-none transition focus:border-brand"
+          />
+        </label>
       </div>
       <FilterChips onUrgentOnly={onUrgentOnly} onClear={onClear} />
     </div>
@@ -975,7 +1002,7 @@ function FilterToolbar({
 
 function DashboardPageContent() {
   const t = useDashboardText();
-  const { language } = useInterfaceLanguage();
+  const { language, setLanguage } = useInterfaceLanguage();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -985,6 +1012,9 @@ function DashboardPageContent() {
   const [refreshing, setRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [stats, setStats] = useState<DashboardState | null>(null);
+  const [recordPage, setRecordPage] = useState<DashboardAssessmentPage | null>(null);
+  const [recordsLoading, setRecordsLoading] = useState(false);
+  const [recordsError, setRecordsError] = useState<string | null>(null);
   const topSymptoms = stats?.top_symptoms ?? [];
   const maxSymptomCount = Math.max(...topSymptoms.map((item) => item.count), 1);
 
@@ -995,6 +1025,12 @@ function DashboardPageContent() {
           recent_assessments: current.recent_assessments.map((assessment) =>
             assessment.id === updated.id ? updated : assessment,
           ),
+        }
+      : current);
+    setRecordPage((current) => current
+      ? {
+          ...current,
+          items: current.items.map((assessment) => assessment.id === updated.id ? updated : assessment),
         }
       : current);
   }
@@ -1008,8 +1044,13 @@ function DashboardPageContent() {
   const [riskFilter, setRiskFilter] = useState("all");
   const [barangayFilter, setBarangayFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [assessmentPage, setAssessmentPage] = useState(1);
   const [recentAssessmentPage, setRecentAssessmentPage] = useState(1);
+  const dateRangeError = dateFrom && dateTo && dateFrom > dateTo
+    ? t("Start date must be on or before end date.", "Dapat ang petsa ng simula ay hindi lalampas sa petsa ng pagtatapos.")
+    : null;
   const requestedSection = searchParams.get("section") as SectionId | null;
   const activeSection: SectionId = requestedSection && SECTIONS.some((section) => section.id === requestedSection)
     ? requestedSection
@@ -1138,6 +1179,9 @@ function DashboardPageContent() {
         const user = await getMe();
         if (!active) return;
         setCurrentUser(user);
+        if (user) {
+          setLanguage(isInterfaceLanguage(user.language_preference) ? user.language_preference : "en");
+        }
         if (user?.role === "mho") {
           const [summary, lexicon] = await Promise.all([getDashboardSummary(), getMhoLexicon()]);
           if (!active) return;
@@ -1154,7 +1198,45 @@ function DashboardPageContent() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [setLanguage]);
+
+  useEffect(() => {
+    if (currentUser?.role !== "mho") return;
+    if (dateRangeError) return;
+
+    let active = true;
+    const timer = window.setTimeout(() => {
+      setRecordsLoading(true);
+      getDashboardRecords({
+        dateFrom,
+        dateTo,
+        riskLevel: riskFilter,
+        barangay: barangayFilter,
+        search: searchTerm,
+        page: assessmentPage,
+        pageSize: ASSESSMENT_PAGE_SIZE,
+      }).then((result) => {
+        if (!active) return;
+        const resultPageCount = Math.max(1, Math.ceil(result.total / ASSESSMENT_PAGE_SIZE));
+        if (assessmentPage > resultPageCount) {
+          setAssessmentPage(resultPageCount);
+          return;
+        }
+        setRecordPage(result);
+        setRecordsError(null);
+      }).catch((error: unknown) => {
+        if (!active) return;
+        setRecordPage(null);
+        setRecordsError(error instanceof Error ? error.message : t("Could not load assessment records."));
+      }).finally(() => {
+        if (active) setRecordsLoading(false);
+      });
+    }, 250);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [currentUser?.role, dateFrom, dateTo, dateRangeError, riskFilter, barangayFilter, searchTerm, assessmentPage, t]);
 
   async function reviewLexiconEntry(id: number) {
     setReviewingLexicon(id);
@@ -1192,61 +1274,40 @@ function DashboardPageContent() {
     [stats],
   );
   const barangayOptions = useMemo(
-    () => Array.from(new Set((stats?.recent_assessments ?? []).map((item) => item.barangay).filter(Boolean))) as string[],
+    () => (stats?.barangay_stats ?? [])
+      .map((item) => item.barangay)
+      .filter((barangay) => Boolean(barangay) && barangay !== "Unassigned / walk-in"),
     [stats],
   );
 
-  const filteredAssessments = useMemo(() => {
-    if (!stats) return [];
-    return stats.recent_assessments.filter((item) => {
-      const matchesRisk = riskFilter === "all" || item.risk_level.toUpperCase() === riskFilter;
-      const matchesBarangay = barangayFilter === "all" || item.barangay === barangayFilter;
-      const search = searchTerm.trim().toLowerCase();
-      const matchesSearch =
-        !search ||
-        item.resident_name.toLowerCase().includes(search) ||
-        item.note.toLowerCase().includes(search) ||
-        (item.barangay ?? "").toLowerCase().includes(search);
-
-      return matchesRisk && matchesBarangay && matchesSearch;
-    });
-  }, [stats, riskFilter, barangayFilter, searchTerm]);
-
-  const assessmentPageCount = Math.max(1, Math.ceil(filteredAssessments.length / ASSESSMENT_PAGE_SIZE));
-  const paginatedAssessments = filteredAssessments.slice(
-    (assessmentPage - 1) * ASSESSMENT_PAGE_SIZE,
-    assessmentPage * ASSESSMENT_PAGE_SIZE,
-  );
-  const assessmentStart = filteredAssessments.length === 0 ? 0 : (assessmentPage - 1) * ASSESSMENT_PAGE_SIZE + 1;
-  const assessmentEnd = Math.min(assessmentPage * ASSESSMENT_PAGE_SIZE, filteredAssessments.length);
+  const filteredAssessments = recordPage?.items ?? [];
+  const assessmentTotal = recordPage?.total ?? 0;
+  const assessmentPageCount = Math.max(1, Math.ceil(assessmentTotal / ASSESSMENT_PAGE_SIZE));
+  const assessmentStart = assessmentTotal === 0 ? 0 : (assessmentPage - 1) * ASSESSMENT_PAGE_SIZE + 1;
+  const assessmentEnd = Math.min(assessmentPage * ASSESSMENT_PAGE_SIZE, assessmentTotal);
   const recentAssessments = stats?.recent_assessments ?? [];
   const recentAssessmentPageCount = Math.max(1, Math.ceil(recentAssessments.length / RECENT_ASSESSMENT_PAGE_SIZE));
+  const effectiveRecentAssessmentPage = Math.min(recentAssessmentPage, recentAssessmentPageCount);
   const visibleRecentAssessments = recentAssessments.slice(
-    (recentAssessmentPage - 1) * RECENT_ASSESSMENT_PAGE_SIZE,
-    recentAssessmentPage * RECENT_ASSESSMENT_PAGE_SIZE,
+    (effectiveRecentAssessmentPage - 1) * RECENT_ASSESSMENT_PAGE_SIZE,
+    effectiveRecentAssessmentPage * RECENT_ASSESSMENT_PAGE_SIZE,
   );
-
-  useEffect(() => {
-    setAssessmentPage(1);
-  }, [riskFilter, barangayFilter, searchTerm]);
-
-  useEffect(() => {
-    setAssessmentPage((page) => Math.min(page, assessmentPageCount));
-  }, [assessmentPageCount]);
-
-  useEffect(() => {
-    setRecentAssessmentPage((page) => Math.min(page, recentAssessmentPageCount));
-  }, [recentAssessmentPageCount]);
 
   function applyUrgentOnly() {
     setRiskFilter("RED");
     setBarangayFilter("all");
     setSearchTerm("");
+    setDateFrom("");
+    setDateTo("");
+    setAssessmentPage(1);
   }
   function clearFilters() {
     setRiskFilter("all");
     setBarangayFilter("all");
     setSearchTerm("");
+    setDateFrom("");
+    setDateTo("");
+    setAssessmentPage(1);
   }
 
   const redBreakdown = stats?.triage_breakdown.find((item) => (item.level || "").toLowerCase() === "red")?.value ?? 0;
@@ -1378,12 +1439,12 @@ function DashboardPageContent() {
             {recentAssessments.length > 0 && (
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border-soft pt-4">
                 <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint">
-                  {t("Showing")} {(recentAssessmentPage - 1) * RECENT_ASSESSMENT_PAGE_SIZE + 1}-{Math.min(recentAssessmentPage * RECENT_ASSESSMENT_PAGE_SIZE, recentAssessments.length)} {t("of")} {recentAssessments.length}
+                  {t("Showing")} {(effectiveRecentAssessmentPage - 1) * RECENT_ASSESSMENT_PAGE_SIZE + 1}-{Math.min(effectiveRecentAssessmentPage * RECENT_ASSESSMENT_PAGE_SIZE, recentAssessments.length)} {t("of")} {recentAssessments.length}
                 </p>
                 <div className="flex items-center gap-2">
-                  <button type="button" onClick={() => setRecentAssessmentPage((page) => Math.max(1, page - 1))} disabled={recentAssessmentPage === 1} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">{t("Previous")}</button>
-                  <span className="min-w-14 text-center font-mono text-[10px] text-ink-muted">{recentAssessmentPage} / {recentAssessmentPageCount}</span>
-                  <button type="button" onClick={() => setRecentAssessmentPage((page) => Math.min(recentAssessmentPageCount, page + 1))} disabled={recentAssessmentPage === recentAssessmentPageCount} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">{t("Next")}</button>
+                  <button type="button" onClick={() => setRecentAssessmentPage((page) => Math.max(1, page - 1))} disabled={effectiveRecentAssessmentPage === 1} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">{t("Previous")}</button>
+                  <span className="min-w-14 text-center font-mono text-[10px] text-ink-muted">{effectiveRecentAssessmentPage} / {recentAssessmentPageCount}</span>
+                  <button type="button" onClick={() => setRecentAssessmentPage((page) => Math.min(recentAssessmentPageCount, page + 1))} disabled={effectiveRecentAssessmentPage === recentAssessmentPageCount} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">{t("Next")}</button>
                 </div>
               </div>
             )}
@@ -1674,27 +1735,37 @@ function DashboardPageContent() {
     <Panel title={t("Assessment records")} badge={<TagBadge tone="neutral">{t("Live list")}</TagBadge>}>
       <FilterToolbar
         riskFilter={riskFilter}
-        setRiskFilter={setRiskFilter}
+        setRiskFilter={(value) => { setRiskFilter(value); setAssessmentPage(1); }}
         barangayFilter={barangayFilter}
-        setBarangayFilter={setBarangayFilter}
+        setBarangayFilter={(value) => { setBarangayFilter(value); setAssessmentPage(1); }}
         barangayOptions={barangayOptions}
         searchTerm={searchTerm}
-        setSearchTerm={setSearchTerm}
+        setSearchTerm={(value) => { setSearchTerm(value); setAssessmentPage(1); }}
+        dateFrom={dateFrom}
+        setDateFrom={(value) => { setDateFrom(value); setAssessmentPage(1); }}
+        dateTo={dateTo}
+        setDateTo={(value) => { setDateTo(value); setAssessmentPage(1); }}
         onUrgentOnly={applyUrgentOnly}
         onClear={clearFilters}
       />
       <div className="space-y-3">
-        {filteredAssessments.length > 0 ? (
-          paginatedAssessments.map((item) => (
+        {dateRangeError ? (
+          <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800">{dateRangeError}</p>
+        ) : recordsError ? (
+          <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800">{recordsError}</p>
+        ) : recordsLoading ? (
+          <p className="rounded-md border border-dashed border-border bg-surface p-5 text-sm text-ink-muted">{t("Loading assessment records...")}</p>
+        ) : filteredAssessments.length > 0 ? (
+          filteredAssessments.map((item) => (
             <AssessmentCaseCard key={item.id} item={item} asOf={stats?.generated_at ?? item.created_at} onContactLogged={updateAssessmentActivity} />
           ))
         ) : (
           <p className="rounded-md border border-dashed border-border bg-surface p-5 text-sm text-ink-muted">{t("No assessment records match the selected filters.")}</p>
         )}
       </div>
-      {filteredAssessments.length > 0 ? (
+      {!dateRangeError && assessmentTotal > 0 ? (
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border-soft pt-3">
-          <p className="text-xs text-ink-muted">{t("Showing")} {assessmentStart}-{assessmentEnd} {t("of")} {filteredAssessments.length}</p>
+          <p className="text-xs text-ink-muted">{t("Showing")} {assessmentStart}-{assessmentEnd} {t("of")} {assessmentTotal}</p>
           <div className="flex items-center gap-2">
             <button type="button" onClick={() => setAssessmentPage((page) => Math.max(1, page - 1))} disabled={assessmentPage === 1} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">{t("Previous")}</button>
             <span className="min-w-16 text-center font-mono text-xs text-ink-muted">{t("Page")} {assessmentPage} / {assessmentPageCount}</span>

@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 import re
 
-from .extractor import is_age_duration, is_negated_prefix
+from .extractor import _NUMBER_WORDS, is_age_duration, is_negated_prefix
 from .lexicon import LexiconEntry, Match, match_selected, match_text
 
 
@@ -93,8 +93,10 @@ NEGATION_PREFIXES = re.compile(
     r"\b(?:no|without|don't have|do not have|not having|not|hindi(?: na)?|wala akong)\s+(?:any\s+)?$"
 )
 
+_DURATION_COUNT_PATTERN = "|".join(sorted((*_NUMBER_WORDS, "isang"), key=len, reverse=True))
 _DURATION_TEXT_PATTERN = re.compile(
-    r"(?:started|for|since|lasted|lasting)?\s*(?P<count>\d+(?:\.\d+)?)\s*(?P<unit>hours?|days?|weeks?|months?|oras?|araw|aldaw|linggo|buwan)\b"
+    rf"(?:started|for|since|lasted|lasting)?\s*(?P<count>\d+(?:\.\d+)?|{_DURATION_COUNT_PATTERN})(?:\s+na)?\s*(?P<unit>hours?|days?|weeks?|months?|oras?|araw|aldaw|linggo|buwan)\b(?:\s+na)?",
+    re.I,
 )
 _DEHYDRATION_PATTERNS = (
     r"\bdehydrat(?:ed|ion)\b",
@@ -943,7 +945,8 @@ def _text_rules(input_text: str, detected_terms: set[str], duration_days: float 
         duration_match = candidate
         break
     if duration_days is None and duration_match:
-        amount = float(duration_match.group("count"))
+        count_text = duration_match.group("count").lower()
+        amount = float(count_text) if count_text[0].isdigit() else float(_NUMBER_WORDS.get(count_text, 1))
         unit = duration_match.group("unit")
         duration_days = amount * _duration_value_for_unit(unit)
     duration_score = 0
@@ -953,7 +956,7 @@ def _text_rules(input_text: str, detected_terms: set[str], duration_days: float 
             duration_score = 1
         elif duration_days <= 3:
             if detected_terms == {"cough"} and typed_duration:
-                duration_score = 3
+                duration_score = 2
             else:
                 duration_score = 1 if detected_terms == {"cough"} else 2
                 if detected_terms == {"cough"}:

@@ -168,6 +168,7 @@ class AdminRulePreviewOut(BaseModel):
     risk_level: str
     score: int
     detected_symptoms: list[DetectedSymptom]
+    stem_suggestions: list[dict[str, str]] = Field(default_factory=list)
     triggered_rules: list[TriggeredRule]
     reason: str
     recommendation: str
@@ -236,6 +237,13 @@ class DashboardAssessmentItem(BaseModel):
     recommendation: str = ""
     triggered_rules: list[TriggeredRule] = Field(default_factory=list)
     case_summary: CaseSummaryOut
+
+
+class DashboardAssessmentPageOut(BaseModel):
+    items: list[DashboardAssessmentItem]
+    total: int
+    page: int
+    page_size: int
 
 
 class AssessmentCaseActivityIn(BaseModel):
@@ -368,6 +376,7 @@ class AdminLexiconItem(BaseModel):
     review_status: str = "pending"
     reviewed_by: str | None = None
     reviewed_at: datetime | None = None
+    is_active: bool = True
 
 
 class AdminRuleItem(BaseModel):
@@ -414,6 +423,15 @@ class LexiconCreateRequest(BaseModel):
     medical_term: str = Field(min_length=1, max_length=128)
     severity_weight: int = Field(default=1, ge=0, le=6)
     category: str = Field(default="general", max_length=64)
+
+
+class LexiconUpdateRequest(BaseModel):
+    local_term: str = Field(min_length=1, max_length=128)
+    language: str = Field(min_length=2, max_length=8)
+    medical_term: str = Field(min_length=1, max_length=128)
+    severity_weight: int = Field(ge=0, le=6)
+    category: str = Field(min_length=1, max_length=64)
+
 
 
 # --- Auth ---

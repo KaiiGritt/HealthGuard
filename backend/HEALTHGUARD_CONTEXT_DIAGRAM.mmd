@@ -1,0 +1,21 @@
+flowchart LR
+    Resident["External entity:<br/>Resident / guest"]
+    MHO["External entity:<br/>MHO personnel"]
+    Admin["External entity:<br/>Administrator"]
+    Email["External system:<br/>Configured email provider"]
+    System(["HealthGuard AI<br/>Web health-assessment system"])
+
+    Resident -->|"Symptom description, selected symptoms,<br/>account and profile data"| System
+    System -->|"Triage result, care guidance,<br/>optional pre-medication information,<br/>personal assessment history"| Resident
+
+    MHO -->|"Sign-in, date/risk/barangay filters,<br/>case follow-up, lexicon review decisions"| System
+    System -->|"Community summaries, filtered assessment records,<br/>case details, lexicon review queue"| MHO
+
+    Admin -->|"Sign-in, account and lexicon changes,<br/>sample text for rule preview"| System
+    System -->|"Administrative summaries, account and lexicon status,<br/>rule-preview results and review-only stem suggestions"| Admin
+
+    System -->|"Verification and password-reset messages"| Email
+    Email -->|"Delivery result"| System
+
+    note1["Assessment classification uses the implemented rule engine.<br/>TglStemmer suggestions are separate from triage."]
+    System --- note1

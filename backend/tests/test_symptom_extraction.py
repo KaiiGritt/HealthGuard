@@ -260,6 +260,10 @@ def test_extract_endpoint_uses_only_approved_community_mappings() -> None:
             medical_term="blurred vision",
             severity_weight=1,
             category="vision",
+            reviewed=True,
+            review_status="approved",
+            is_active=True,
+            requires_review=False,
         )
     ]
 

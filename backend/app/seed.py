@@ -1064,6 +1064,7 @@ LEXICON_SEED: list[dict] = [
     {"medical_term": "headache", "local_term": "headache", "language": "en", "severity_weight": 2, "category": "neurological"},
     {"medical_term": "headache", "local_term": "sakit ng ulo", "language": "tl", "severity_weight": 2, "category": "neurological"},
     {"medical_term": "headache", "local_term": "masakit ang ulo", "language": "tl", "severity_weight": 2, "category": "neurological"},
+    {"medical_term": "headache", "local_term": "masakit ang aking ulo", "language": "tl", "severity_weight": 2, "category": "neurological"},
     {"medical_term": "headache", "local_term": "sakit ulo", "language": "tl", "severity_weight": 2, "category": "neurological"},
     {"medical_term": "headache", "local_term": "pananakit ng ulo", "language": "tl", "severity_weight": 2, "category": "neurological"},
     {"medical_term": "headache", "local_term": "sumasakit ang ulo", "language": "tl", "severity_weight": 2, "category": "neurological"},
@@ -1461,18 +1462,14 @@ def seed_lexicon(db: Session) -> int:
         (row.local_term, row.language): row
         for row in db.execute(select(SymptomLexicon)).scalars().all()
     }
-    desired_keys = {(entry["local_term"], entry["language"]) for entry in LEXICON_SEED}
-    for key, row in existing.items():
-        if key not in desired_keys:
+    for row in existing.values():
+        if row.medical_term.strip().casefold() == "sore throat":
             db.delete(row)
     inserted = 0
     for entry in LEXICON_SEED:
         key = (entry["local_term"], entry["language"])
         current = existing.get(key)
         if current is not None:
-            current.medical_term = entry["medical_term"]
-            current.severity_weight = entry["severity_weight"]
-            current.category = entry["category"]
             continue
         db.add(SymptomLexicon(**entry))
         inserted += 1

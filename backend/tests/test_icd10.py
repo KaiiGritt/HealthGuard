@@ -163,3 +163,37 @@ def test_schema_migration_refreshes_legacy_code_metadata(monkeypatch) -> None:
     assert record.icd10_codes[0]["review_status"] == "pending_review"
     assert record.icd10_codes[0]["source_url"].startswith("https://icd.who.int/")
     assert record.icd10_uncoded == []
+
+
+def test_schema_migration_refreshes_legacy_codes_when_uncoded_is_present(monkeypatch) -> None:
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        db.add(
+            Assessment(
+                detected_symptoms=["headache"],
+                icd10_codes=[
+                    {
+                        "symptom": "headache",
+                        "code": "R51",
+                        "description": "Headache",
+                        "coding_system": "WHO ICD-10 (2019)",
+                    }
+                ],
+                icd10_uncoded=[],
+                risk_level="GREEN",
+            )
+        )
+        db.commit()
+
+    monkeypatch.setattr(database, "engine", engine)
+    monkeypatch.setattr(database, "SessionLocal", sessionmaker(bind=engine, future=True))
+
+    database.migrate_assessment_icd10_schema()
+
+    with Session(engine) as db:
+        record = db.scalar(select(Assessment))
+
+    assert record is not None
+    assert record.icd10_codes[0]["source_url"].startswith("https://icd.who.int/")
+    assert record.icd10_codes[0]["review_status"] == "pending_review"

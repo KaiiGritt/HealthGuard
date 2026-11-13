@@ -23,6 +23,7 @@ from .database import (
     migrate_assessment_icd10_schema,
     migrate_user_profile_schema,
     migrate_lexicon_review_schema,
+    migrate_lexicon_active_schema,
     migrate_lexicon_rule_base_schema,
     migrate_user_preferences_schema,
     migrate_user_role_schema,
@@ -64,6 +65,7 @@ async def lifespan(app: FastAPI):
     migrate_assessment_handled_schema()
     migrate_assessment_symptom_extraction_schema()
     migrate_lexicon_review_schema()
+    migrate_lexicon_active_schema()
     migrate_user_preferences_schema()
     migrate_user_role_schema()
     migrate_assessment_rules_schema()

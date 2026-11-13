@@ -75,3 +75,40 @@ def test_admin_rule_preview_rejects_unrecognized_symptoms(
 
     assert error.value.status_code == 422
     assert "No recognized symptom" in error.value.detail
+
+
+def test_stemmer_suggestions_are_not_used_for_triage(
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    admin = User(
+        full_name="Admin",
+        email="admin@example.test",
+        password_hash="test",
+        role="admin",
+    )
+    db_session.add(admin)
+    db_session.commit()
+    monkeypatch.setattr(
+        assessment,
+        "_load_entries",
+        lambda _db: [LexiconEntry(**entry) for entry in LEXICON_SEED],
+    )
+
+    result = assessment.preview_admin_triage_rules(
+        AdminRulePreviewRequest(input_text="may ubo ako at masakit sa ulo"),
+        db_session,
+        admin,
+    )
+    cough_only = assessment.preview_admin_triage_rules(
+        AdminRulePreviewRequest(input_text="may ubo ako"),
+        db_session,
+        admin,
+    )
+
+    assert {item.medical_term for item in result.detected_symptoms} == {"cough"}
+    assert result.stem_suggestions == [
+        {"medical_term": "headache", "matched_lexicon_term": "masakit ang ulo"}
+    ]
+    assert result.score == cough_only.score
+    assert result.risk_level == cough_only.risk_level

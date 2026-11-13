@@ -1,0 +1,172 @@
+classDiagram
+direction LR
+
+class User {
+  +int id
+  +string full_name
+  +date date_of_birth
+  +int age
+  +string sex
+  +string barangay
+  +string phone_number
+  +string email
+  +string role
+  +bool is_active
+  +datetime created_at
+}
+
+class Resident {
+  +int id
+  +int user_id
+  +string address
+  +datetime birthdate
+  +string contact_number
+}
+
+class MHO {
+  +int id
+  +int user_id
+  +string position
+  +string contact_number
+}
+
+class Admin {
+  +int id
+  +int user_id
+  +string position
+}
+
+class Assessment {
+  +int id
+  +int user_id
+  +string input_text
+  +string method
+  +list detected_symptoms
+  +list icd10_codes
+  +string risk_level
+  +string reason
+  +string recommendation
+  +list triggered_rules
+  +datetime created_at
+}
+
+class Symptom {
+  +int id
+  +string name
+  +string description
+  +string category
+  +bool is_active
+}
+
+class AssessmentSymptom {
+  +int id
+  +int assessment_id
+  +int symptom_id
+  +string matched_text
+  +string language
+  +string category
+  +int severity_weight
+}
+
+class PreMedication {
+  +int id
+  +int assessment_id
+  +string medication_name
+  +string dosage
+  +string frequency
+  +string instruction
+  +string caution
+}
+
+class SymptomLexicon {
+  +int id
+  +string local_term
+  +string language
+  +string medical_term
+  +int severity_weight
+  +string category
+  +bool reviewed
+  +string review_status
+}
+
+class LexiconRuleBase {
+  +int id
+  +string name
+  +string description
+  +string version
+  +datetime last_updated
+}
+
+class LexiconRule {
+  +int id
+  +string term
+  +string normalized_term
+  +float weight
+  +int risk_level_id
+  +int guide_level_id
+  +int rule_base_id
+  +bool is_active
+}
+
+class RiskLevel {
+  +int id
+  +string name
+  +string description
+  +int display_order
+}
+
+class GuideLevel {
+  +int id
+  +string guide_name
+  +string description
+  +int display_order
+}
+
+class AnalysisReport {
+  +int id
+  +int user_id
+  +string report_type
+  +string parameters
+  +string data
+  +datetime generated_at
+}
+
+class AssessmentCaseActivity {
+  +int id
+  +int assessment_id
+  +int user_id
+  +string kind
+  +string status
+  +string details
+  +datetime created_at
+}
+
+class MedicationCatalog {
+  +int id
+  +string generic_name
+  +string alternative_name
+  +string classification
+  +string common_use
+  +list dosage_guidance
+  +list precautions
+}
+
+User "1" -- "0..1" Resident : profile
+User "1" -- "0..1" MHO : profile
+User "1" -- "0..1" Admin : profile
+User "0..1" --> "0..*" Assessment : user_id nullable
+Assessment "1" -- "0..*" AssessmentSymptom : symptoms
+Symptom "1" -- "0..*" AssessmentSymptom : selected symptom
+Assessment "1" -- "0..*" PreMedication : guidance
+LexiconRuleBase "0..1" -- "0..*" LexiconRule : contains
+RiskLevel "0..1" -- "0..*" LexiconRule : reference
+GuideLevel "0..1" -- "0..*" LexiconRule : reference
+Assessment "1" -- "0..*" AssessmentCaseActivity : case history
+User "1" -- "0..*" AssessmentCaseActivity : recorded by
+User "0..1" ..> "0..*" AnalysisReport : user_id nullable
+SymptomLexicon ..> Symptom : canonical term match, not a foreign key
+
+note for Assessment "Combines the UML HealthAssessment and HealthAssessmentResult in the current schema. Anonymous assessments use a null user_id."
+note for LexiconRule "Administrative/reference data. Live risk classification remains in app/nlp/rules.py and does not read these rows."
+note for SymptomLexicon "Maps user phrases to canonical terms; no direct database relationship to Symptom."
+note for MedicationCatalog "Reference catalog; PreMedication stores the assessment-specific guidance snapshot."

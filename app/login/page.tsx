@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import AuthLayout from "../components/AuthLayout";
+import { isInterfaceLanguage, useInterfaceLanguage } from "../components/LanguageProvider";
 import { IconEye, IconEyeOff } from "@/app/components/ui/icons";
 import { IconShield } from "@/app/components/ui/icons";
 import {
@@ -19,6 +20,7 @@ import { clearPendingGuestPayload, getPendingGuestPayload, login, saveGuestAsses
 function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
+  const { setLanguage } = useInterfaceLanguage();
   const next = params.get("next") || "/";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -37,7 +39,8 @@ function LoginForm() {
     setSubmitting(true);
     setError(null);
     try {
-      await login(email.trim(), password);
+      const user = await login(email.trim(), password);
+      setLanguage(isInterfaceLanguage(user.language_preference) ? user.language_preference : "en");
     } catch {
       setError("Incorrect email or password.");
       setSubmitting(false);

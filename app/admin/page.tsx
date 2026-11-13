@@ -17,7 +17,7 @@ import {
   Toast,
   TriageBadge,
 } from "@/app/components/ui/primitives";
-import { createLexiconEntry, getAdminModules, getAdminSummary, getMe, previewAdminRules, updateUserRole, updateUserStatus, type AdminRulePreview, type User } from "@/lib/api";
+import { createLexiconEntry, getAdminModules, getAdminSummary, getMe, previewAdminRules, updateLexiconEntry, updateLexiconStatus, updateUserRole, updateUserStatus, type AdminRulePreview, type User } from "@/lib/api";
 import { IconClipboard } from "@/app/components/ui/icons";
 
 const adminNav = [
@@ -30,8 +30,6 @@ const adminNav = [
 
 const LEXICON_PAGE_SIZE = 8;
 const USER_PAGE_SIZE = 4;
-
-type UserRole = "resident" | "mho" | "admin";
 
 type AdminPageState = {
   users: Array<{
@@ -54,6 +52,7 @@ type AdminPageState = {
     review_status: "pending" | "approved" | "rejected";
     reviewed_by: string | null;
     reviewed_at: string | null;
+    is_active: boolean;
   }>;
   biomedical_lexicon_active: boolean;
   specialist_lexicon_active: boolean;
@@ -87,6 +86,8 @@ export default function AdminPage() {
   const [confirmingDeactivate, setConfirmingDeactivate] = useState<number | null>(null);
   const [activeSection, setActiveSection] = useState("overview");
   const [newLexicon, setNewLexicon] = useState({ local_term: "", medical_term: "", language: "en", category: "general", severity_weight: 1 });
+  const [editingLexiconId, setEditingLexiconId] = useState<number | null>(null);
+  const [lexiconEdit, setLexiconEdit] = useState({ local_term: "", medical_term: "", language: "en", category: "general", severity_weight: 1 });
   const [toast, setToast] = useState<{ message: string; tone: "success" | "error" } | null>(null);
 
   function goToSection(id: string) {
@@ -213,12 +214,13 @@ export default function AdminPage() {
     });
   }, [modules, roleFilter, statusFilter, userSearch]);
   const userPageCount = Math.max(1, Math.ceil(filteredUsers.length / USER_PAGE_SIZE));
+  const effectiveUserPage = Math.min(userPage, userPageCount);
   const paginatedUsers = filteredUsers.slice(
-    (userPage - 1) * USER_PAGE_SIZE,
-    userPage * USER_PAGE_SIZE,
+    (effectiveUserPage - 1) * USER_PAGE_SIZE,
+    effectiveUserPage * USER_PAGE_SIZE,
   );
-  const userStart = filteredUsers.length === 0 ? 0 : (userPage - 1) * USER_PAGE_SIZE + 1;
-  const userEnd = Math.min(userPage * USER_PAGE_SIZE, filteredUsers.length);
+  const userStart = filteredUsers.length === 0 ? 0 : (effectiveUserPage - 1) * USER_PAGE_SIZE + 1;
+  const userEnd = Math.min(effectiveUserPage * USER_PAGE_SIZE, filteredUsers.length);
 
   const filteredLexicon = useMemo(() => {
     if (!modules) return [];
@@ -232,28 +234,13 @@ export default function AdminPage() {
     });
   }, [modules, lexiconQuery]);
   const lexiconPageCount = Math.max(1, Math.ceil(filteredLexicon.length / LEXICON_PAGE_SIZE));
+  const effectiveLexiconPage = Math.min(lexiconPage, lexiconPageCount);
   const paginatedLexicon = filteredLexicon.slice(
-    (lexiconPage - 1) * LEXICON_PAGE_SIZE,
-    lexiconPage * LEXICON_PAGE_SIZE,
+    (effectiveLexiconPage - 1) * LEXICON_PAGE_SIZE,
+    effectiveLexiconPage * LEXICON_PAGE_SIZE,
   );
-  const lexiconStart = filteredLexicon.length === 0 ? 0 : (lexiconPage - 1) * LEXICON_PAGE_SIZE + 1;
-  const lexiconEnd = Math.min(lexiconPage * LEXICON_PAGE_SIZE, filteredLexicon.length);
-
-  useEffect(() => {
-    setUserPage(1);
-  }, [roleFilter, statusFilter, userSearch]);
-
-  useEffect(() => {
-    setUserPage((page) => Math.min(page, userPageCount));
-  }, [userPageCount]);
-
-  useEffect(() => {
-    setLexiconPage(1);
-  }, [lexiconQuery]);
-
-  useEffect(() => {
-    setLexiconPage((page) => Math.min(page, lexiconPageCount));
-  }, [lexiconPageCount]);
+  const lexiconStart = filteredLexicon.length === 0 ? 0 : (effectiveLexiconPage - 1) * LEXICON_PAGE_SIZE + 1;
+  const lexiconEnd = Math.min(effectiveLexiconPage * LEXICON_PAGE_SIZE, filteredLexicon.length);
   const pendingReviewCount = modules?.lexicon_entries.filter((entry) => !entry.reviewed).length ?? 0;
 
   const handleToggleUserStatus = async (userId: number, nextStatus: boolean) => {
@@ -322,6 +309,43 @@ export default function AdminPage() {
       setToast({ message: t("Lexicon term added."), tone: "success" });
     } catch {
       setToast({ message: t("Could not add lexicon term."), tone: "error" });
+    }
+  };
+
+  const beginLexiconEdit = (entry: NonNullable<typeof modules>["lexicon_entries"][number]) => {
+    setEditingLexiconId(entry.id);
+    setLexiconEdit({
+      local_term: entry.local_term,
+      medical_term: entry.medical_term,
+      language: entry.language,
+      category: entry.category,
+      severity_weight: entry.severity_weight,
+    });
+  };
+
+  const saveLexiconEdit = async () => {
+    if (editingLexiconId === null) return;
+    try {
+      const updated = await updateLexiconEntry(editingLexiconId, lexiconEdit);
+      setModules((current) => current
+        ? { ...current, lexicon_entries: current.lexicon_entries.map((entry) => entry.id === updated.id ? updated : entry) }
+        : current);
+      setEditingLexiconId(null);
+      setToast({ message: t("Lexicon term updated and returned to MHO review."), tone: "success" });
+    } catch (error) {
+      setToast({ message: error instanceof Error ? error.message : t("Could not update lexicon term."), tone: "error" });
+    }
+  };
+
+  const toggleLexiconStatus = async (entryId: number, isActive: boolean) => {
+    try {
+      const updated = await updateLexiconStatus(entryId, isActive);
+      setModules((current) => current
+        ? { ...current, lexicon_entries: current.lexicon_entries.map((entry) => entry.id === updated.id ? updated : entry) }
+        : current);
+      setToast({ message: t(isActive ? "Lexicon term activated." : "Lexicon term deactivated."), tone: "success" });
+    } catch (error) {
+      setToast({ message: error instanceof Error ? error.message : t("Could not update lexicon status."), tone: "error" });
     }
   };
 
@@ -417,13 +441,13 @@ export default function AdminPage() {
           </aside>
 
           <div className="min-w-0 space-y-6">
-            <section id="admin-overview" className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <section id="admin-overview" className="scroll-mt-24 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               {stats?.summary_cards.map((card) => (
                 <StatCard key={card.label} label={t(card.label)} value={card.value} hint={t(card.hint)} />
               ))}
             </section>
 
-            <section id="admin-users" className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+            <section id="admin-users" className="scroll-mt-24 space-y-6">
               <Panel
                 title={t("User account management")}
                 subtitle={t("A clear view of every account, its access level, and status.")}
@@ -439,14 +463,17 @@ export default function AdminPage() {
                     <input
                       type="search"
                       value={userSearch}
-                      onChange={(event) => setUserSearch(event.target.value)}
+                      onChange={(event) => {
+                        setUserSearch(event.target.value);
+                        setUserPage(1);
+                      }}
                       placeholder={t("Search name, email, or barangay")}
                       className="min-h-11 w-full rounded-xl border border-[#DDE7DB] bg-white pl-10 pr-3.5 text-sm text-ink shadow-[0_4px_12px_rgba(24,38,25,0.035)] outline-none transition placeholder:text-ink-faint hover:border-brand/40 focus:border-brand focus:ring-4 focus:ring-brand/10"
                     />
                   </label>
                   <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                    <PremiumSelect value={roleFilter} onChange={setRoleFilter} ariaLabel={t("Filter users by role")} options={[{ value: "all", label: t("All roles") }, { value: "resident", label: t("Resident") }, { value: "mho", label: "MHO" }, { value: "admin", label: t("Admin") }]} />
-                    <PremiumSelect value={statusFilter} onChange={setStatusFilter} ariaLabel={t("Filter users by account status")} options={[{ value: "all", label: t("All statuses") }, { value: "active", label: t("Active") }, { value: "inactive", label: t("Deactivated") }]} />
+                    <PremiumSelect value={roleFilter} onChange={(value) => { setRoleFilter(value); setUserPage(1); }} ariaLabel={t("Filter users by role")} options={[{ value: "all", label: t("All roles") }, { value: "resident", label: t("Resident") }, { value: "mho", label: "MHO" }, { value: "admin", label: t("Admin") }]} />
+                    <PremiumSelect value={statusFilter} onChange={(value) => { setStatusFilter(value); setUserPage(1); }} ariaLabel={t("Filter users by account status")} options={[{ value: "all", label: t("All statuses") }, { value: "active", label: t("Active") }, { value: "inactive", label: t("Deactivated") }]} />
                   </div>
                   <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[#DFE7DA] pt-3">
                     <p className="text-xs font-medium text-ink-muted" aria-live="polite">
@@ -459,6 +486,7 @@ export default function AdminPage() {
                           setUserSearch("");
                           setRoleFilter("all");
                           setStatusFilter("all");
+                          setUserPage(1);
                         }}
                         className="rounded-lg px-2 py-1 text-xs font-semibold text-brand-dark transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30"
                       >
@@ -539,30 +567,17 @@ export default function AdminPage() {
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border-soft pt-3">
                     <p className="text-xs text-ink-muted">{t("Showing")} {userStart}-{userEnd} {t("of")} {filteredUsers.length}</p>
                     <div className="flex items-center gap-2">
-                      <button type="button" onClick={() => setUserPage((page) => Math.max(1, page - 1))} disabled={userPage === 1} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">{t("Previous")}</button>
-                      <span className="min-w-16 text-center font-mono text-xs text-ink-muted">{t("Page")} {userPage} / {userPageCount}</span>
-                      <button type="button" onClick={() => setUserPage((page) => Math.min(userPageCount, page + 1))} disabled={userPage === userPageCount} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">{t("Next")}</button>
+                      <button type="button" onClick={() => setUserPage((page) => Math.max(1, page - 1))} disabled={effectiveUserPage === 1} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">{t("Previous")}</button>
+                      <span className="min-w-16 text-center font-mono text-xs text-ink-muted">{t("Page")} {effectiveUserPage} / {userPageCount}</span>
+                      <button type="button" onClick={() => setUserPage((page) => Math.min(userPageCount, page + 1))} disabled={effectiveUserPage === userPageCount} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">{t("Next")}</button>
                     </div>
                   </div>
                 ) : null}
               </Panel>
 
-              <Panel title={t("System settings")} badge={<TagBadge>{t("Operational")}</TagBadge>}>
-                <div className="space-y-3">
-                  {modules?.system_settings.map((setting) => (
-                    <ListRow key={setting.key} className="flex items-center justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-ink">{t(setting.label)}</p>
-                        <p className="mt-1 text-sm text-ink-muted">{setting.value}</p>
-                      </div>
-                      <TagBadge tone={setting.status === "Operational" || setting.status === "Compliant" ? "brand" : "neutral"}>{t(setting.status)}</TagBadge>
-                    </ListRow>
-                  ))}
-                </div>
-              </Panel>
             </section>
 
-            <section id="admin-lexicon" className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+            <section id="admin-lexicon" className="scroll-mt-24 space-y-6">
               <Panel title={t("Multilingual biomedical symptom lexicon")} badge={<TagBadge>{t("Layer 1 & 2")}</TagBadge>} className="hover:-translate-y-0.5">
                 <div className="space-y-5">
                   <label className="relative block">
@@ -573,7 +588,10 @@ export default function AdminPage() {
                     </svg>
                     <input
                       value={lexiconQuery}
-                      onChange={(event) => setLexiconQuery(event.target.value)}
+                      onChange={(event) => {
+                        setLexiconQuery(event.target.value);
+                        setLexiconPage(1);
+                      }}
                       placeholder={t("Search English, Tagalog, Bikol, category, or language")}
                       className="min-h-12 w-full rounded-xl border border-[#DDE7DB] bg-white pl-12 pr-4 text-sm text-ink shadow-[0_6px_18px_rgba(24,38,25,0.035)] outline-none transition placeholder:text-ink-faint hover:border-brand/40 focus:border-brand focus:ring-4 focus:ring-brand/10"
                     />
@@ -591,6 +609,9 @@ export default function AdminPage() {
                         </svg>
                       </span>
                     </div>
+                    <p className="mb-4 rounded-xl border border-[#E4C77C] bg-[#FFFDF5] p-3 text-xs leading-relaxed text-ink-secondary">
+                      {t("New or edited terms remain out of symptom matching until an MHO approves them. Approved active entries use their severity weight in triage scoring.", "Hindi isasama sa pagtukoy ng sintomas ang mga bago o binagong termino hangga't hindi inaaprubahan ng MHO. Ginagamit sa triage score ang bigat ng mga aktibo at naaprubahang entry.")}
+                    </p>
                     <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-5">
                       <label className="block min-w-0">
                         <span className="mb-1.5 block text-xs font-semibold text-ink-secondary">{t("Local term")}</span>
@@ -635,6 +656,23 @@ export default function AdminPage() {
                       </div>
                     </div>
                   </div>
+                  {editingLexiconId !== null && (
+                    <div className="space-y-3 rounded-2xl border border-[#DDE7DB] bg-[#F7FAF5] p-4">
+                      <h4 className="font-semibold text-ink">{t("Edit lexicon entry")}</h4>
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                        <input aria-label={t("Local term")} value={lexiconEdit.local_term} onChange={(event) => setLexiconEdit((current) => ({ ...current, local_term: event.target.value }))} className="min-h-11 rounded-xl border border-[#DDE7DB] bg-white px-3 text-sm" />
+                        <input aria-label={t("Medical term")} value={lexiconEdit.medical_term} onChange={(event) => setLexiconEdit((current) => ({ ...current, medical_term: event.target.value }))} className="min-h-11 rounded-xl border border-[#DDE7DB] bg-white px-3 text-sm" />
+                        <PremiumSelect value={lexiconEdit.language} onChange={(language) => setLexiconEdit((current) => ({ ...current, language }))} ariaLabel={t("Lexicon language")} options={[{ value: "en", label: "English" }, { value: "tl", label: "Tagalog" }, { value: "bcl", label: "Bikol" }]} />
+                        <input aria-label={t("Category")} value={lexiconEdit.category} onChange={(event) => setLexiconEdit((current) => ({ ...current, category: event.target.value }))} className="min-h-11 rounded-xl border border-[#DDE7DB] bg-white px-3 text-sm" />
+                        <input aria-label={t("Severity weight")} type="number" min={0} max={6} value={lexiconEdit.severity_weight} onChange={(event) => setLexiconEdit((current) => ({ ...current, severity_weight: Math.min(6, Number(event.target.value) || 0) }))} className="min-h-11 rounded-xl border border-[#DDE7DB] bg-white px-3 text-sm" />
+                      </div>
+                      <p className="text-xs leading-relaxed text-ink-muted">{t("Editing resets the review; an MHO must review the updated entry.")}</p>
+                      <div className="flex flex-wrap gap-2">
+                        <PrimaryButton type="button" onClick={() => void saveLexiconEdit()}>{t("Save changes")}</PrimaryButton>
+                        <button type="button" onClick={() => setEditingLexiconId(null)} className="rounded-xl border border-border bg-white px-4 py-2 text-sm font-semibold text-ink-secondary">{t("Cancel")}</button>
+                      </div>
+                    </div>
+                  )}
                   <section id="admin-custom-lexicon" className="min-w-0 overflow-hidden rounded-2xl border border-[#DDE7DB] bg-white shadow-[0_12px_30px_rgba(24,38,25,0.045)]">
                     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E7ECE3] bg-[linear-gradient(135deg,#FFFFFF_0%,#F6F9F4_100%)] px-4 py-4 sm:px-5">
                       <div className="flex items-center gap-3">
@@ -664,6 +702,7 @@ export default function AdminPage() {
                               <th className="px-4 py-3 font-medium">{t("Normalized to")}</th>
                               <th className="px-4 py-3 font-medium">{t("Severity")}</th>
                               <th className="px-4 py-3 font-medium">{t("Review")}</th>
+                              <th className="px-4 py-3 font-medium">{t("Actions")}</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-border">
@@ -677,6 +716,13 @@ export default function AdminPage() {
                                 <td className="px-4 py-3"><span className="inline-flex min-w-8 justify-center rounded-lg border border-[#E2E9DF] bg-[#F8FAF7] px-2 py-1 font-mono text-xs font-semibold text-ink-secondary">{entry.severity_weight}</span></td>
                                 <td className="px-4 py-3 text-xs text-ink-muted">
                                   {entry.reviewed ? <span className={`inline-flex rounded-full px-2.5 py-1 font-medium ${entry.review_status === "rejected" ? "bg-red-tint text-emergency-red" : "bg-brand-tint text-brand-dark"}`}>{t(entry.review_status === "rejected" ? "Not approved" : "Reviewed")} · {entry.reviewed_by ?? t("reviewer")}</span> : <span className="inline-flex rounded-full bg-yellow-tint px-2.5 py-1 font-medium text-warn-amber">{t("Pending review")}</span>}
+                                  {!entry.is_active && <span className="ml-1 inline-flex rounded-full bg-[#F3F4F1] px-2.5 py-1 font-medium text-ink-muted">{t("Inactive")}</span>}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center gap-2">
+                                    <button type="button" onClick={() => beginLexiconEdit(entry)} className="rounded-lg border border-[#DDE7DB] bg-white px-2.5 py-1.5 text-xs font-semibold text-brand-dark hover:bg-[#F4F8F2]">{t("Edit")}</button>
+                                    <button type="button" onClick={() => void toggleLexiconStatus(entry.id, !entry.is_active)} className="rounded-lg border border-[#DDE7DB] bg-white px-2.5 py-1.5 text-xs font-semibold text-ink-secondary hover:bg-[#F4F8F2]">{t(entry.is_active ? "Deactivate" : "Activate")}</button>
+                                  </div>
                                 </td>
                               </tr>
                             ))}
@@ -695,15 +741,20 @@ export default function AdminPage() {
                             </div>
                             <p className="mt-3 break-words text-sm text-ink-secondary">{t("Normalized to:")} <span className="font-medium text-ink">{entry.medical_term}</span></p>
                             <p className="mt-2 break-words text-xs text-ink-muted">{entry.reviewed ? `${t(entry.review_status === "rejected" ? "Not approved" : "Reviewed")} ${t("by")} ${entry.reviewed_by ?? t("reviewer")}` : t("Pending review by MHO")}</p>
+                            <p className="mt-1 text-xs text-ink-muted">{t(entry.is_active ? "Active" : "Inactive")}</p>
+                            <div className="mt-3 flex gap-2">
+                              <button type="button" onClick={() => beginLexiconEdit(entry)} className="rounded-lg border border-[#DDE7DB] bg-white px-3 py-1.5 text-xs font-semibold text-brand-dark">{t("Edit")}</button>
+                              <button type="button" onClick={() => void toggleLexiconStatus(entry.id, !entry.is_active)} className="rounded-lg border border-[#DDE7DB] bg-white px-3 py-1.5 text-xs font-semibold text-ink-secondary">{t(entry.is_active ? "Deactivate" : "Activate")}</button>
+                            </div>
                           </article>
                         ))}
                         </div>
                       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3">
                         <p className="text-xs text-ink-muted">{t("Showing")} {lexiconStart}-{lexiconEnd} {t("of")} {filteredLexicon.length}</p>
                         <div className="flex items-center gap-2">
-                          <button type="button" onClick={() => setLexiconPage((page) => Math.max(1, page - 1))} disabled={lexiconPage === 1} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">{t("Previous")}</button>
-                          <span className="min-w-16 text-center font-mono text-xs text-ink-muted">{t("Page")} {lexiconPage} / {lexiconPageCount}</span>
-                          <button type="button" onClick={() => setLexiconPage((page) => Math.min(lexiconPageCount, page + 1))} disabled={lexiconPage === lexiconPageCount} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">{t("Next")}</button>
+                          <button type="button" onClick={() => setLexiconPage((page) => Math.max(1, page - 1))} disabled={effectiveLexiconPage === 1} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">{t("Previous")}</button>
+                          <span className="min-w-16 text-center font-mono text-xs text-ink-muted">{t("Page")} {effectiveLexiconPage} / {lexiconPageCount}</span>
+                          <button type="button" onClick={() => setLexiconPage((page) => Math.min(lexiconPageCount, page + 1))} disabled={effectiveLexiconPage === lexiconPageCount} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-semibold text-ink-secondary transition hover:border-brand/40 hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-40">{t("Next")}</button>
                         </div>
                       </div>
                       </>
@@ -712,7 +763,15 @@ export default function AdminPage() {
                 </div>
               </Panel>
 
+            </section>
+
+            <section id="admin-rules" className="scroll-mt-24 space-y-6">
               <Panel title={t("Triage rule configuration")} badge={<TagBadge tone="neutral">{t("Clinical logic")}</TagBadge>}>
+                <p className="mb-4 rounded-xl border border-[#E4C77C] bg-[#FFFDF5] p-3 text-sm leading-relaxed text-ink-secondary">
+                  {t("Create, edit, or deactivate symptom scoring rules through the bilingual lexicon above; each approved active entry’s severity weight contributes to triage scoring.", "Gumawa, mag-edit, o mag-deactivate ng mga tuntunin sa pagmamarka ng sintomas sa bilingual lexicon sa itaas; nakaaapekto sa triage score ang bigat ng bawat aktibo at naaprubahang entry.")}
+                  {" "}
+                  {t("Built-in emergency and clinical override rules are protected and should only be changed through a clinically reviewed release.", "Protektado ang mga built-in na tuntunin para sa emergency at klinikal na override; dapat lamang baguhin ang mga ito sa release na sinuri ng propesyonal sa kalusugan.")}
+                </p>
                 <div className="space-y-3">
                   {modules?.triage_rules.map((rule) => (
                     <ListRow key={rule.name}>
@@ -727,9 +786,6 @@ export default function AdminPage() {
                 </div>
               </Panel>
 
-            </section>
-
-            <section id="admin-rules">
               <Panel
                 title={t("Rule preview")}
                 subtitle={t("Test the live triage engine against the current symptom lexicon.")}
@@ -814,6 +870,26 @@ export default function AdminPage() {
                       </div>
                     </div>
 
+                    {rulePreviewResult.stem_suggestions.length > 0 && (
+                      <div className="rounded-xl border border-amber-200 bg-amber-50 p-3.5">
+                        <p className="text-sm font-semibold text-amber-950">
+                          {t("Possible Tagalog stem matches — review only", "Mga posibleng tugma mula sa pag-ugat ng salitang Tagalog — para sa pagsusuri lamang")}
+                        </p>
+                        <p className="mt-1 text-xs leading-relaxed text-amber-900">
+                          {t("These experimental suggestions did not affect the detected symptoms, triage score, or risk level. Confirm them against the original text.", "Hindi nakaapekto ang mga mungkahing ito sa mga natukoy na sintomas, triage score, o antas ng panganib. Suriin ang mga ito batay sa orihinal na teksto.")}
+                        </p>
+                        <ul className="mt-2 space-y-1 text-sm text-amber-950">
+                          {rulePreviewResult.stem_suggestions.map((suggestion) => (
+                            <li key={suggestion.medical_term}>
+                              <span className="font-semibold">{suggestion.medical_term}</span>
+                              {" — "}
+                              {t("matched lexicon phrase:", "katugmang parirala sa lexicon:")} {suggestion.matched_lexicon_term}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
                     <div className="rounded-xl border border-[#E5EBE1] bg-[#FAFCF9] p-3.5">
                       <p className="text-sm font-semibold text-ink">{t("Why this result")}</p>
                       <p className="mt-1 text-sm leading-relaxed text-ink-secondary">{rulePreviewResult.reason}</p>
@@ -841,44 +917,68 @@ export default function AdminPage() {
               </Panel>
             </section>
 
-            <section id="admin-settings" className="rounded-md border border-border bg-card p-5">
-              <div className="flex items-center justify-between">
-                <h2 className="font-display text-lg text-ink">{t("Data privacy and security")}</h2>
-                <TagBadge>{t("RA 10173 aligned")}</TagBadge>
-              </div>
-              <div className="mt-4 grid gap-3 md:grid-cols-3">
-                {modules?.privacy_controls.map((control) => (
-                  <ListRow key={control.title}>
-                    <p className="font-medium text-ink">{t(control.title)}</p>
-                    <p className="mt-2 text-sm text-ink-secondary">{t(control.detail)}</p>
-                    <p className="mt-3 text-sm font-medium text-ink-faint">{t(control.status)}</p>
-                  </ListRow>
-                ))}
-              </div>
-            </section>
-
-            <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-              <Panel title={t("Recent system activity")}>
-                <div className="space-y-3">
-                  {stats?.recent_activity.map((item) => (
-                    <ListRow key={item.title}>
-                      <p className="font-medium text-ink">{t(item.title)}</p>
-                      <p className="mt-1 text-sm text-ink-muted">{t(item.detail)}</p>
+            <section id="admin-settings" className="scroll-mt-24 space-y-6">
+              <Panel
+                title={t("System settings")}
+                subtitle={t("Current configuration and service availability reported by the system.", "Kasalukuyang configuration at availability ng mga serbisyo ayon sa system.")}
+                badge={<TagBadge tone="neutral">{t("System status", "Katayuan ng system")}</TagBadge>}
+              >
+                <div className="grid gap-3 md:grid-cols-2">
+                  {modules?.system_settings.map((setting) => (
+                    <ListRow key={setting.key} className="flex items-center justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-ink">{t(setting.label)}</p>
+                        <p className="mt-1 text-sm text-ink-muted">{setting.value}</p>
+                      </div>
+                      <TagBadge tone={setting.status === "Operational" ? "brand" : "neutral"}>
+                        {setting.status === "Compliant" ? t("Configured", "Naka-configure") : t(setting.status)}
+                      </TagBadge>
                     </ListRow>
                   ))}
                 </div>
               </Panel>
 
-              <Panel title={t("Admin tools")}>
-                <div className="space-y-3">
-                  {stats?.admin_tools.map((tool) => (
-                    <ListRow key={tool.title}>
-                      <h3 className="font-medium text-ink">{t(tool.title)}</h3>
-                      <p className="mt-1 text-sm text-ink-secondary">{t(tool.body)}</p>
+              <Panel
+                title={t("Data privacy and security")}
+                subtitle={t("System safeguards are shown below; this panel does not certify legal compliance.", "Nasa ibaba ang mga pananggalang ng system; hindi pinatutunayan ng panel na ito ang pagsunod sa batas.")}
+                badge={<TagBadge tone="neutral">{t("Privacy controls", "Mga kontrol sa privacy")}</TagBadge>}
+              >
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {modules?.privacy_controls.map((control) => (
+                    <ListRow key={control.title}>
+                      <p className="font-medium text-ink">{t(control.title)}</p>
+                      <p className="mt-2 text-sm text-ink-secondary">{t(control.detail)}</p>
+                      <p className="mt-3 text-sm font-medium text-ink-faint">
+                        {control.status === "Compliant" ? t("Configured", "Naka-configure") : t(control.status)}
+                      </p>
                     </ListRow>
                   ))}
                 </div>
               </Panel>
+
+              <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+                <Panel title={t("Recent system activity")}>
+                  <div className="space-y-3">
+                    {stats?.recent_activity.map((item) => (
+                      <ListRow key={item.title}>
+                        <p className="font-medium text-ink">{t(item.title)}</p>
+                        <p className="mt-1 text-sm text-ink-muted">{t(item.detail)}</p>
+                      </ListRow>
+                    ))}
+                  </div>
+                </Panel>
+
+                <Panel title={t("Admin tools")}>
+                  <div className="space-y-3">
+                    {stats?.admin_tools.map((tool) => (
+                      <ListRow key={tool.title}>
+                        <h3 className="font-medium text-ink">{t(tool.title)}</h3>
+                        <p className="mt-1 text-sm text-ink-secondary">{t(tool.body)}</p>
+                      </ListRow>
+                    ))}
+                  </div>
+                </Panel>
+              </div>
             </section>
           </div>
         </div>
