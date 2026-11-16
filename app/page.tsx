@@ -9,14 +9,15 @@ import { localizedText, useInterfaceLanguage } from "@/app/components/LanguagePr
 import { getMe } from "@/lib/api";
 import Disclaimer from "./components/Disclaimer";
 import PageHeader from "./components/PageHeader";
+import HeroCard3D from "./components/HeroCard3D";
 
 const STEPS = [
   {
     n: "01",
     title: "Describe how you feel",
     titleFil: "Ilarawan ang iyong nararamdaman",
-    body: "Type in English, Tagalog, or Bikol, or tap the symptoms that match after signing in.",
-    bodyFil: "Mag-type sa Ingles, Tagalog, o Bikol, o piliin ang mga sintomas na tumutugma pagkatapos mag-sign in.",
+    body: "Choose the symptoms that match, add when they started, or describe them in your own words.",
+    bodyFil: "Piliin ang mga sintomas, ilagay kung kailan nagsimula, o ilarawan ito sa sarili mong mga salita.",
   },
   {
     n: "02",
@@ -59,82 +60,7 @@ const FEATURES = [
 ];
 
 function TriageTag({ language }: { language: "en" | "fil" | "both" }) {
-  const text = (english: string, filipino: string) => localizedText(language, english, filipino);
-
-  return (
-    <div className="hero-visual-enter relative mx-auto w-full max-w-[440px] px-3 py-5 sm:px-7 sm:py-8 lg:ml-auto lg:max-w-[500px]">
-      <div className="absolute inset-5 rounded-[2.5rem] bg-[#2F6B4F]/10 blur-2xl sm:inset-8" aria-hidden="true" />
-      <div className="absolute right-8 top-2 h-24 w-24 rounded-full border border-[#C7B37A]/35 sm:right-12 sm:top-4 sm:h-32 sm:w-32" aria-hidden="true" />
-      <div className="absolute bottom-8 left-0 h-20 w-20 rounded-full border border-[#2F6B4F]/15 sm:bottom-10 sm:left-3 sm:h-28 sm:w-28" aria-hidden="true" />
-
-      <div
-        role="img"
-        aria-label={text(
-          "Example HealthGuard result showing green, yellow, and red care guidance",
-          "Halimbawa ng resulta ng HealthGuard na nagpapakita ng gabay na berde, dilaw, at pula",
-        )}
-        className="hero-result-card relative overflow-hidden rounded-[1.75rem] border border-white/80 bg-white/95 p-5 shadow-[0_32px_80px_rgba(24,38,25,0.16)] ring-1 ring-[#D8E2D3]/70 backdrop-blur sm:rounded-[2rem] sm:p-7"
-      >
-        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#2F6B4F] via-[#80A88A] to-[#C7B37A]" aria-hidden="true" />
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#EDF5EE] text-[#2F6B4F]">
-              <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden="true">
-                <path d="M12 3.5 19 6v5.3c0 4.1-2.7 7.6-7 9.2-4.3-1.6-7-5.1-7-9.2V6l7-2.5Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
-                <path d="m9 12 2 2 4-4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </span>
-            <div>
-              <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-faint">HealthGuard</p>
-              <p className="mt-0.5 text-xs font-medium text-ink-muted">{text("Assessment preview", "Halimbawa ng resulta")}</p>
-            </div>
-          </div>
-          <span className="rounded-full border border-[#E5E8DF] bg-[#F8FAF6] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-muted">{text("Example", "Halimbawa")}</span>
-        </div>
-
-        <div className="my-6 h-px bg-[#E8ECE5] sm:my-7" />
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-sm font-medium text-ink-muted">{text("Your care guide", "Gabay sa pangangalaga")}</p>
-            <h2 className="mt-1 font-display text-2xl font-semibold tracking-[-0.04em] text-ink sm:text-[1.75rem]">{text("A clear next step.", "Malinaw ang susunod na hakbang.")}</h2>
-          </div>
-          <span className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-[#CFE5D4] bg-[#F0F8F1] px-3 py-1.5 text-xs font-bold tracking-[0.08em] text-[#25633B]">
-            <span className="hero-status-indicator h-1.5 w-1.5 rounded-full bg-[#3E8E41]" />
-            {text("GREEN", "BERDE")}
-          </span>
-        </div>
-
-        <div className="mt-5 rounded-2xl border border-[#CFE5D4] bg-[linear-gradient(135deg,#F4FAF4_0%,#EBF5EC_100%)] p-4 sm:p-5">
-          <p className="text-base font-semibold text-[#214E31]">{text("Monitor at home", "Mag-monitor sa bahay")}</p>
-          <p className="mt-1 text-sm leading-relaxed text-[#4F6652]">{text("Simple guidance helps you decide what to do next.", "Makakatulong ang gabay na ito sa pagpapasya kung ano ang susunod na gagawin.")}</p>
-        </div>
-
-        <div className="mt-5 grid grid-cols-3 gap-2">
-          {[
-            { color: "bg-[#3E8E41]", text: text("Monitor", "Mag-monitor") },
-            { color: "bg-[#D98A2B]", text: text("Consult", "Kumonsulta") },
-            { color: "bg-[#C0432B]", text: text("Urgent care", "Agarang pangangalaga") },
-          ].map((level) => (
-            <div key={level.text} className="flex min-h-[3.25rem] items-center justify-center gap-1.5 rounded-xl border border-[#E7EBE4] bg-white px-2 py-2 text-center">
-              <span className={`h-2 w-2 shrink-0 rounded-full ${level.color}`} aria-hidden="true" />
-              <span className="text-[11px] font-medium leading-tight text-ink-secondary sm:text-xs">{level.text}</span>
-            </div>
-          ))}
-        </div>
-        <p className="mt-4 text-center text-[11px] leading-relaxed text-ink-faint">{text("Preliminary guidance only · Not a medical diagnosis", "Paunang gabay lamang · Hindi ito medikal na diagnosis")}</p>
-      </div>
-
-      <div className="hero-result-notification absolute -left-1 bottom-2 hidden items-center gap-2 rounded-2xl border border-white bg-white/95 px-4 py-3 text-xs font-medium text-ink-secondary shadow-[0_12px_30px_rgba(24,38,25,0.12)] sm:flex">
-        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#F2F6EF] text-[#2F6B4F]">
-          <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4" aria-hidden="true">
-            <path d="M10 2.5 16 4.6v4.5c0 3.5-2.3 6.5-6 7.9-3.7-1.4-6-4.4-6-7.9V4.6l6-2.1Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
-            <path d="m7.5 9.8 1.7 1.7 3.5-3.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </span>
-        {text("Clear, transparent guidance", "Malinaw at transparent na gabay")}
-      </div>
-    </div>
-  );
+  return <HeroCard3D language={language} />;
 }
 
 export default function Home() {
@@ -171,8 +97,8 @@ export default function Home() {
     cta: localizedText(language, "Start Assessment", "Simulan ang pagsusuri"),
     helper: localizedText(
       language,
-      "Start without an account. Save your result later if you choose.",
-      "Magsimula nang walang account. Maaari mong i-save ang resulta kapag pinili mo.",
+      "No account needed to begin.",
+      "Hindi kailangan ng account para magsimula.",
     ),
     triage: localizedText(language, "Three-level triage guidance", "Tatlong antas ng gabay sa pangangalaga"),
     process: localizedText(language, "A simple process", "Isang simpleng proseso"),
@@ -192,11 +118,11 @@ export default function Home() {
   return (
     <>
       <PageHeader />
-      <main className="premium-page flex-1 text-ink">
+      <main id="main-content" className="premium-page flex-1 text-ink">
         <section className="relative isolate overflow-hidden border-b border-[#D8E2D3] bg-[linear-gradient(135deg,rgba(250,252,248,0.96)_0%,rgba(241,247,240,0.92)_52%,rgba(234,242,233,0.92)_100%)]">
           <div className="pointer-events-none absolute -left-40 top-0 h-[34rem] w-[34rem] rounded-full bg-[#D9E9D9]/40 blur-3xl" aria-hidden="true" />
           <div className="pointer-events-none absolute right-[-8rem] top-[-7rem] h-[28rem] w-[28rem] rounded-full bg-[#E7DFC9]/35 blur-3xl" aria-hidden="true" />
-          <div className="relative mx-auto grid w-full max-w-[1600px] gap-5 px-5 pb-12 pt-12 sm:px-7 sm:pb-16 sm:pt-16 md:grid-cols-[1.05fr_0.95fr] md:items-center lg:gap-10 lg:px-10 lg:py-20 xl:gap-16 xl:px-14 xl:py-24 2xl:px-20">
+          <div className="relative mx-auto grid w-full max-w-[1600px] gap-7 px-5 pb-12 pt-10 sm:gap-9 sm:px-7 sm:pb-16 sm:pt-14 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:gap-10 lg:px-10 lg:py-20 xl:gap-16 xl:px-14 xl:py-24 2xl:px-20">
             <div className="relative z-10 py-3 sm:py-5 lg:py-8">
               <TagBadge>{strings.tag}</TagBadge>
               <h1 className="brand-wordmark mt-6 max-w-[13ch] text-[2.65rem] text-ink sm:text-[3.4rem] lg:text-[4.25rem] xl:text-[4.7rem] xl:leading-[1.02]">
@@ -205,14 +131,63 @@ export default function Home() {
               <p className="mt-6 max-w-xl text-base leading-relaxed text-ink-secondary sm:text-lg lg:mt-7 lg:text-xl lg:leading-[1.75]">
                 {strings.subhead}
               </p>
-              <div className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs font-medium text-ink-muted sm:mt-7 sm:text-sm" aria-label={strings.triage}>
-                <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-triage-green ring-4 ring-[#3E8E41]/10" />{localizedText(language, "Monitor", "Mag-monitor")}</span>
-                <span className="h-4 w-px bg-[#CBD7C9]" aria-hidden="true" />
-                <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-triage-yellow ring-4 ring-[#D98A2B]/10" />{localizedText(language, "Consult", "Kumonsulta")}</span>
-                <span className="h-4 w-px bg-[#CBD7C9]" aria-hidden="true" />
-                <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-triage-red ring-4 ring-[#C0432B]/10" />{localizedText(language, "Urgent care", "Agarang pangangalaga")}</span>
+              <div className="mt-6 max-w-xl sm:mt-7" aria-label={strings.triage}>
+                <div className="mb-2.5 flex items-center justify-between gap-3">
+                  <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.15em] text-ink-muted">
+                    {localizedText(language, "Care guidance", "Gabay sa pangangalaga")}
+                  </p>
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-[#DDE7DB] bg-white/70 px-2.5 py-1 text-[10px] font-medium text-ink-faint shadow-[0_3px_10px_rgba(24,38,25,0.035)]">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#2F6B4F]" aria-hidden="true" />
+                    {localizedText(language, "3 clear levels", "3 antas ng gabay")}
+                  </span>
+                </div>
+                <ul className="grid grid-cols-3 gap-2" aria-label={strings.triage}>
+                  {[
+                    {
+                      number: "01",
+                      title: localizedText(language, "Monitor", "Mag-monitor"),
+                      description: localizedText(language, "At home", "Sa bahay"),
+                      color: "border-[#D7E7D7] bg-[linear-gradient(145deg,#F7FBF6,#EEF6EE)]",
+                      accent: "bg-[#3E8E41]",
+                      halo: "ring-[#3E8E41]/10",
+                    },
+                    {
+                      number: "02",
+                      title: localizedText(language, "Consult", "Kumonsulta"),
+                      description: localizedText(language, "Health worker", "Health worker"),
+                      color: "border-[#EEE3CD] bg-[linear-gradient(145deg,#FCFAF4,#F8F1E3)]",
+                      accent: "bg-[#D98A2B]",
+                      halo: "ring-[#D98A2B]/10",
+                    },
+                    {
+                      number: "03",
+                      title: localizedText(language, "Urgent care", "Agarang tulong"),
+                      description: localizedText(language, "Get help now", "Humingi ng tulong"),
+                      color: "border-[#EBD8D3] bg-[linear-gradient(145deg,#FCF7F5,#F8ECE8)]",
+                      accent: "bg-[#C0432B]",
+                      halo: "ring-[#C0432B]/10",
+                    },
+                  ].map((level) => (
+                    <li
+                      key={level.number}
+                      className={`relative min-w-0 overflow-hidden rounded-xl border px-2.5 py-2.5 shadow-[0_5px_15px_rgba(24,38,25,0.035),inset_0_1px_0_rgba(255,255,255,0.8)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_20px_rgba(24,38,25,0.07)] sm:rounded-2xl sm:px-3 sm:py-3 ${level.color}`}
+                    >
+                      <span className={`absolute inset-x-0 top-0 h-[2px] ${level.accent}`} aria-hidden="true" />
+                      <div className="flex items-center justify-between gap-1">
+                        <span className={`h-2 w-2 shrink-0 rounded-full ${level.accent} ring-4 ${level.halo}`} aria-hidden="true" />
+                        <span className="font-mono text-[9px] font-semibold tracking-[0.08em] text-ink-faint/80">{level.number}</span>
+                      </div>
+                      <p className="mt-2 truncate text-[11px] font-semibold leading-tight text-ink sm:text-xs">
+                        {level.title}
+                      </p>
+                      <p className="mt-0.5 break-words text-[9px] leading-snug text-ink-muted sm:text-[10px]">
+                        {level.description}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <div className="mt-8 flex flex-col items-start gap-4 sm:mt-9 sm:flex-row sm:flex-wrap sm:items-center">
+              <div className="mt-7 flex flex-col items-start gap-3 sm:mt-9 sm:flex-row sm:flex-wrap sm:items-center">
                 <Link
                   href="/assessment"
                   className="group relative inline-flex min-h-12 w-full items-center justify-center overflow-hidden rounded-2xl border border-[#2F6B4F]/20 bg-[linear-gradient(135deg,#285D45_0%,#2F6B4F_38%,#3B7B5A_100%)] px-6 text-base font-semibold tracking-[0.01em] text-brand-foreground shadow-[0_16px_34px_rgba(47,107,79,0.22)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_20px_40px_rgba(47,107,79,0.28)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#2F6B4F]/20 sm:w-auto sm:min-h-[3.35rem] sm:px-7 sm:text-lg"
@@ -235,7 +210,14 @@ export default function Home() {
                     </svg>
                   </span>
                 </Link>
-                <span className="max-w-[18rem] text-xs leading-relaxed text-ink-muted sm:text-sm">{strings.helper}</span>
+                <span className="inline-flex max-w-[18rem] items-center gap-2 text-xs font-medium leading-relaxed text-ink-muted sm:text-sm">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[#D7E5D7] bg-white/80 text-brand shadow-[0_3px_8px_rgba(47,107,79,0.07)]" aria-hidden="true">
+                    <svg viewBox="0 0 20 20" fill="none" className="h-3.5 w-3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="m5 10 3.2 3.2L15.5 6" />
+                    </svg>
+                  </span>
+                  {strings.helper}
+                </span>
               </div>
             </div>
             <div className="relative flex justify-center md:justify-end">
@@ -252,7 +234,7 @@ export default function Home() {
             </div>
             <p className="max-w-sm text-sm leading-relaxed text-ink-muted lg:text-base">{strings.processDescription}</p>
           </div>
-          <div className="mt-8 grid gap-5 md:grid-cols-3 lg:mt-12 lg:gap-8">
+          <div className="relative mt-8 grid gap-5 md:grid-cols-3 lg:mt-12 lg:gap-8 before:absolute before:left-[16%] before:right-[16%] before:top-[43px] before:hidden before:h-px before:bg-gradient-to-r before:from-[#D8E5D6] before:via-[#AFC9B1] before:to-[#D8E5D6] before:content-[''] md:before:block">
             {STEPS.map((s) => (
               <div key={s.n} className="group relative rounded-[1.5rem] border border-[#DDE7DB] bg-[linear-gradient(180deg,#FFFFFF_0%,#F7FAF4_100%)] p-6 shadow-[0_14px_34px_rgba(24,38,25,0.055)] transition duration-200 hover:-translate-y-1 hover:border-brand/25 hover:shadow-[0_22px_42px_rgba(31,74,54,0.1)] lg:p-8">
                 <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-[#DCE8DC] bg-[#F1F7F1] font-mono text-xs font-semibold tracking-wide text-brand">
@@ -278,6 +260,58 @@ export default function Home() {
                 <p className="mt-2 text-base leading-relaxed text-ink-muted lg:text-lg">{localizedText(language, f.body, f.bodyFil)}</p>
               </div>
             ))}
+          </div>
+        </section>
+
+        <section className="relative overflow-hidden border-b border-[#D8E2D3] bg-[linear-gradient(135deg,#F7FAF5_0%,#EEF4EC_55%,#F5F2E9_100%)]" aria-labelledby="trust-heading">
+          <div className="pointer-events-none absolute -right-20 top-0 h-64 w-64 rounded-full bg-[#D9E9D9]/40 blur-3xl" aria-hidden="true" />
+          <div className="relative mx-auto w-full max-w-[1600px] px-5 py-12 sm:px-7 lg:px-10 lg:py-16 xl:px-14 2xl:px-20">
+            <div className="max-w-2xl">
+              <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-brand">
+                {localizedText(language, "Designed for clarity", "Dinisenyo para maging malinaw")}
+              </p>
+              <h2 id="trust-heading" className="mt-2 font-display text-2xl font-semibold tracking-[-0.035em] text-ink lg:text-3xl">
+                {localizedText(language, "Clear guidance, with honest limits.", "Malinaw na gabay, may tapat na hangganan.")}
+              </h2>
+              <p className="mt-3 text-sm leading-relaxed text-ink-muted sm:text-base">
+                {localizedText(language, "HealthGuard supports your next-step decision. It does not replace a health worker or provide a medical diagnosis.", "Tumutulong ang HealthGuard sa pagpapasya ng susunod na hakbang. Hindi ito kapalit ng health worker o medikal na diagnosis.")}
+              </p>
+            </div>
+            <div className="mt-7 grid gap-3 sm:grid-cols-3 sm:gap-4">
+              {[
+                {
+                  number: "01",
+                  title: localizedText(language, "Rule-based guidance", "Gabay na batay sa tuntunin"),
+                  body: localizedText(language, "Your answers are checked against defined symptom guidance rules.", "Inihahambing ang iyong mga sagot sa mga itinakdang tuntunin para sa mga sintomas."),
+                  icon: "M12 3.5 19 6v5.3c0 4.1-2.7 7.6-7 9.2-4.3-1.6-7-5.1-7-9.2V6l7-2.5Z",
+                },
+                {
+                  number: "02",
+                  title: localizedText(language, "A preliminary guide", "Paunang gabay"),
+                  body: localizedText(language, "The result is a starting point for deciding what to do next—not a diagnosis.", "Panimulang gabay ang resulta sa pagpapasya ng susunod na hakbang—hindi diagnosis."),
+                  icon: "M12 8v4l2.5 2.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z",
+                },
+                {
+                  number: "03",
+                  title: localizedText(language, "People come first", "Unahin ang kaligtasan"),
+                  body: localizedText(language, "If symptoms are severe or getting worse, contact a qualified health worker.", "Kung malubha o lumalala ang sintomas, makipag-ugnayan sa kwalipikadong health worker."),
+                  icon: "M12 3.5 19 6v5.3c0 4.1-2.7 7.6-7 9.2-4.3-1.6-7-5.1-7-9.2V6l7-2.5Z",
+                },
+              ].map((item) => (
+                <article key={item.number} className="rounded-2xl border border-[#DDE7DB] bg-white/80 p-4 shadow-[0_10px_26px_rgba(24,38,25,0.045)] backdrop-blur-sm sm:p-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#DCE8DC] bg-[#F1F7F1] text-brand">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true">
+                        <path d={item.icon} />
+                      </svg>
+                    </span>
+                    <span className="font-mono text-[10px] font-semibold tracking-[0.14em] text-ink-faint">{item.number}</span>
+                  </div>
+                  <h3 className="mt-4 text-sm font-semibold tracking-[-0.01em] text-ink sm:text-base">{item.title}</h3>
+                  <p className="mt-1.5 text-xs leading-relaxed text-ink-muted sm:text-sm">{item.body}</p>
+                </article>
+              ))}
+            </div>
           </div>
         </section>
 
