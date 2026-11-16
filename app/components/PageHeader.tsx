@@ -234,7 +234,7 @@ export default function PageHeader({ dashboardAlertCount = 0 }: { dashboardAlert
               <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(110deg,transparent_0%,rgba(255,255,255,0.55)_30%,transparent_58%)] opacity-80" aria-hidden="true" />
               {user?.role === "resident" && (
                 <>
-                  <Link href="/assessment" className={linkClass("/assessment")}>
+                  <Link href="/assessment" aria-current={pathname === "/assessment" ? "page" : undefined} className={linkClass("/assessment")}>
                     <IconWrapper>
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 lg:h-5 lg:w-5">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M9 4h6l4 4v12H5V4h4Zm3 0v5h5M8 13h8M8 17h5" />
@@ -243,7 +243,7 @@ export default function PageHeader({ dashboardAlertCount = 0 }: { dashboardAlert
                     {uiText.assessment}
                   </Link>
                   {pathname !== "/" && (
-                    <Link href="/history" className={linkClass("/history")}>
+                    <Link href="/history" aria-current={isHistoryRoute ? "page" : undefined} className={linkClass("/history")}>
                       <IconWrapper>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 lg:h-5 lg:w-5">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -256,11 +256,11 @@ export default function PageHeader({ dashboardAlertCount = 0 }: { dashboardAlert
               )}
 
               {user?.role === "mho" && (
-                <Link href="/dashboard" className={linkClass("/dashboard")}>Dashboard</Link>
+                <Link href="/dashboard" aria-current={pathname === "/dashboard" ? "page" : undefined} className={linkClass("/dashboard")}>Dashboard</Link>
               )}
 
               {user?.role === "admin" && (
-                <Link href="/admin" className={linkClass("/admin")}>
+                <Link href="/admin" aria-current={pathname?.startsWith("/admin") ? "page" : undefined} className={linkClass("/admin")}>
                   <IconWrapper>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 lg:h-5 lg:w-5">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 11a3 3 0 100-6 3 3 0 000 6zm-7 8a7 7 0 0114 0" />
@@ -272,7 +272,7 @@ export default function PageHeader({ dashboardAlertCount = 0 }: { dashboardAlert
 
               {user ? (
                 <>
-                  <Link href="/profile" className={linkClass("/profile")}>
+                  <Link href="/profile" aria-current={isProfileRoute ? "page" : undefined} className={linkClass("/profile")}>
                     <IconWrapper>
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 lg:h-5 lg:w-5">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 20a7 7 0 0114 0M12 12a4 4 0 100-8 4 4 0 000 8z" />
@@ -293,7 +293,7 @@ export default function PageHeader({ dashboardAlertCount = 0 }: { dashboardAlert
                 </>
               ) : (
                 <>
-                  <Link href="/login" className={linkClass("/login")}>
+                  <Link href="/login" aria-current={isLoginRoute ? "page" : undefined} className={linkClass("/login")}>
                     <IconWrapper>
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 lg:h-5 lg:w-5">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M10 17l5-5-5-5M15 12H3" />
@@ -301,7 +301,7 @@ export default function PageHeader({ dashboardAlertCount = 0 }: { dashboardAlert
                     </IconWrapper>
                     {uiText.login}
                   </Link>
-                  <Link href="/register" className={linkClass("/register")}>
+                  <Link href="/register" aria-current={isRegisterRoute ? "page" : undefined} className={linkClass("/register")}>
                     <IconWrapper>
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 lg:h-5 lg:w-5">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" />
@@ -355,8 +355,9 @@ export default function PageHeader({ dashboardAlertCount = 0 }: { dashboardAlert
                 key={item.href}
                 href={item.href}
                 onClick={() => setMobileMenuOpen(false)}
+                aria-current={item.active ? "page" : undefined}
                 className={cn(
-                  "flex items-center gap-3 rounded-xl border border-transparent px-3.5 py-3 text-sm font-medium outline-none transition-all duration-200 focus-visible:ring-4 focus-visible:ring-brand/20",
+                  "flex min-h-12 items-center gap-3 rounded-xl border border-transparent px-3.5 py-3 text-base font-medium outline-none transition-all duration-200 focus-visible:ring-4 focus-visible:ring-brand/20",
                   item.active
                     ? "border-brand/10 bg-brand-tint font-semibold text-brand-dark shadow-[inset_3px_0_0_var(--color-brand)]"
                     : "text-ink-secondary hover:bg-white/70 hover:text-ink",

@@ -99,8 +99,9 @@ export default function Sidebar({ user }: { user: User | null }) {
             <Link
               key={item.href}
               href={item.href}
+              aria-current={active ? "page" : undefined}
               className={cn(
-                "flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2.5 text-sm outline-none transition-colors focus-visible:ring-4 focus-visible:ring-brand/20",
+                "flex min-h-12 items-center gap-3 rounded-lg px-3 py-2.5 text-base outline-none transition-colors focus-visible:ring-4 focus-visible:ring-brand/20",
                 active
                   ? "bg-brand-tint font-semibold text-brand-dark shadow-[inset_3px_0_0_var(--color-brand)]"
                   : "text-ink-secondary hover:bg-card hover:text-ink",

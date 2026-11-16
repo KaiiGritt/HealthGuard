@@ -123,7 +123,7 @@ export function PremiumSelect({
         aria-expanded={open}
         disabled={disabled}
         onClick={() => setOpen((current) => !current)}
-        className={cn("premium-select flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-border bg-card px-3.5 py-2.5 text-left text-sm text-ink shadow-[0_4px_12px_rgba(24,38,25,0.04)] outline-none transition hover:border-brand/60 hover:bg-white focus:border-brand focus:ring-4 focus:ring-brand/10 disabled:cursor-not-allowed disabled:opacity-60", buttonClassName)}
+        className={cn("premium-select flex min-h-12 w-full items-center justify-between gap-3 rounded-xl border border-border bg-card px-3.5 py-2.5 text-left text-base text-ink shadow-[0_4px_12px_rgba(24,38,25,0.04)] outline-none transition hover:border-brand/60 hover:bg-white focus:border-brand focus:ring-4 focus:ring-brand/10 disabled:cursor-not-allowed disabled:opacity-60", buttonClassName)}
       >
         <span className="truncate">{activeOption?.label ?? "Select"}</span>
         <IconChevronDown size={17} className={cn("shrink-0 text-brand transition-transform duration-200", open && "rotate-180")} aria-hidden="true" />
@@ -147,7 +147,7 @@ export function PremiumSelect({
                 setOpen(false);
               }}
               className={cn(
-                "flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition hover:bg-brand-tint hover:text-brand-dark",
+                "flex w-full items-center justify-between rounded-xl px-3 py-3 text-left text-base transition hover:bg-brand-tint hover:text-brand-dark",
                 option.value === value ? "bg-brand/10 font-semibold text-brand-dark" : "text-ink-secondary",
               )}
             >
@@ -635,18 +635,18 @@ export function AuthCard({ children, className }: { children: ReactNode; classNa
 export const authLabelClass = "block text-sm font-medium text-ink-secondary";
 
 export const authInputClass =
-  "h-12 w-full rounded-xl border border-border bg-white/90 px-3.75 text-[0.9375rem] text-ink shadow-[0_1px_2px_rgba(15,23,42,0.02),inset_0_1px_0_rgba(255,255,255,0.8)] outline-none transition placeholder:text-ink-faint hover:border-brand/50 focus:border-brand focus:bg-white focus:ring-4 focus:ring-brand/10";
+  "min-h-13 w-full rounded-xl border border-border bg-white/90 px-3.75 text-base text-ink shadow-[0_1px_2px_rgba(15,23,42,0.02),inset_0_1px_0_rgba(255,255,255,0.8)] outline-none transition placeholder:text-ink-faint hover:border-brand/50 focus:border-brand focus:bg-white focus:ring-4 focus:ring-brand/10";
 
 export const authDateInputClass =
-  "premium-date-input h-12 w-full min-w-0 appearance-none rounded-xl border border-border bg-white/90 px-3.75 pr-12 text-[0.9375rem] text-ink shadow-[0_1px_2px_rgba(15,23,42,0.02),inset_0_1px_0_rgba(255,255,255,0.8)] outline-none transition hover:border-brand/50 hover:bg-white focus:border-brand focus:bg-white focus:ring-4 focus:ring-brand/10";
+  "premium-date-input min-h-13 w-full min-w-0 appearance-none rounded-xl border border-border bg-white/90 px-3.75 pr-12 text-base text-ink shadow-[0_1px_2px_rgba(15,23,42,0.02),inset_0_1px_0_rgba(255,255,255,0.8)] outline-none transition hover:border-brand/50 hover:bg-white focus:border-brand focus:bg-white focus:ring-4 focus:ring-brand/10";
 
 export const authSelectClass =
-  "premium-select h-12 w-full cursor-pointer appearance-none rounded-xl border border-border bg-white/90 px-3.75 pr-10 text-[0.9375rem] text-ink shadow-[0_1px_2px_rgba(15,23,42,0.02),inset_0_1px_0_rgba(255,255,255,0.8)] outline-none transition hover:border-brand/50 hover:bg-white focus:border-brand focus:ring-4 focus:ring-brand/10";
+  "premium-select min-h-13 w-full cursor-pointer appearance-none rounded-xl border border-border bg-white/90 px-3.75 pr-10 text-base text-ink shadow-[0_1px_2px_rgba(15,23,42,0.02),inset_0_1px_0_rgba(255,255,255,0.8)] outline-none transition hover:border-brand/50 hover:bg-white focus:border-brand focus:ring-4 focus:ring-brand/10";
 
 export const authFormStackClass = "space-y-4";
 
 export const authSubmitClass =
-  "flex h-12 w-full items-center justify-center rounded-[18px] bg-[linear-gradient(135deg,#2f6b4f_0%,#1f4a36_100%)] px-4 text-sm font-semibold tracking-[0.01em] text-brand-foreground shadow-[0_14px_30px_rgba(31,74,54,0.22),inset_0_1px_0_rgba(255,255,255,0.16)] ring-1 ring-white/40 transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_34px_rgba(31,74,54,0.28),inset_0_1px_0_rgba(255,255,255,0.18)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/20 disabled:cursor-not-allowed disabled:opacity-60";
+  "flex min-h-13 w-full items-center justify-center rounded-[18px] bg-[linear-gradient(135deg,#2f6b4f_0%,#1f4a36_100%)] px-4 text-base font-semibold tracking-[0.01em] text-brand-foreground shadow-[0_14px_30px_rgba(31,74,54,0.22),inset_0_1px_0_rgba(255,255,255,0.16)] ring-1 ring-white/40 transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_34px_rgba(31,74,54,0.28),inset_0_1px_0_rgba(255,255,255,0.18)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/20 disabled:cursor-not-allowed disabled:opacity-60";
 
 export function AuthProField({
   id,

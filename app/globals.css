@@ -26,7 +26,7 @@
   --color-ink: #182619;
   --color-ink-secondary: #3f4a3b;
   --color-ink-muted: #5b6355;
-  --color-ink-faint: #7c8a76;
+  --color-ink-faint: #626d5b;
 
   --color-surface: #f1f4ec;
   --color-surface-alt: #f6f7f0;
@@ -382,7 +382,7 @@
 
 body {
   font-family: var(--font-sans);
-  font-size: 1rem;
+  font-size: 1.0625rem;
   line-height: 1.65;
   letter-spacing: 0.005em;
   color: var(--color-ink);
@@ -391,10 +391,110 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+[class*="text-[8px]"],
+[class*="text-[9px]"],
+[class*="text-[10px]"],
+[class*="text-[11px]"] {
+  font-size: 0.8125rem !important;
+  line-height: 1.25rem !important;
+}
+
+[class*="text-[12px]"],
+[class~="text-xs"] {
+  font-size: 0.875rem !important;
+  line-height: 1.375rem !important;
+}
+
+[class*="text-[13px]"] {
+  font-size: 0.9375rem !important;
+  line-height: 1.5rem !important;
+}
+
+[class*="text-[14px]"],
+[class~="text-sm"] {
+  font-size: 1rem !important;
+  line-height: 1.5rem !important;
+}
+
+[class*="text-[15px]"],
+[class~="text-base"] {
+  font-size: 1.0625rem !important;
+  line-height: 1.625rem !important;
+}
+
+@media (min-width: 768px) {
+  body {
+    font-size: 1.125rem !important;
+    line-height: 1.7;
+  }
+
+  [class*="text-[8px]"],
+  [class*="text-[9px]"],
+  [class*="text-[10px]"],
+  [class*="text-[11px]"] {
+    font-size: 0.875rem !important;
+    line-height: 1.375rem !important;
+  }
+
+  [class*="text-[12px]"],
+  [class~="text-xs"] {
+    font-size: 1rem !important;
+    line-height: 1.5rem !important;
+  }
+
+  [class*="text-[13px]"] {
+    font-size: 1.0625rem !important;
+    line-height: 1.625rem !important;
+  }
+
+  [class*="text-[14px]"],
+  [class~="text-sm"] {
+    font-size: 1.125rem !important;
+    line-height: 1.75rem !important;
+  }
+
+  [class*="text-[15px]"],
+  [class~="text-base"] {
+    font-size: 1.1875rem !important;
+    line-height: 1.875rem !important;
+  }
+}
+
 @media (min-width: 1280px) {
   body {
-    font-size: 1.125rem;
+    font-size: 1.25rem !important;
     line-height: 1.7;
+  }
+
+  [class*="text-[8px]"],
+  [class*="text-[9px]"],
+  [class*="text-[10px]"],
+  [class*="text-[11px]"] {
+    font-size: 0.9375rem !important;
+    line-height: 1.5rem !important;
+  }
+
+  [class*="text-[12px]"],
+  [class~="text-xs"] {
+    font-size: 1.0625rem !important;
+    line-height: 1.625rem !important;
+  }
+
+  [class*="text-[13px]"] {
+    font-size: 1.125rem !important;
+    line-height: 1.75rem !important;
+  }
+
+  [class*="text-[14px]"],
+  [class~="text-sm"] {
+    font-size: 1.1875rem !important;
+    line-height: 1.875rem !important;
+  }
+
+  [class*="text-[15px]"],
+  [class~="text-base"] {
+    font-size: 1.25rem !important;
+    line-height: 2rem !important;
   }
 }
 
@@ -417,6 +517,37 @@ select,
 textarea {
   font-size: inherit;
   line-height: inherit;
+}
+
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 3px solid rgba(47, 107, 79, 0.72);
+  outline-offset: 3px;
+}
+
+:where(input, select, textarea):disabled,
+button:disabled {
+  cursor: not-allowed;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--color-brand);
+}
+
+::selection {
+  color: #173a28;
+  background: #d6ead9;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 select {
