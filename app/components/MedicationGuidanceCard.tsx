@@ -716,19 +716,6 @@ function ColdMedicationProfile({
       )}
 
       <SectionBlock
-        title="General safety precautions before medication"
-        items={[
-          "Age: Confirm the patient is 18 years old or older before using adult dosage guidance.",
-          "Medication allergies: Check for allergies to active and inactive ingredients.",
-          "Existing conditions: Review liver disease, kidney disease, hypertension, heart disease, and other relevant conditions.",
-          "Current medications: Check for duplicate ingredients and possible drug interactions.",
-          "Pregnancy and breastfeeding: Seek professional consultation before taking medication.",
-          "Dosage verification: Confirm the exact formulation and concentration before using a dose.",
-          "Symptom severity: Identify warning signs that require medical evaluation instead of self-medication.",
-        ]}
-      />
-
-      <SectionBlock
         title="Important safety reminders"
         items={[
           "Do not combine cold products without checking for duplicate paracetamol, antihistamines, or decongestants.",
