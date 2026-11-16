@@ -15,6 +15,7 @@ from . import scispacy_adapter, specialist_adapter
 from .extractor import extract_symptoms, is_negated_prefix
 from .lexicon import LexiconEntry, Match, match_selected, match_text
 from .rules import Classification, classify, emergency_terms_from_text
+from .tagalog_stemmer_adapter import match_tagalog_stemmed_symptoms
 from .tokenizer import normalize
 
 
@@ -64,6 +65,7 @@ def analyze(
             for term in emergency_terms_from_text(input_text)
         ])
         add([match for match in match_text(input_text, entries) if match.medical_term not in negated_terms])
+        add(match_tagalog_stemmed_symptoms(input_text, entries))
         extracted_matches = []
         for symptom in symptom_extraction["detected_symptoms"]:
             entry = entries_by_term.get(symptom["canonical_term"])

@@ -77,7 +77,7 @@ def test_admin_rule_preview_rejects_unrecognized_symptoms(
     assert "No recognized symptom" in error.value.detail
 
 
-def test_stemmer_suggestions_are_not_used_for_triage(
+def test_admin_preview_uses_live_stem_matches_and_suggests_unmatched_terms(
     db_session: Session,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -106,9 +106,6 @@ def test_stemmer_suggestions_are_not_used_for_triage(
         admin,
     )
 
-    assert {item.medical_term for item in result.detected_symptoms} == {"cough"}
-    assert result.stem_suggestions == [
-        {"medical_term": "headache", "matched_lexicon_term": "masakit ang ulo"}
-    ]
-    assert result.score == cough_only.score
-    assert result.risk_level == cough_only.risk_level
+    assert {item.medical_term for item in result.detected_symptoms} == {"cough", "headache"}
+    assert result.stem_suggestions == []
+    assert result.score > cough_only.score

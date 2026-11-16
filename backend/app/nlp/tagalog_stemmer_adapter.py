@@ -1,4 +1,4 @@
-"""Generate non-authoritative Tagalog symptom candidates for human review."""
+"""Match Tagalog inflections to existing symptom phrases using TglStemmer."""
 from __future__ import annotations
 
 import re
@@ -6,7 +6,8 @@ from functools import lru_cache
 
 from tglstemmer import stemmer
 
-from .lexicon import LexiconEntry
+from .extractor import is_negated_prefix
+from .lexicon import LexiconEntry, Match
 
 _WORD_PATTERN = re.compile(r"[a-zñ]+", re.IGNORECASE)
 _STOP_WORDS = {
@@ -32,15 +33,63 @@ def _stem(token: str) -> str:
     return str(stemmer.get_stem(token)).lower()
 
 
-def _content_stems(text: str) -> tuple[str, ...]:
-    stems = []
-    for token in _WORD_PATTERN.findall(text.lower()):
+def _content_tokens(text: str) -> list[tuple[str, int, int]]:
+    tokens = []
+    for match in _WORD_PATTERN.finditer(text):
+        token = match.group(0).lower()
         if token in _STOP_WORDS:
             continue
         root = _stem(token)
         if root and root not in _STOP_WORDS:
-            stems.append(root)
-    return tuple(stems)
+            tokens.append((root, match.start(), match.end()))
+    return tokens
+
+
+def _content_stems(text: str) -> tuple[str, ...]:
+    return tuple(root for root, _, _ in _content_tokens(text))
+
+
+def match_tagalog_stemmed_symptoms(
+    text: str,
+    entries: list[LexiconEntry],
+) -> list[Match]:
+    """Match contiguous stemmed phrases from the existing Tagalog lexicon."""
+    input_tokens = _content_tokens(text)
+    if not input_tokens:
+        return []
+
+    best: dict[str, Match] = {}
+    input_stems = tuple(root for root, _, _ in input_tokens)
+    for entry in entries:
+        if entry.language.lower() != "tl":
+            continue
+        phrase_stems = _content_stems(entry.local_term)
+        phrase_length = len(phrase_stems)
+        if phrase_length < 2:
+            continue
+
+        for index in range(len(input_stems) - phrase_length + 1):
+            if input_stems[index:index + phrase_length] != phrase_stems:
+                continue
+            _, start, _ = input_tokens[index]
+            end = input_tokens[index + phrase_length - 1][2]
+            if re.search(r"[,;.!?\r\n]", text[start:end]):
+                continue
+            if is_negated_prefix(text[:start]):
+                continue
+
+            candidate = Match(
+                medical_term=entry.medical_term,
+                matched_text=text[start:end],
+                language="tl",
+                category=entry.category,
+                severity_weight=entry.severity_weight,
+            )
+            current = best.get(entry.medical_term)
+            if current is None or candidate.severity_weight > current.severity_weight:
+                best[entry.medical_term] = candidate
+            break
+    return list(best.values())
 
 
 def suggest_tagalog_symptoms(
@@ -48,7 +97,7 @@ def suggest_tagalog_symptoms(
     entries: list[LexiconEntry],
     matched_terms: set[str],
 ) -> list[dict[str, str]]:
-    """Return stemmed phrase candidates without adding them to triage matches."""
+    """Return unmatched stemmed phrase candidates for human review."""
     input_stems = _content_stems(text)
     if not input_stems:
         return []

@@ -288,6 +288,20 @@ def test_engine_uses_extractor_for_voice_to_text_and_bicol_aliases() -> None:
     )
 
 
+def test_tagalog_stemmer_matches_only_supported_phrases_and_respects_negation() -> None:
+    entries = [LexiconEntry(**entry) for entry in LEXICON_SEED]
+
+    inflected = analyze("sumasakit ulo ko", [], entries)
+    negated = analyze("hindi sumasakit ulo ko", [], entries)
+    unsupported = analyze("sumasakit siko ko", [], entries)
+    punctuated = analyze("sumasakit, ulo ko", [], entries)
+
+    assert "headache" in {item.medical_term for item in inflected.matches}
+    assert "headache" not in {item.medical_term for item in negated.matches}
+    assert "headache" not in {item.medical_term for item in unsupported.matches}
+    assert "headache" not in {item.medical_term for item in punctuated.matches}
+
+
 def test_engine_maps_additional_extractor_canonicals_to_triage_terms() -> None:
     entries = [LexiconEntry(**entry) for entry in LEXICON_SEED]
 

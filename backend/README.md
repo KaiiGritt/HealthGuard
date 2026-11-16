@@ -5,11 +5,14 @@ uses NLTK, scispaCy, and the custom English–Tagalog/Bikol symptom lexicon. An 
 SPECIALIST layer reads the native NLM `LEXICON` file configured locally.
 Use Python 3.11 or 3.12 for the required scispaCy model.
 
-The admin triage preview can also show experimental Tagalog stemming candidates
-using TglStemmer. These are review-only suggestions: they do not add detected
-symptoms or affect triage scores or risk levels. Review the original text before
-making any lexicon changes. The upstream project reports 75.19% accuracy on its
-manually assembled test set, so these candidates are not a validated clinical signal.
+Live assessments use TglStemmer to match inflected Tagalog text only against existing
+multiword Tagalog symptom phrases in the lexicon. Stem matches preserve
+negation checks and pass through the same deterministic triage rules as other
+recognized symptoms; the stemmer does not add symptoms, severity, diagnoses, or
+recommendations. This matching remains experimental and is not clinically validated.
+The admin triage preview may also show unmatched stem candidates for human review.
+Review the original text before changing the lexicon. The upstream project reports
+75.19% accuracy on its manually assembled test set; this is not clinical validation.
 
 ## One-time setup
 

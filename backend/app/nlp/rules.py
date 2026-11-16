@@ -11,6 +11,7 @@ import re
 
 from .extractor import _NUMBER_WORDS, is_age_duration, is_negated_prefix
 from .lexicon import LexiconEntry, Match, match_selected, match_text
+from .tagalog_stemmer_adapter import match_tagalog_stemmed_symptoms
 
 
 def _supported_lexicon_entries() -> list[LexiconEntry]:
@@ -41,7 +42,11 @@ def has_supported_symptom_input(input_text: str, selected_symptoms: list[str] | 
     if not cleaned_selected and not str(input_text or "").strip():
         return False
 
-    return bool(match_text(str(input_text or ""), entries) or match_selected(cleaned_selected, entries))
+    return bool(
+        match_text(str(input_text or ""), entries)
+        or match_tagalog_stemmed_symptoms(str(input_text or ""), entries)
+        or match_selected(cleaned_selected, entries)
+    )
 
 
 @dataclass(frozen=True)
