@@ -37,6 +37,7 @@ import { getSymptomDetailDescription } from "../symptomDetailDescriptions";
 import { IconChevronDown, IconProfile } from "@/app/components/ui/icons";
 import { localizedText, useInterfaceLanguage } from "@/app/components/LanguageProvider";
 import { useAssessmentMode } from "../AssessmentTargetContext";
+import AssessmentProcessingState from "../AssessmentProcessingState";
 import FreeTextSymptomToggle from "../FreeTextSymptomToggle";
 import PainScale, { PAIN_SCALE_SYMPTOMS } from "../PainScale";
 import { SYMPTOM_CATEGORIES, SYMPTOMS } from "../symptoms";
@@ -189,6 +190,13 @@ export default function PersonAssessmentPage() {
 
   async function handleSubmit() {
     if (!canSubmit) return;
+    if (exactDurationMode && !exactDurationValid) {
+      setToast(exactDaysValue > MAX_EXACT_DURATION_DAYS
+        ? localizedText(language, "Enter a duration of 365 days or less.", "Maglagay ng tagal na hindi hihigit sa 365 araw.")
+        : localizedText(language, "Enter the number of days since symptoms started, or go back to choose a time range.", "Ilagay kung ilang araw na mula nang magsimula ang sintomas o pumili ng saklaw ng panahon."));
+      return;
+    }
+
     setSubmitting(true);
     try {
       const typeText = Object.values(selectedTypes).flat().join(", ");
@@ -196,13 +204,6 @@ export default function PersonAssessmentPage() {
         .filter((item) => painLevels[item.key] !== undefined)
         .map((item) => `${item.key} ${painLevels[item.key]}/10`)
         .join(", ");
-      if (exactDurationMode && !exactDurationValid) {
-        setSubmitting(false);
-        setToast(exactDaysValue > MAX_EXACT_DURATION_DAYS
-          ? localizedText(language, "Enter a duration of 365 days or less.", "Maglagay ng tagal na hindi hihigit sa 365 araw.")
-          : localizedText(language, "Enter the number of days since symptoms started, or go back to choose a time range.", "Ilagay kung ilang araw na mula nang magsimula ang sintomas o pumili ng saklaw ng panahon."));
-        return;
-      }
       const payload = {
         input_text: [
           selfAssessment
@@ -237,6 +238,24 @@ export default function PersonAssessmentPage() {
       setToast(error instanceof Error ? error.message : "Something went wrong. Please try again.");
       setSubmitting(false);
     }
+  }
+
+  if (submitting) {
+    const processingContent = (
+      <Card className="relative overflow-hidden rounded-3xl border border-[#DDE7DB] bg-[linear-gradient(135deg,#FFFFFF_0%,#FBFCF9_58%,#F1F5EE_100%)] p-5 shadow-[0_26px_72px_rgba(24,38,25,0.11)] ring-1 ring-white/70 sm:p-8">
+        <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" aria-hidden="true" />
+        <AssessmentProcessingState language={language} />
+      </Card>
+    );
+
+    if (embedded) return processingContent;
+
+    return (
+      <div className="premium-page min-h-screen">
+        <PageHeader />
+        <PageMain narrow>{processingContent}</PageMain>
+      </div>
+    );
   }
 
   const content = (

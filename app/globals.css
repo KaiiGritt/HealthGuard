@@ -380,6 +380,11 @@
   to { transform: scaleX(0); }
 }
 
+@keyframes assessment-progress {
+  0% { transform: translateX(-110%); }
+  100% { transform: translateX(310%); }
+}
+
 body {
   font-family: var(--font-sans);
   font-size: 1.0625rem;

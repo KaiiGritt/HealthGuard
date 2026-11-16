@@ -40,6 +40,7 @@ import { localizedText, useInterfaceLanguage } from "../components/LanguageProvi
 import { AssessmentTargetProvider } from "./AssessmentTargetContext";
 import FreeTextSymptomToggle from "./FreeTextSymptomToggle";
 import PainScale, { PAIN_SCALE_SYMPTOMS } from "./PainScale";
+import AssessmentProcessingState from "./AssessmentProcessingState";
 import PersonAssessmentPage from "./child/page";
 import { SYMPTOM_CATEGORIES, SYMPTOMS } from "./symptoms";
 
@@ -60,8 +61,6 @@ const DURATION_OPTIONS = [
 ] as const;
 
 const MAX_EXACT_DURATION_DAYS = 365;
-const MIN_PROCESSING_TIME_MS = 7000;
-const PROCESSING_STEP_INTERVAL_MS = 2200;
 
 const ABDOMINAL_QUALITY_OPTIONS = [
   ...ABDOMINAL_PAIN_CLASSIFICATIONS,
@@ -114,7 +113,6 @@ export default function AssessmentPage() {
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; tone: "success" | "error" } | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [processingStep, setProcessingStep] = useState(0);
   const guestAssessmentStarted = useRef(false);
 
   useEffect(() => {
@@ -134,12 +132,6 @@ export default function AssessmentPage() {
       active = false;
     };
   }, [router]);
-
-  useEffect(() => {
-    if (!submitting) return;
-    const timer = window.setInterval(() => setProcessingStep((step) => Math.min(step + 1, 2)), PROCESSING_STEP_INTERVAL_MS);
-    return () => window.clearInterval(timer);
-  }, [submitting]);
 
   useEffect(() => {
     if (!toast) return;
@@ -257,7 +249,6 @@ export default function AssessmentPage() {
 
     setSubmitting(true);
     setError(null);
-    const processingStartedAt = Date.now();
     try {
       const symptomText = text.trim();
       const combinedText = [
@@ -287,10 +278,6 @@ export default function AssessmentPage() {
         duration_days: exactDurationMode ? exactDaysValue : selectedDuration?.days ?? null,
       } as const;
       const result = await analyze(payload);
-      const remainingDisplayTime = Math.max(0, MIN_PROCESSING_TIME_MS - (Date.now() - processingStartedAt));
-      if (remainingDisplayTime > 0) {
-        await new Promise<void>((resolve) => window.setTimeout(resolve, remainingDisplayTime));
-      }
       if (result.id === 0) {
         window.sessionStorage.setItem("healthguard_pending_guest_assessment", JSON.stringify(payload));
         window.sessionStorage.setItem("healthguard_guest_result", JSON.stringify(result));
@@ -316,42 +303,7 @@ export default function AssessmentPage() {
           <Card className={`relative overflow-hidden rounded-3xl border border-[#DDE7DB] bg-[linear-gradient(135deg,#FFFFFF_0%,#FBFCF9_58%,#F1F5EE_100%)] shadow-[0_26px_72px_rgba(24,38,25,0.11)] ring-1 ring-white/70 ${submitting ? "mx-auto w-full max-w-4xl" : ""}`}>
             <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-[#183D2D] via-[#2E6A52] to-[#C7B37A]" aria-hidden="true" />
             {submitting ? (
-              <div className="py-8 sm:py-12" aria-live="polite">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-brand">HealthGuard check</p>
-                    <h1 className="mt-4 font-display text-4xl font-semibold leading-tight text-ink sm:text-5xl">Reviewing your symptoms</h1>
-                  </div>
-                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-brand/15 bg-brand-tint text-brand" aria-hidden="true">
-                    <span className="h-5 w-5 animate-spin rounded-full border-2 border-brand/25 border-t-brand" />
-                  </span>
-                </div>
-                <p className="mt-4 max-w-2xl text-lg leading-relaxed text-ink-secondary">
-                  We are comparing the reported symptoms with the HealthGuard guidance rules. Please wait while we prepare the result.
-                </p>
-                <div className="mt-7 flex items-center justify-between text-xs font-semibold uppercase tracking-[0.12em] text-ink-faint">
-                  <span>Assessment in progress</span>
-                  <span>Step {Math.min(processingStep + 1, 3)} of 3</span>
-                </div>
-                <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#E5EEE2]">
-                  <div className="h-full rounded-full bg-gradient-to-r from-brand-dark via-brand to-[#C7B37A] transition-all duration-700" style={{ width: `${((processingStep + 1) / 3) * 100}%` }} />
-                </div>
-                <ol className="mt-8 overflow-hidden rounded-2xl border border-[#DDE7DB] bg-white/70">
-                  {["Reading your symptoms", "Checking health guidance", "Preparing your next step"].map((step, index) => {
-                    const completed = index < processingStep;
-                    const active = index === processingStep;
-                    return (
-                      <li key={step} className={`flex items-center gap-4 border-b border-[#E8EEE5] px-4 py-4 last:border-b-0 sm:px-5 ${active ? "bg-brand-tint/65" : ""}`}>
-                        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl font-mono text-sm font-semibold ${completed ? "bg-brand text-brand-foreground" : active ? "border border-brand/35 bg-white text-brand" : "border border-border-soft bg-white text-ink-faint"}`}>
-                          {completed ? "✓" : index + 1}
-                        </span>
-                        <span className={`flex-1 text-sm sm:text-base ${active ? "font-semibold text-ink" : completed ? "text-ink-secondary" : "text-ink-faint"}`}>{step}</span>
-                        <span className={`text-xs font-semibold ${active ? "text-brand" : completed ? "text-brand-dark" : "text-ink-faint"}`}>{completed ? "Done" : active ? "Now" : "Waiting"}</span>
-                      </li>
-                    );
-                  })}
-                </ol>
-              </div>
+              <AssessmentProcessingState language={language} />
             ) : (
               <>
                 <PageTitle subtitle={localizedText(language, "Tap what you're feeling, then tap when it started.", "Piliin ang nararamdaman mo at kung kailan ito nagsimula.")}>
